@@ -2,282 +2,264 @@ import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import pg from "pg"
+import fs from "fs"
+import path from "path"
+import csv from "csv-parser"
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
+// ── Helper Function to Read CSV ────────────────────────
+function readCSV<T>(filePath: string): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const results: T[] = []
+    if (!fs.existsSync(filePath)) {
+      console.log(`⚠️ File not found: ${filePath}`)
+      resolve([])
+      return
+    }
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on("data", (data) => results.push(data as T))
+      .on("end", () => resolve(results))
+      .on("error", (error) => reject(error))
+  })
+}
+
 async function main() {
-  console.log("🌱 Seeding medical dictionary & Egyptian drugs...")
+  console.log("🌱 Seeding medical dictionary (New Schema)...")
 
   // ════════════════════════════════════════════════════
-  // COMPLAINTS (50+ شكوى شائعة)
+  // COMPLAINTS (الشكاوى)
   // ════════════════════════════════════════════════════
   const complaints = [
-    { name: "Headache", specialty: "Neurology" },
-    { name: "Fever", specialty: "General" },
-    { name: "Chest Pain", specialty: "Cardiology" },
-    { name: "Abdominal Pain", specialty: "Gastroenterology" },
-    { name: "Cough", specialty: "Pulmonology" },
-    { name: "Shortness of Breath", specialty: "Pulmonology" },
-    { name: "Dizziness", specialty: "Neurology" },
-    { name: "Nausea", specialty: "Gastroenterology" },
-    { name: "Vomiting", specialty: "Gastroenterology" },
-    { name: "Diarrhea", specialty: "Gastroenterology" },
-    { name: "Constipation", specialty: "Gastroenterology" },
-    { name: "Fatigue", specialty: "General" },
-    { name: "Back Pain", specialty: "Orthopedics" },
-    { name: "Sore Throat", specialty: "ENT" },
-    { name: "Joint Pain", specialty: "Rheumatology" },
-    { name: "Skin Rash", specialty: "Dermatology" },
-    { name: "Blurred Vision", specialty: "Ophthalmology" },
-    { name: "Palpitation", specialty: "Cardiology" },
-    { name: "Heartburn", specialty: "Gastroenterology" },
-    { name: "Loss of Appetite", specialty: "General" },
-    { name: "Weight Loss", specialty: "General" },
-    { name: "Weight Gain", specialty: "Endocrinology" },
-    { name: "Insomnia", specialty: "Psychiatry" },
-    { name: "Anxiety", specialty: "Psychiatry" },
-    { name: "Ear Pain", specialty: "ENT" },
-    { name: "Nasal Congestion", specialty: "ENT" },
-    { name: "Runny Nose", specialty: "ENT" },
-    { name: "Itching", specialty: "Dermatology" },
-    { name: "Burning Urination", specialty: "Urology" },
-    { name: "Frequent Urination", specialty: "Urology" },
-    { name: "Swelling of Legs", specialty: "Cardiology" },
-    { name: "Numbness", specialty: "Neurology" },
-    { name: "Tingling", specialty: "Neurology" },
-    { name: "Muscle Weakness", specialty: "Neurology" },
-    { name: "Toothache", specialty: "Dental" },
-    { name: "Bleeding Gums", specialty: "Dental" },
-    { name: "Hair Loss", specialty: "Dermatology" },
-    { name: "Acne", specialty: "Dermatology" },
-    { name: "Wheezing", specialty: "Pulmonology" },
-    { name: "Knee Pain", specialty: "Orthopedics" },
-    { name: "Neck Pain", specialty: "Orthopedics" },
-    { name: "Shoulder Pain", specialty: "Orthopedics" },
-    { name: "Eye Redness", specialty: "Ophthalmology" },
-    { name: "Dry Eyes", specialty: "Ophthalmology" },
-    { name: "Tinnitus", specialty: "ENT" },
-    { name: "Hearing Loss", specialty: "ENT" },
-    { name: "Chest Tightness", specialty: "Pulmonology" },
-    { name: "Leg Pain", specialty: "Vascular" },
-    { name: "Snoring", specialty: "ENT" },
-    { name: "Excessive Sweating", specialty: "Endocrinology" },
+    "Headache", "Fever", "Chest Pain", "Abdominal Pain", "Cough",
+    "Shortness of Breath", "Dizziness", "Nausea", "Vomiting", "Diarrhea",
+    "Constipation", "Fatigue", "Back Pain", "Sore Throat", "Joint Pain",
+    "Skin Rash", "Blurred Vision", "Palpitation", "Heartburn", "Loss of Appetite",
+    "Weight Loss", "Weight Gain", "Insomnia", "Anxiety", "Ear Pain",
+    "Nasal Congestion", "Runny Nose", "Itching", "Burning Urination", "Frequent Urination",
+    "Swelling of Legs", "Numbness", "Tingling", "Muscle Weakness", "Toothache",
+    "Bleeding Gums", "Hair Loss", "Acne", "Wheezing", "Knee Pain",
+    "Neck Pain", "Shoulder Pain", "Eye Redness", "Dry Eyes", "Tinnitus",
+    "Hearing Loss", "Chest Tightness", "Leg Pain", "Snoring", "Excessive Sweating"
   ]
 
-  for (const c of complaints) {
-    await prisma.complaintMaster.upsert({
-      where: { name: c.name },
-      update: { specialty: c.specialty },
-      create: c,
-    })
-  }
-  console.log(`✅ Seeded ${complaints.length} complaints`)
-
-  // ════════════════════════════════════════════════════
-  // DIAGNOSES (30+ تشخيص شائع)
-  // ════════════════════════════════════════════════════
-  const diagnoses = [
-    { name: "Hypertension", specialty: "Cardiology" },
-    { name: "Diabetes Mellitus Type 2", specialty: "Endocrinology" },
-    { name: "Diabetes Mellitus Type 1", specialty: "Endocrinology" },
-    { name: "Viral Infection", specialty: "Infectious Disease" },
-    { name: "Gastritis", specialty: "Gastroenterology" },
-    { name: "Asthma", specialty: "Pulmonology" },
-    { name: "Migraine", specialty: "Neurology" },
-    { name: "Urinary Tract Infection", specialty: "Urology" },
-    { name: "Allergic Rhinitis", specialty: "ENT" },
-    { name: "Acne Vulgaris", specialty: "Dermatology" },
-    { name: "Anemia", specialty: "Hematology" },
-    { name: "Osteoarthritis", specialty: "Orthopedics" },
-    { name: "Anxiety Disorder", specialty: "Psychiatry" },
-    { name: "Gastroesophageal Reflux Disease", specialty: "Gastroenterology" },
-    { name: "Common Cold", specialty: "General" },
-    { name: "Acute Bronchitis", specialty: "Pulmonology" },
-    { name: "Pneumonia", specialty: "Pulmonology" },
-    { name: "Sinusitis", specialty: "ENT" },
-    { name: "Pharyngitis", specialty: "ENT" },
-    { name: "Tonsillitis", specialty: "ENT" },
-    { name: "Conjunctivitis", specialty: "Ophthalmology" },
-    { name: "Otitis Media", specialty: "ENT" },
-    { name: "Eczema", specialty: "Dermatology" },
-    { name: "Psoriasis", specialty: "Dermatology" },
-    { name: "Hypothyroidism", specialty: "Endocrinology" },
-    { name: "Hyperthyroidism", specialty: "Endocrinology" },
-    { name: "Chronic Kidney Disease", specialty: "Nephrology" },
-    { name: "Sciatica", specialty: "Orthopedics" },
-    { name: "Cervical Spondylosis", specialty: "Orthopedics" },
-    { name: "Irritable Bowel Syndrome", specialty: "Gastroenterology" },
-    { name: "Peptic Ulcer Disease", specialty: "Gastroenterology" },
-    { name: "Atrial Fibrillation", specialty: "Cardiology" },
-    { name: "Heart Failure", specialty: "Cardiology" },
-    { name: "Depression", specialty: "Psychiatry" },
-    { name: "Insomnia Disorder", specialty: "Psychiatry" },
-  ]
-
-  for (const d of diagnoses) {
-    await prisma.diagnosisMaster.upsert({
-      where: { name: d.name },
-      update: { specialty: d.specialty },
-      create: d,
-    })
-  }
-  console.log(`✅ Seeded ${diagnoses.length} diagnoses`)
-
-  // ════════════════════════════════════════════════════
-  // EGYPTIAN DRUG DATABASE (100+ دواء)
-  // ════════════════════════════════════════════════════
-  const drugs = [
-    // ── Analgesics & Antipyretics ────────────────────
-    { name: "Panadol", genericName: "Paracetamol", category: "Analgesic", form: "Tablet", dosage: "500mg", notes: "After meals" },
-    { name: "Panadol Extra", genericName: "Paracetamol + Caffeine", category: "Analgesic", form: "Tablet", dosage: "500mg/65mg", notes: "For headache" },
-    { name: "Panadol Cold & Flu", genericName: "Paracetamol + Pseudoephedrine + Chlorpheniramine", category: "Cold & Flu", form: "Tablet", dosage: "500mg/30mg/2mg", notes: "For cold symptoms" },
-    { name: "Brufen", genericName: "Ibuprofen", category: "NSAID", form: "Tablet", dosage: "400mg", notes: "After meals" },
-    { name: "Cataflam", genericName: "Diclofenac Potassium", category: "NSAID", form: "Tablet", dosage: "50mg", notes: "After meals" },
-    { name: "Voltaren", genericName: "Diclofenac Sodium", category: "NSAID", form: "Tablet", dosage: "50mg", notes: "After meals" },
-    { name: "Mobic", genericName: "Meloxicam", category: "NSAID", form: "Tablet", dosage: "15mg", notes: "Once daily" },
-    { name: "Celebrex", genericName: "Celecoxib", category: "NSAID", form: "Capsule", dosage: "200mg", notes: "With food" },
-    { name: "Solpadeine", genericName: "Paracetamol + Codeine + Caffeine", category: "Analgesic", form: "Tablet", dosage: "500mg/8mg/30mg", notes: "For severe pain" },
-    { name: "Tramal", genericName: "Tramadol", category: "Opioid Analgesic", form: "Capsule", dosage: "50mg", notes: "Prescription only" },
-
-    // ── Antibiotics ──────────────────────────────────
-    { name: "Augmentin", genericName: "Amoxicillin + Clavulanate", category: "Antibiotic", form: "Tablet", dosage: "1g/125mg", notes: "After meals, 12 hourly" },
-    { name: "Amoxil", genericName: "Amoxicillin", category: "Antibiotic", form: "Capsule", dosage: "500mg", notes: "8 hourly" },
-    { name: "Zithromax", genericName: "Azithromycin", category: "Antibiotic", form: "Tablet", dosage: "500mg", notes: "Once daily for 3-5 days" },
-    { name: "Ciprobay", genericName: "Ciprofloxacin", category: "Antibiotic", form: "Tablet", dosage: "500mg", notes: "12 hourly, avoid dairy" },
-    { name: "Keflex", genericName: "Cephalexin", category: "Antibiotic", form: "Capsule", dosage: "500mg", notes: "8 hourly" },
-    { name: "Flagyl", genericName: "Metronidazole", category: "Antibiotic", form: "Tablet", dosage: "500mg", notes: "8 hourly, no alcohol" },
-    { name: "Erythrocin", genericName: "Erythromycin", category: "Antibiotic", form: "Tablet", dosage: "500mg", notes: "6 hourly, before meals" },
-    { name: "Doxymycin", genericName: "Doxycycline", category: "Antibiotic", form: "Capsule", dosage: "100mg", notes: "12 hourly, with water, avoid sun" },
-    { name: "Bactrim", genericName: "Trimethoprim + Sulfamethoxazole", category: "Antibiotic", form: "Tablet", dosage: "160mg/800mg", notes: "12 hourly, plenty of water" },
-    { name: "Rocephin", genericName: "Ceftriaxone", category: "Antibiotic", form: "Injection", dosage: "1g", notes: "IV/IM once daily" },
-    { name: "Unasyn", genericName: "Ampicillin + Sulbactam", category: "Antibiotic", form: "Injection", dosage: "1.5g", notes: "IV 8 hourly" },
-    { name: "Tavanic", genericName: "Levofloxacin", category: "Antibiotic", form: "Tablet", dosage: "500mg", notes: "Once daily" },
-
-    // ── Gastrointestinal ─────────────────────────────
-    { name: "Losec", genericName: "Omeprazole", category: "PPI", form: "Capsule", dosage: "20mg", notes: "Before breakfast, 30 min before food" },
-    { name: "Nexium", genericName: "Esomeprazole", category: "PPI", form: "Tablet", dosage: "40mg", notes: "Before breakfast" },
-    { name: "Controloc", genericName: "Pantoprazole", category: "PPI", form: "Tablet", dosage: "40mg", notes: "Before breakfast" },
-    { name: "Motilium", genericName: "Domperidone", category: "Anti-emetic", form: "Tablet", dosage: "10mg", notes: "Before meals, 3 times daily" },
-    { name: "Maxolon", genericName: "Metoclopramide", category: "Anti-emetic", form: "Tablet", dosage: "10mg", notes: "Before meals" },
-    { name: "Antacid", genericName: "Aluminium Hydroxide + Magnesium Hydroxide", category: "Antacid", form: "Syrup", dosage: "15ml", notes: "After meals" },
-    { name: "Maalox", genericName: "Aluminium Hydroxide + Magnesium Hydroxide", category: "Antacid", form: "Syrup", dosage: "15ml", notes: "After meals" },
-    { name: "Flagyl", genericName: "Metronidazole", category: "Antiprotozoal", form: "Tablet", dosage: "500mg", notes: "8 hourly, no alcohol" },
-    { name: "Loperamide", genericName: "Loperamide HCl", category: "Antidiarrheal", form: "Capsule", dosage: "2mg", notes: "After first loose stool, then 2mg after each subsequent" },
-    { name: "Imodium", genericName: "Loperamide HCl", category: "Antidiarrheal", form: "Capsule", dosage: "2mg", notes: "After first loose stool" },
-    { name: "Duspatalin", genericName: "Mebeverine", category: "Antispasmodic", form: "Tablet", dosage: "135mg", notes: "Before meals, 3 times daily" },
-    { name: "Buscopan", genericName: "Hyoscine Butylbromide", category: "Antispasmodic", form: "Tablet", dosage: "10mg", notes: "3 times daily" },
-    { name: "Lactulose", genericName: "Lactulose", category: "Laxative", form: "Syrup", dosage: "15ml", notes: "Once or twice daily" },
-    { name: "Duphalac", genericName: "Lactulose", category: "Laxative", form: "Syrup", dosage: "15ml", notes: "Once or twice daily" },
-    { name: "Creon", genericName: "Pancreatin", category: "Digestive Enzyme", form: "Capsule", dosage: "10000IU", notes: "With meals" },
-
-    // ── Cardiovascular ───────────────────────────────
-    { name: "Concor", genericName: "Bisoprolol", category: "Beta Blocker", form: "Tablet", dosage: "5mg", notes: "Once daily in the morning" },
-    { name: "Betaloc", genericName: "Metoprolol", category: "Beta Blocker", form: "Tablet", dosage: "50mg", notes: "Once or twice daily" },
-    { name: "Norvasc", genericName: "Amlodipine", category: "Calcium Channel Blocker", form: "Tablet", dosage: "5mg", notes: "Once daily" },
-    { name: "Amlor", genericName: "Amlodipine", category: "Calcium Channel Blocker", form: "Tablet", dosage: "10mg", notes: "Once daily" },
-    { name: "Zestril", genericName: "Lisinopril", category: "ACE Inhibitor", form: "Tablet", dosage: "10mg", notes: "Once daily" },
-    { name: "Capoten", genericName: "Captopril", category: "ACE Inhibitor", form: "Tablet", dosage: "25mg", notes: "2-3 times daily, before meals" },
-    { name: "Cozaar", genericName: "Losartan", category: "ARB", form: "Tablet", dosage: "50mg", notes: "Once daily" },
-    { name: "Diovan", genericName: "Valsartan", category: "ARB", form: "Tablet", dosage: "160mg", notes: "Once daily" },
-    { name: "Aspirin Protect", genericName: "Aspirin", category: "Antiplatelet", form: "Tablet", dosage: "100mg", notes: "After meals, once daily" },
-    { name: "Plavix", genericName: "Clopidogrel", category: "Antiplatelet", form: "Tablet", dosage: "75mg", notes: "Once daily" },
-    { name: "Corvedilol", genericName: "Carvedilol", category: "Beta Blocker", form: "Tablet", dosage: "12.5mg", notes: "Twice daily with food" },
-    { name: "Aldactone", genericName: "Spironolactone", category: "Potassium Sparing Diuretic", form: "Tablet", dosage: "25mg", notes: "Once daily" },
-    { name: "Lasix", genericName: "Furosemide", category: "Loop Diuretic", form: "Tablet", dosage: "40mg", notes: "Once daily in the morning" },
-    { name: "Isordil", genericName: "Isosorbide Dinitrate", category: "Vasodilator", form: "Tablet", dosage: "5mg", notes: "Sublingual for chest pain" },
-    { name: "Nitroglycerin", genericName: "Nitroglycerin", category: "Vasodilator", form: "Spray", dosage: "0.4mg/spray", notes: "Sublingual for acute chest pain" },
-
-    // ── Diabetes ─────────────────────────────────────
-    { name: "Glucophage", genericName: "Metformin", category: "Antidiabetic", form: "Tablet", dosage: "500mg", notes: "With or after meals, twice daily" },
-    { name: "Glucophage XR", genericName: "Metformin", category: "Antidiabetic", form: "Tablet", dosage: "850mg", notes: "Once daily with dinner" },
-    { name: "Amaryl", genericName: "Glimepiride", category: "Antidiabetic", form: "Tablet", dosage: "2mg", notes: "Once daily with breakfast" },
-    { name: "Daonil", genericName: "Glibenclamide", category: "Antidiabetic", form: "Tablet", dosage: "5mg", notes: "Once daily with breakfast" },
-    { name: "Januvia", genericName: "Sitagliptin", category: "Antidiabetic", form: "Tablet", dosage: "100mg", notes: "Once daily" },
-    { name: "Galvus", genericName: "Vildagliptin", category: "Antidiabetic", form: "Tablet", dosage: "50mg", notes: "Twice daily" },
-    { name: "Novomix 30", genericName: "Insulin Aspart", category: "Insulin", form: "Injection Pen", dosage: "100IU/ml", notes: "Twice daily, before meals" },
-    { name: "Lantus", genericName: "Insulin Glargine", category: "Insulin", form: "Injection Pen", dosage: "100IU/ml", notes: "Once daily at bedtime" },
-
-    // ── Respiratory / Asthma & Allergy ───────────────
-    { name: "Ventolin", genericName: "Salbutamol", category: "Bronchodilator", form: "Inhaler", dosage: "100mcg/puff", notes: "2 puffs PRN" },
-    { name: "Symbicort", genericName: "Budesonide + Formoterol", category: "Corticosteroid + Bronchodilator", form: "Inhaler", dosage: "160/4.5mcg", notes: "2 puffs twice daily" },
-    { name: "Seretide", genericName: "Fluticasone + Salmeterol", category: "Corticosteroid + Bronchodilator", form: "Inhaler", dosage: "125/25mcg", notes: "2 puffs twice daily" },
-    { name: "Pulmicort", genericName: "Budesonide", category: "Corticosteroid", form: "Nebulizer", dosage: "0.5mg/2ml", notes: "Once or twice daily" },
-    { name: "Zyrtec", genericName: "Cetirizine", category: "Antihistamine", form: "Tablet", dosage: "10mg", notes: "Once daily" },
-    { name: "Cetrine", genericName: "Cetirizine", category: "Antihistamine", form: "Tablet", dosage: "10mg", notes: "Once daily" },
-    { name: "Telfast", genericName: "Fexofenadine", category: "Antihistamine", form: "Tablet", dosage: "120mg", notes: "Once daily" },
-    { name: "Clarinase", genericName: "Loratadine + Pseudoephedrine", category: "Antihistamine + Decongestant", form: "Tablet", dosage: "10mg/120mg", notes: "Once daily" },
-    { name: "Rhinocort", genericName: "Budesonide", category: "Nasal Corticosteroid", form: "Nasal Spray", dosage: "64mcg", notes: "2 sprays each nostril once daily" },
-    { name: "Nasonex", genericName: "Mometasone", category: "Nasal Corticosteroid", form: "Nasal Spray", dosage: "50mcg", notes: "2 sprays each nostril once daily" },
-    { name: "Mucosolvan", genericName: "Ambroxol", category: "Mucolytic", form: "Syrup", dosage: "30mg/5ml", notes: "3 times daily" },
-    { name: "Mucomelt", genericName: "Acetylcysteine", category: "Mucolytic", form: "Effervescent Tablet", dosage: "600mg", notes: "Once daily" },
-    { name: "Tuscan", genericName: "Dextromethorphan", category: "Antitussive", form: "Syrup", dosage: "15mg/5ml", notes: "3 times daily" },
-
-    // ── Neurology ────────────────────────────────────
-    { name: "Imigran", genericName: "Sumatriptan", category: "Antimigraine", form: "Tablet", dosage: "50mg", notes: "At migraine onset, max 2 doses/day" },
-    { name: "Tegretol", genericName: "Carbamazepine", category: "Anticonvulsant", form: "Tablet", dosage: "200mg", notes: "Twice daily" },
-    { name: "Epilim", genericName: "Sodium Valproate", category: "Anticonvulsant", form: "Tablet", dosage: "200mg", notes: "Twice daily" },
-    { name: "Lyrica", genericName: "Pregabalin", category: "Anticonvulsant/Neuropathic", form: "Capsule", dosage: "75mg", notes: "Twice daily" },
-    { name: "Neurontin", genericName: "Gabapentin", category: "Neuropathic Pain", form: "Capsule", dosage: "300mg", notes: "3 times daily" },
-    { name: "Topamax", genericName: "Topiramate", category: "Anticonvulsant/Migraine Prevention", form: "Tablet", dosage: "25mg", notes: "Gradually increase dose" },
-
-    // ── Dermatology ──────────────────────────────────
-    { name: "Fucidin", genericName: "Fusidic Acid", category: "Topical Antibiotic", form: "Cream", dosage: "2%", notes: "Apply 3 times daily" },
-    { name: "Candistan", genericName: "Clotrimazole", category: "Antifungal", form: "Cream", dosage: "1%", notes: "Apply twice daily" },
-    { name: "Daktarin", genericName: "Miconazole", category: "Antifungal", form: "Cream", dosage: "2%", notes: "Apply twice daily" },
-    { name: "Diprosone", genericName: "Betamethasone", category: "Topical Corticosteroid", form: "Cream", dosage: "0.05%", notes: "Apply once or twice daily" },
-    { name: "Locoid", genericName: "Hydrocortisone Butyrate", category: "Topical Corticosteroid", form: "Cream", dosage: "0.1%", notes: "Apply once or twice daily" },
-    { name: "Elovera", genericName: "Aloe Vera + Vitamin E", category: "Moisturizer", form: "Cream", dosage: "-", notes: "Apply as needed" },
-    { name: "Isotrex", genericName: "Isotretinoin", category: "Anti-acne", form: "Gel", dosage: "0.05%", notes: "Apply at night" },
-    { name: "Roaccutane", genericName: "Isotretinoin", category: "Anti-acne (Systemic)", form: "Capsule", dosage: "20mg", notes: "Once daily with food, pregnancy test required" },
-
-    // ── Vitamins & Supplements ───────────────────────
-    { name: "Vitamin D3", genericName: "Cholecalciferol", category: "Vitamin", form: "Capsule", dosage: "50000IU", notes: "Once weekly for 8 weeks" },
-    { name: "Calcium + Vitamin D3", genericName: "Calcium Carbonate + Vitamin D3", category: "Supplement", form: "Tablet", dosage: "600mg/400IU", notes: "Once or twice daily" },
-    { name: "Ferrograd C", genericName: "Iron + Vitamin C", category: "Iron Supplement", form: "Tablet", dosage: "325mg", notes: "Once daily, before breakfast" },
-    { name: "Haemojet", genericName: "Iron + Folic Acid + Vitamin B12", category: "Iron Supplement", form: "Capsule", dosage: "-", notes: "Once daily" },
-    { name: "Neurobion", genericName: "Vitamin B1 + B6 + B12", category: "Vitamin B Complex", form: "Tablet", dosage: "-", notes: "Once or twice daily" },
-    { name: "Folic Acid", genericName: "Folic Acid", category: "Vitamin", form: "Tablet", dosage: "5mg", notes: "Once daily" },
-    { name: "Omega 3", genericName: "Fish Oil", category: "Supplement", form: "Capsule", dosage: "1000mg", notes: "Once or twice daily" },
-
-    // ── Ophthalmology ────────────────────────────────
-    { name: "Tobrex", genericName: "Tobramycin", category: "Antibiotic Eye Drop", form: "Eye Drop", dosage: "0.3%", notes: "1-2 drops every 4 hours" },
-    { name: "Vigamox", genericName: "Moxifloxacin", category: "Antibiotic Eye Drop", form: "Eye Drop", dosage: "0.5%", notes: "1 drop 3 times daily" },
-    { name: "Tears Naturale", genericName: "Hypromellose", category: "Artificial Tears", form: "Eye Drop", dosage: "0.3%", notes: "As needed" },
-    { name: "FML", genericName: "Fluorometholone", category: "Steroid Eye Drop", form: "Eye Drop", dosage: "0.1%", notes: "1 drop 4 times daily" },
-
-    // ── Urology ──────────────────────────────────────
-    { name: "Xatral", genericName: "Alfuzosin", category: "Alpha Blocker", form: "Tablet", dosage: "10mg", notes: "Once daily after meal" },
-    { name: "Urotel", genericName: "Tolterodine", category: "Antimuscarinic", form: "Capsule", dosage: "4mg", notes: "Once daily" },
-    { name: "Macrobid", genericName: "Nitrofurantoin", category: "Antibiotic", form: "Capsule", dosage: "100mg", notes: "Twice daily for 5 days" },
-
-    // ── Endocrine / Thyroid ──────────────────────────
-    { name: "Eltroxin", genericName: "Levothyroxine", category: "Thyroid Hormone", form: "Tablet", dosage: "50mcg", notes: "Once daily on empty stomach, 30 min before breakfast" },
-    { name: "Carbimazole", genericName: "Carbimazole", category: "Antithyroid", form: "Tablet", dosage: "5mg", notes: "Once or twice daily" },
-    { name: "Neomercazole", genericName: "Carbimazole", category: "Antithyroid", form: "Tablet", dosage: "5mg", notes: "Once or twice daily" },
-
-    // ── Psychiatry ───────────────────────────────────
-    { name: "Prozac", genericName: "Fluoxetine", category: "SSRI Antidepressant", form: "Capsule", dosage: "20mg", notes: "Once daily in the morning" },
-    { name: "Cipralex", genericName: "Escitalopram", category: "SSRI Antidepressant", form: "Tablet", dosage: "10mg", notes: "Once daily" },
-    { name: "Zoloft", genericName: "Sertraline", category: "SSRI Antidepressant", form: "Tablet", dosage: "50mg", notes: "Once daily" },
-    { name: "Xanax", genericName: "Alprazolam", category: "Anxiolytic (Benzodiazepine)", form: "Tablet", dosage: "0.25mg", notes: "PRN, max short-term use" },
-    { name: "Lexotanil", genericName: "Bromazepam", category: "Anxiolytic (Benzodiazepine)", form: "Tablet", dosage: "1.5mg", notes: "PRN or twice daily" },
-    { name: "Valium", genericName: "Diazepam", category: "Anxiolytic (Benzodiazepine)", form: "Tablet", dosage: "5mg", notes: "PRN" },
-    { name: "Stilnox", genericName: "Zolpidem", category: "Hypnotic", form: "Tablet", dosage: "10mg", notes: "At bedtime only" },
-  ]
-
-  let drugCount = 0
-  for (const d of drugs) {
-    const existing = await prisma.drugMaster.findFirst({
-      where: { name: d.name, dosage: d.dosage },
-    })
+  let complaintCount = 0
+  for (const name of complaints) {
+    const existing = await prisma.complaint.findFirst({ where: { name } })
     if (!existing) {
-      await prisma.drugMaster.create({ data: d })
-      drugCount++
+      await prisma.complaint.create({ data: { name } })
+      complaintCount++
     }
   }
-  console.log(`✅ Seeded ${drugCount} Egyptian market drugs`)
+  console.log(`✅ Seeded ${complaintCount} complaints`)
+
+  // ════════════════════════════════════════════════════
+  // DIAGNOSES (ICD-10 Version 2019 - From CSV Files)
+  // ════════════════════════════════════════════════════
+  console.log("🔍 Reading ICD-10 CSV files...")
+
+  const icd10DetailsPath = path.join(__dirname, "data/icd10-details.csv")
+  const headCodesPath = path.join(__dirname, "data/head-codes.csv")
+
+  const icd10Details = await readCSV<any>(icd10DetailsPath)
+  const headCodes = await readCSV<any>(headCodesPath)
+
+  // دمج الملفين في مصفوفة واحدة بناءً على أسماء الأعمدة اللي في الـ CSV
+  const allDiagnosesRaw = [
+    ...icd10Details.map(row => {
+      // تنظيف الاسم من أي سطور جديدة (Line breaks) عشان يظهر بشكل سليم في الـ UI
+      let cleanName = (row.definition || "").replace(/(\r\n|\n|\r)/gm, " ").trim()
+      return {
+        name: cleanName,
+        icd10Code: (row["sub-code"] || "").trim(),
+      }
+    }),
+    ...headCodes.map(row => ({
+      name: (row.name || "").trim(),
+      icd10Code: (row.head_code || "").trim(),
+    })),
+  ]
+
+  // تنظيف البيانات: إزالة أي صفوف فارغة أو بدون اسم تشخيص
+  const cleanDiagnoses = allDiagnosesRaw.filter(d => d.name && d.name.length > 1)
+
+  // إزالة التكرار (لو في كود متكرر في الملفين)
+  const uniqueDiagnosesMap = new Map<string, { name: string; icd10Code: string }>()
+  for (const d of cleanDiagnoses) {
+    const key = d.icd10Code || d.name // استخدام الكود كمفتاح فريد، أو الاسم لو مفيش كود
+    if (!uniqueDiagnosesMap.has(key)) {
+      uniqueDiagnosesMap.set(key, d)
+    }
+  }
+
+  const finalDiagnoses = Array.from(uniqueDiagnosesMap.values())
+
+  if (finalDiagnoses.length > 0) {
+    // استخدام createMany لأنها أسرع بكتر من upsert في ملفات الـ ICD الكبيرة
+    const result = await prisma.diagnosis.createMany({
+      data: finalDiagnoses,
+      skipDuplicates: true, // يتجاهل لو في كود متكرر بالفعل في الداتابيز
+    })
+    console.log(`✅ Seeded ${result.count} ICD-10 diagnoses (out of ${finalDiagnoses.length} processed)`)
+  } else {
+    console.log("⚠️ No valid ICD-10 diagnoses found in CSV files.")
+  }
+
+  // ════════════════════════════════════════════════════
+  // MEDICATIONS (الأدوية المصرية)
+  // ════════════════════════════════════════════════════
+  const medications = [
+    // ── Analgesics & Antipyretics ────────────────────
+    { tradeName: "Panadol", genericName: "Paracetamol", strength: "500mg", dosageForm: "Tablet" },
+    { tradeName: "Panadol Extra", genericName: "Paracetamol + Caffeine", strength: "500mg/65mg", dosageForm: "Tablet" },
+    { tradeName: "Panadol Cold & Flu", genericName: "Paracetamol + Pseudoephedrine + Chlorpheniramine", strength: "500mg/30mg/2mg", dosageForm: "Tablet" },
+    { tradeName: "Brufen", genericName: "Ibuprofen", strength: "400mg", dosageForm: "Tablet" },
+    { tradeName: "Cataflam", genericName: "Diclofenac Potassium", strength: "50mg", dosageForm: "Tablet" },
+    { tradeName: "Voltaren", genericName: "Diclofenac Sodium", strength: "50mg", dosageForm: "Tablet" },
+    { tradeName: "Mobic", genericName: "Meloxicam", strength: "15mg", dosageForm: "Tablet" },
+    { tradeName: "Celebrex", genericName: "Celecoxib", strength: "200mg", dosageForm: "Capsule" },
+    { tradeName: "Solpadeine", genericName: "Paracetamol + Codeine + Caffeine", strength: "500mg/8mg/30mg", dosageForm: "Tablet" },
+    { tradeName: "Tramal", genericName: "Tramadol", strength: "50mg", dosageForm: "Capsule" },
+
+    // ── Antibiotics ──────────────────────────────────
+    { tradeName: "Augmentin", genericName: "Amoxicillin + Clavulanate", strength: "1g/125mg", dosageForm: "Tablet" },
+    { tradeName: "Amoxil", genericName: "Amoxicillin", strength: "500mg", dosageForm: "Capsule" },
+    { tradeName: "Zithromax", genericName: "Azithromycin", strength: "500mg", dosageForm: "Tablet" },
+    { tradeName: "Ciprobay", genericName: "Ciprofloxacin", strength: "500mg", dosageForm: "Tablet" },
+    { tradeName: "Keflex", genericName: "Cephalexin", strength: "500mg", dosageForm: "Capsule" },
+    { tradeName: "Flagyl", genericName: "Metronidazole", strength: "500mg", dosageForm: "Tablet" },
+    { tradeName: "Erythrocin", genericName: "Erythromycin", strength: "500mg", dosageForm: "Tablet" },
+    { tradeName: "Doxymycin", genericName: "Doxycycline", strength: "100mg", dosageForm: "Capsule" },
+    { tradeName: "Bactrim", genericName: "Trimethoprim + Sulfamethoxazole", strength: "160mg/800mg", dosageForm: "Tablet" },
+    { tradeName: "Rocephin", genericName: "Ceftriaxone", strength: "1g", dosageForm: "Injection" },
+    { tradeName: "Unasyn", genericName: "Ampicillin + Sulbactam", strength: "1.5g", dosageForm: "Injection" },
+    { tradeName: "Tavanic", genericName: "Levofloxacin", strength: "500mg", dosageForm: "Tablet" },
+
+    // ── Gastrointestinal ─────────────────────────────
+    { tradeName: "Losec", genericName: "Omeprazole", strength: "20mg", dosageForm: "Capsule" },
+    { tradeName: "Nexium", genericName: "Esomeprazole", strength: "40mg", dosageForm: "Tablet" },
+    { tradeName: "Controloc", genericName: "Pantoprazole", strength: "40mg", dosageForm: "Tablet" },
+    { tradeName: "Motilium", genericName: "Domperidone", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Maxolon", genericName: "Metoclopramide", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Antacid", genericName: "Aluminium Hydroxide + Magnesium Hydroxide", strength: "15ml", dosageForm: "Syrup" },
+    { tradeName: "Maalox", genericName: "Aluminium Hydroxide + Magnesium Hydroxide", strength: "15ml", dosageForm: "Syrup" },
+    { tradeName: "Loperamide", genericName: "Loperamide HCl", strength: "2mg", dosageForm: "Capsule" },
+    { tradeName: "Imodium", genericName: "Loperamide HCl", strength: "2mg", dosageForm: "Capsule" },
+    { tradeName: "Duspatalin", genericName: "Mebeverine", strength: "135mg", dosageForm: "Tablet" },
+    { tradeName: "Buscopan", genericName: "Hyoscine Butylbromide", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Lactulose", genericName: "Lactulose", strength: "15ml", dosageForm: "Syrup" },
+    { tradeName: "Duphalac", genericName: "Lactulose", strength: "15ml", dosageForm: "Syrup" },
+    { tradeName: "Creon", genericName: "Pancreatin", strength: "10000IU", dosageForm: "Capsule" },
+
+    // ── Cardiovascular ───────────────────────────────
+    { tradeName: "Concor", genericName: "Bisoprolol", strength: "5mg", dosageForm: "Tablet" },
+    { tradeName: "Betaloc", genericName: "Metoprolol", strength: "50mg", dosageForm: "Tablet" },
+    { tradeName: "Norvasc", genericName: "Amlodipine", strength: "5mg", dosageForm: "Tablet" },
+    { tradeName: "Amlor", genericName: "Amlodipine", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Zestril", genericName: "Lisinopril", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Capoten", genericName: "Captopril", strength: "25mg", dosageForm: "Tablet" },
+    { tradeName: "Cozaar", genericName: "Losartan", strength: "50mg", dosageForm: "Tablet" },
+    { tradeName: "Diovan", genericName: "Valsartan", strength: "160mg", dosageForm: "Tablet" },
+    { tradeName: "Aspirin Protect", genericName: "Aspirin", strength: "100mg", dosageForm: "Tablet" },
+    { tradeName: "Plavix", genericName: "Clopidogrel", strength: "75mg", dosageForm: "Tablet" },
+    { tradeName: "Corvedilol", genericName: "Carvedilol", strength: "12.5mg", dosageForm: "Tablet" },
+    { tradeName: "Aldactone", genericName: "Spironolactone", strength: "25mg", dosageForm: "Tablet" },
+    { tradeName: "Lasix", genericName: "Furosemide", strength: "40mg", dosageForm: "Tablet" },
+    { tradeName: "Isordil", genericName: "Isosorbide Dinitrate", strength: "5mg", dosageForm: "Tablet" },
+    { tradeName: "Nitroglycerin", genericName: "Nitroglycerin", strength: "0.4mg/spray", dosageForm: "Spray" },
+
+    // ── Diabetes ─────────────────────────────────────
+    { tradeName: "Glucophage", genericName: "Metformin", strength: "500mg", dosageForm: "Tablet" },
+    { tradeName: "Glucophage XR", genericName: "Metformin", strength: "850mg", dosageForm: "Tablet" },
+    { tradeName: "Amaryl", genericName: "Glimepiride", strength: "2mg", dosageForm: "Tablet" },
+    { tradeName: "Daonil", genericName: "Glibenclamide", strength: "5mg", dosageForm: "Tablet" },
+    { tradeName: "Januvia", genericName: "Sitagliptin", strength: "100mg", dosageForm: "Tablet" },
+    { tradeName: "Galvus", genericName: "Vildagliptin", strength: "50mg", dosageForm: "Tablet" },
+    { tradeName: "Novomix 30", genericName: "Insulin Aspart", strength: "100IU/ml", dosageForm: "Injection Pen" },
+    { tradeName: "Lantus", genericName: "Insulin Glargine", strength: "100IU/ml", dosageForm: "Injection Pen" },
+
+    // ── Respiratory / Asthma & Allergy ───────────────
+    { tradeName: "Ventolin", genericName: "Salbutamol", strength: "100mcg/puff", dosageForm: "Inhaler" },
+    { tradeName: "Symbicort", genericName: "Budesonide + Formoterol", strength: "160/4.5mcg", dosageForm: "Inhaler" },
+    { tradeName: "Seretide", genericName: "Fluticasone + Salmeterol", strength: "125/25mcg", dosageForm: "Inhaler" },
+    { tradeName: "Pulmicort", genericName: "Budesonide", strength: "0.5mg/2ml", dosageForm: "Nebulizer" },
+    { tradeName: "Zyrtec", genericName: "Cetirizine", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Cetrine", genericName: "Cetirizine", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Telfast", genericName: "Fexofenadine", strength: "120mg", dosageForm: "Tablet" },
+    { tradeName: "Clarinase", genericName: "Loratadine + Pseudoephedrine", strength: "10mg/120mg", dosageForm: "Tablet" },
+    { tradeName: "Rhinocort", genericName: "Budesonide", strength: "64mcg", dosageForm: "Nasal Spray" },
+    { tradeName: "Nasonex", genericName: "Mometasone", strength: "50mcg", dosageForm: "Nasal Spray" },
+    { tradeName: "Mucosolvan", genericName: "Ambroxol", strength: "30mg/5ml", dosageForm: "Syrup" },
+    { tradeName: "Mucomelt", genericName: "Acetylcysteine", strength: "600mg", dosageForm: "Effervescent Tablet" },
+    { tradeName: "Tuscan", genericName: "Dextromethorphan", strength: "15mg/5ml", dosageForm: "Syrup" },
+
+    // ── Neurology ────────────────────────────────────
+    { tradeName: "Imigran", genericName: "Sumatriptan", strength: "50mg", dosageForm: "Tablet" },
+    { tradeName: "Tegretol", genericName: "Carbamazepine", strength: "200mg", dosageForm: "Tablet" },
+    { tradeName: "Epilim", genericName: "Sodium Valproate", strength: "200mg", dosageForm: "Tablet" },
+    { tradeName: "Lyrica", genericName: "Pregabalin", strength: "75mg", dosageForm: "Capsule" },
+    { tradeName: "Neurontin", genericName: "Gabapentin", strength: "300mg", dosageForm: "Capsule" },
+    { tradeName: "Topamax", genericName: "Topiramate", strength: "25mg", dosageForm: "Tablet" },
+
+    // ── Dermatology ──────────────────────────────────
+    { tradeName: "Fucidin", genericName: "Fusidic Acid", strength: "2%", dosageForm: "Cream" },
+    { tradeName: "Candistan", genericName: "Clotrimazole", strength: "1%", dosageForm: "Cream" },
+    { tradeName: "Daktarin", genericName: "Miconazole", strength: "2%", dosageForm: "Cream" },
+    { tradeName: "Diprosone", genericName: "Betamethasone", strength: "0.05%", dosageForm: "Cream" },
+    { tradeName: "Locoid", genericName: "Hydrocortisone Butyrate", strength: "0.1%", dosageForm: "Cream" },
+    { tradeName: "Elovera", genericName: "Aloe Vera + Vitamin E", strength: "-", dosageForm: "Cream" },
+    { tradeName: "Isotrex", genericName: "Isotretinoin", strength: "0.05%", dosageForm: "Gel" },
+    { tradeName: "Roaccutane", genericName: "Isotretinoin", strength: "20mg", dosageForm: "Capsule" },
+
+    // ── Vitamins & Supplements ───────────────────────
+    { tradeName: "Vitamin D3", genericName: "Cholecalciferol", strength: "50000IU", dosageForm: "Capsule" },
+    { tradeName: "Calcium + Vitamin D3", genericName: "Calcium Carbonate + Vitamin D3", strength: "600mg/400IU", dosageForm: "Tablet" },
+    { tradeName: "Ferrograd C", genericName: "Iron + Vitamin C", strength: "325mg", dosageForm: "Tablet" },
+    { tradeName: "Haemojet", genericName: "Iron + Folic Acid + Vitamin B12", strength: "-", dosageForm: "Capsule" },
+    { tradeName: "Neurobion", genericName: "Vitamin B1 + B6 + B12", strength: "-", dosageForm: "Tablet" },
+    { tradeName: "Folic Acid", genericName: "Folic Acid", strength: "5mg", dosageForm: "Tablet" },
+    { tradeName: "Omega 3", genericName: "Fish Oil", strength: "1000mg", dosageForm: "Capsule" },
+
+    // ── Ophthalmology ────────────────────────────────
+    { tradeName: "Tobrex", genericName: "Tobramycin", strength: "0.3%", dosageForm: "Eye Drop" },
+    { tradeName: "Vigamox", genericName: "Moxifloxacin", strength: "0.5%", dosageForm: "Eye Drop" },
+    { tradeName: "Tears Naturale", genericName: "Hypromellose", strength: "0.3%", dosageForm: "Eye Drop" },
+    { tradeName: "FML", genericName: "Fluorometholone", strength: "0.1%", dosageForm: "Eye Drop" },
+
+    // ── Urology ──────────────────────────────────────
+    { tradeName: "Xatral", genericName: "Alfuzosin", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Urotel", genericName: "Tolterodine", strength: "4mg", dosageForm: "Capsule" },
+    { tradeName: "Macrobid", genericName: "Nitrofurantoin", strength: "100mg", dosageForm: "Capsule" },
+
+    // ── Endocrine / Thyroid ──────────────────────────
+    { tradeName: "Eltroxin", genericName: "Levothyroxine", strength: "50mcg", dosageForm: "Tablet" },
+    { tradeName: "Carbimazole", genericName: "Carbimazole", strength: "5mg", dosageForm: "Tablet" },
+    { tradeName: "Neomercazole", genericName: "Carbimazole", strength: "5mg", dosageForm: "Tablet" },
+
+    // ── Psychiatry ───────────────────────────────────
+    { tradeName: "Prozac", genericName: "Fluoxetine", strength: "20mg", dosageForm: "Capsule" },
+    { tradeName: "Cipralex", genericName: "Escitalopram", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Zoloft", genericName: "Sertraline", strength: "50mg", dosageForm: "Tablet" },
+    { tradeName: "Xanax", genericName: "Alprazolam", strength: "0.25mg", dosageForm: "Tablet" },
+    { tradeName: "Lexotanil", genericName: "Bromazepam", strength: "1.5mg", dosageForm: "Tablet" },
+    { tradeName: "Valium", genericName: "Diazepam", strength: "5mg", dosageForm: "Tablet" },
+    { tradeName: "Stilnox", genericName: "Zolpidem", strength: "10mg", dosageForm: "Tablet" },
+  ]
+
+  let medCount = 0
+  for (const m of medications) {
+    const existing = await prisma.medication.findFirst({
+      where: { tradeName: m.tradeName, strength: m.strength }
+    })
+    if (!existing) {
+      await prisma.medication.create({ data: m })
+      medCount++
+    }
+  }
+  console.log(`✅ Seeded ${medCount} Egyptian market medications`)
 
   // ════════════════════════════════════════════════════
   // TREATMENT TEMPLATES

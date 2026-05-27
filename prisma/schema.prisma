@@ -120,21 +120,21 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  clinic      Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  manager     User?         @relation("BranchManager", fields: [managerId], references: [id], onDelete: SetNull)
+  clinic  Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  manager User?  @relation("BranchManager", fields: [managerId], references: [id], onDelete: SetNull)
 
-  patients      Patient[]
-  appointments  Appointment[]
-  invoices      Invoice[]
-  payments      Payment[]
-  visits        Visit[]
-  prescriptions Prescription[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  bookings      Booking[]
+  patients        Patient[]
+  appointments    Appointment[]
+  invoices        Invoice[]
+  payments        Payment[]
+  visits          Visit[]
+  prescriptions   Prescription[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  bookings        Booking[]
   doctorSchedules DoctorSchedule[]
-  userBranches  UserBranch[]
-  doctorBranches DoctorBranch[]
+  userBranches    UserBranch[]
+  doctorBranches  DoctorBranch[]
 
   @@unique([clinicId, code])
   @@index([clinicId])
@@ -168,36 +168,36 @@ model DoctorBranch {
 // ── Core Models ──────────────────────────────────────
 
 model User {
-  id              String        @id @default(cuid())
+  id              String  @id @default(cuid())
   name            String
-  email           String        @unique
+  email           String  @unique
   password        String?
-  role            Role          @default(RECEPTIONIST)
-  allBranchAccess Boolean       @default(false) 
+  role            Role    @default(RECEPTIONIST)
+  allBranchAccess Boolean @default(false)
 
-  appointmentDuration   Int     @default(30)
-  maxDailyAppointments  Int     @default(20)
+  appointmentDuration  Int @default(30)
+  maxDailyAppointments Int @default(20)
 
-  clinicId        String
-  clinic          Clinic        @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  clinicId String
+  clinic   Clinic @relation(fields: [clinicId], references: [id], onDelete: Restrict)
 
-  ownedClinics    Clinic[]      @relation("ClinicOwner")
-  managedBranches Branch[]      @relation("BranchManager")
-  appointments    Appointment[]
-  visits          Visit[]
-  attachments     Attachment[]
-  prescriptions   Prescription[]
-  schedules       DoctorSchedule[]
-  notifications   Notification[]
-  auditLogs       AuditLog[]
-  payments        Payment[]
+  ownedClinics         Clinic[]              @relation("ClinicOwner")
+  managedBranches      Branch[]              @relation("BranchManager")
+  appointments         Appointment[]
+  visits               Visit[]
+  attachments          Attachment[]
+  prescriptions        Prescription[]
+  schedules            DoctorSchedule[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  payments             Payment[]
   notificationSettings NotificationSettings?
-  doctorBookings  Booking[]     @relation("DoctorBookings")
-  userBranches    UserBranch[]
-  doctorBranches  DoctorBranch[]
+  doctorBookings       Booking[]             @relation("DoctorBookings")
+  userBranches         UserBranch[]
+  doctorBranches       DoctorBranch[]
 
-  emailVerified   DateTime?
-  image           String?
+  emailVerified DateTime?
+  image         String?
 
   accounts Account[]
   sessions Session[]
@@ -211,29 +211,29 @@ model User {
 }
 
 model Clinic {
-  id           String              @id @default(cuid())
-  name         String
-  address      String?
-  phone        String?
-  ownerId      String?             // ← تم التعديل هنا: أصبح اختياري
-  owner        User?               @relation("ClinicOwner", fields: [ownerId], references: [id], onDelete: Restrict) // ← تم التعديل هنا: أصبح اختياري
-  users        User[]
-  patients     Patient[]
-  appointments Appointment[]
-  invoices     Invoice[]
-  payments     Payment[]
-  visits       Visit[]
+  id            String               @id @default(cuid())
+  name          String
+  address       String?
+  phone         String?
+  ownerId       String? // ← تم التعديل هنا: أصبح اختياري
+  owner         User?                @relation("ClinicOwner", fields: [ownerId], references: [id], onDelete: Restrict) // ← تم التعديل هنا: أصبح اختياري
+  users         User[]
+  patients      Patient[]
+  appointments  Appointment[]
+  invoices      Invoice[]
+  payments      Payment[]
+  visits        Visit[]
   prescriptions Prescription[]
-  subscription Subscription?
-  settings     ClinicSettings?
-  workingHours ClinicWorkingHours[]
+  subscription  Subscription?
+  settings      ClinicSettings?
+  workingHours  ClinicWorkingHours[]
   notifications Notification[]
-  bookings     Booking[]
-  auditLogs    AuditLog[]
-  branches     Branch[]
+  bookings      Booking[]
+  auditLogs     AuditLog[]
+  branches      Branch[]
 
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([ownerId])
   @@index([phone])
@@ -241,28 +241,28 @@ model Clinic {
 }
 
 model Patient {
-  id          String            @id @default(cuid())
-  fullName    String
-  phone       String
-  email       String?
-  gender      Gender
-  dateOfBirth DateTime
-  address     String?
-  clinicId    String
-  branchId    String? 
-  clinic      Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  branch      Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  appointments Appointment[]
-  invoices    Invoice[]
-  visits      Visit[]
-  attachments Attachment[]
+  id            String         @id @default(cuid())
+  fullName      String
+  phone         String
+  email         String?
+  gender        Gender
+  dateOfBirth   DateTime
+  address       String?
+  clinicId      String
+  branchId      String?
+  clinic        Clinic         @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  branch        Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  appointments  Appointment[]
+  invoices      Invoice[]
+  visits        Visit[]
+  attachments   Attachment[]
   prescriptions Prescription[]
-  bookings    Booking[]
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  bookings      Booking[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([clinicId])
-  @@index([branchId]) 
+  @@index([branchId])
   @@index([phone])
   @@index([email])
   @@map("patients")
@@ -275,7 +275,7 @@ model Appointment {
   doctorId  String
   doctor    User              @relation(fields: [doctorId], references: [id], onDelete: Restrict)
   clinicId  String
-  branchId  String? 
+  branchId  String?
   clinic    Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
   branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
   dateTime  DateTime
@@ -290,7 +290,7 @@ model Appointment {
   @@index([patientId])
   @@index([doctorId])
   @@index([clinicId])
-  @@index([branchId]) 
+  @@index([branchId])
   @@index([dateTime])
   @@index([status])
   @@map("appointments")
@@ -319,7 +319,7 @@ model Invoice {
   patientId     String
   patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
   clinicId      String
-  branchId      String? 
+  branchId      String?
   clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Restrict)
   branch        Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
   amount        Decimal       @db.Decimal(10, 2)
@@ -335,7 +335,7 @@ model Invoice {
 
   @@index([patientId])
   @@index([clinicId])
-  @@index([branchId]) 
+  @@index([branchId])
   @@index([status])
   @@index([dueDate])
   @@index([createdAt])
@@ -379,10 +379,10 @@ model Plan {
   description          String?
   monthlyPrice         Float    @default(0)
   yearlyPrice          Float    @default(0)
-  maxDoctors           Int      @default(1) 
-  maxUsers             Int      @default(2) 
-  maxPatients          Int      @default(500) 
-  maxBranches          Int      @default(1) 
+  maxDoctors           Int      @default(1)
+  maxUsers             Int      @default(2)
+  maxPatients          Int      @default(500)
+  maxBranches          Int      @default(1)
   onlineBookingEnabled Boolean  @default(false)
   analyticsEnabled     Boolean  @default(false)
   notificationsEnabled Boolean  @default(true)
@@ -390,7 +390,7 @@ model Plan {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  subscriptions        Subscription[]
+  subscriptions Subscription[]
 
   @@map("plans")
 }
@@ -465,7 +465,7 @@ model VerificationToken {
 model Visit {
   id        String   @id @default(cuid())
   clinicId  String
-  branchId  String? 
+  branchId  String?
   patientId String
   doctorId  String
   visitDate DateTime
@@ -473,77 +473,51 @@ model Visit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  clinic         Clinic              @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  branch         Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  patient        Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctor         User                @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic         Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  branch         Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  patient        Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor         User                 @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   complaints     VisitComplaint[]
   diagnoses      VisitDiagnosis[]
   treatmentPlans VisitTreatmentPlan[]
   prescription   Prescription?
 
   @@index([clinicId])
-  @@index([branchId]) 
+  @@index([branchId])
   @@index([patientId])
   @@index([doctorId])
   @@map("visits")
 }
 
 model VisitComplaint {
-  id        String @id @default(cuid())
-  visitId   String
-  complaint String
+  id          String @id @default(cuid())
+  visitId     String
+  complaintId String
 
-  visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  visit     Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Restrict)
 
   @@index([visitId])
-  @@map("visit_complaints")
 }
 
 model VisitDiagnosis {
-  id        String @id @default(cuid())
-  visitId   String
-  diagnosis String
+  id          String @id @default(cuid())
+  visitId     String
+  diagnosisId String
 
-  visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  severity    String?   // mild / moderate / severe
+  notes       String?
 
-  @@index([visitId])
-  @@map("visit_diagnoses")
+  visit     Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  diagnosis Diagnosis @relation(fields: [diagnosisId], references: [id], onDelete: Restrict)
 }
 
 model VisitTreatmentPlan {
-  id        String @id @default(cuid())
-  visitId   String
-  treatment String
+  id          String  @id @default(cuid())
+  visitId     String
+  treatmentId String?
 
   visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
-
-  @@index([visitId])
-  @@map("visit_treatment_plans")
-}
-
-// ── Medical Dictionary (Smart Suggestions Layer) ─────
-
-model ComplaintMaster {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  specialty String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([name])
-  @@map("complaint_masters")
-}
-
-model DiagnosisMaster {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  specialty String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([name])
-  @@map("diagnosis_masters")
 }
 
 // ── Treatment Templates ──────────────────────────────
@@ -560,25 +534,6 @@ model TreatmentTemplate {
   @@map("treatment_templates")
 }
 
-// ── Egyptian Drug Database ───────────────────────────
-
-model DrugMaster {
-  id          String   @id @default(cuid())
-  name        String
-  genericName String
-  category    String?
-  form        String?
-  dosage      String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([name, dosage])
-  @@index([name])
-  @@index([genericName])
-  @@map("drug_masters")
-}
-
 // ── Patient Attachments ──────────────────────────────
 
 model Attachment {
@@ -592,8 +547,8 @@ model Attachment {
   fileSize     Int
   createdAt    DateTime           @default(now())
 
-  patient     Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  uploadedBy  User               @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  patient    Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@index([patientId])
   @@index([category])
@@ -603,24 +558,24 @@ model Attachment {
 // ── Electronic Prescriptions ─────────────────────────
 
 model Prescription {
-  id        String              @id @default(cuid())
+  id        String   @id @default(cuid())
   clinicId  String
-  branchId  String? 
+  branchId  String?
   patientId String
   doctorId  String
-  visitId   String?             @unique
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  visitId   String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  clinic    Clinic              @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  branch    Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  patient   Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctor    User                @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  visit     Visit?              @relation(fields: [visitId], references: [id], onDelete: SetNull)
-  items     PrescriptionItem[]
+  clinic  Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  branch  Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  patient Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  User               @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  visit   Visit?             @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  items   PrescriptionItem[]
 
   @@index([clinicId])
-  @@index([branchId]) 
+  @@index([branchId])
   @@index([patientId])
   @@index([doctorId])
   @@index([visitId])
@@ -628,15 +583,15 @@ model Prescription {
 }
 
 model PrescriptionItem {
-  id              String       @id @default(cuid())
-  prescriptionId  String
-  medicationName  String
-  dosage          String
-  frequency       String
-  duration        String
-  instructions    String?
+  id             String  @id @default(cuid())
+  prescriptionId String
+  medicationName String
+  dosage         String
+  frequency      String
+  duration       String
+  instructions   String?
 
-  prescription    Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
   @@index([prescriptionId])
   @@map("prescription_items")
@@ -645,83 +600,83 @@ model PrescriptionItem {
 // ── Clinic Branding, Settings & Configuration ────────
 
 model ClinicSettings {
-  id                          String   @id @default(cuid())
-  clinicId                    String   @unique
-  clinicName                  String
-  logoUrl                     String?
-  address                     String?
-  phone                       String?
-  email                       String?
-  website                     String?
-  taxNumber                   String?
-  currency                    String   @default("EGP")
-  timezone                    String   @default("Africa/Cairo")
-  defaultAppointmentDuration  Int      @default(30)
-  dateFormat                  String   @default("dd/MM/yyyy")
-  timeFormat                  String   @default("24h")
-  enableNotifications         Boolean  @default(true)
-  enableOnlineBooking         Boolean  @default(false)
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  clinicId                   String   @unique
+  clinicName                 String
+  logoUrl                    String?
+  address                    String?
+  phone                      String?
+  email                      String?
+  website                    String?
+  taxNumber                  String?
+  currency                   String   @default("EGP")
+  timezone                   String   @default("Africa/Cairo")
+  defaultAppointmentDuration Int      @default(30)
+  dateFormat                 String   @default("dd/MM/yyyy")
+  timeFormat                 String   @default("24h")
+  enableNotifications        Boolean  @default(true)
+  enableOnlineBooking        Boolean  @default(false)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
-  clinic                      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("clinic_settings")
 }
 
 model ClinicWorkingHours {
-  id          String   @id @default(cuid())
-  clinicId    String
-  dayOfWeek   Int
-  startTime   String   @default("09:00")
-  endTime     String   @default("17:00")
-  isClosed    Boolean  @default(false)
+  id        String  @id @default(cuid())
+  clinicId  String
+  dayOfWeek Int
+  startTime String  @default("09:00")
+  endTime   String  @default("17:00")
+  isClosed  Boolean @default(false)
 
-  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@unique([clinicId, dayOfWeek])
   @@map("clinic_working_hours")
 }
 
 model DoctorSchedule {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   doctorId    String
-  branchId    String? 
+  branchId    String?
   dayOfWeek   Int
-  startTime   String   @default("09:00")
-  endTime     String   @default("17:00")
-  isAvailable Boolean  @default(true)
+  startTime   String  @default("09:00")
+  endTime     String  @default("17:00")
+  isAvailable Boolean @default(true)
 
-  doctor      User     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  doctor User    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
-  @@unique([doctorId, branchId, dayOfWeek]) 
+  @@unique([doctorId, branchId, dayOfWeek])
   @@map("doctor_schedules")
 }
 
 // ── Notifications & Reminders ────────────────────────
 
 model Notification {
-  id                 String           @id @default(cuid())
-  clinicId           String
-  branchId           String? 
-  userId             String
-  title              String
-  message            String
-  type               NotificationType @default(SYSTEM)
-  priority           Priority         @default(MEDIUM)
-  isRead             Boolean          @default(false)
-  relatedEntityType  String?
-  relatedEntityId    String?
-  createdAt          DateTime         @default(now())
-  readAt             DateTime?
+  id                String           @id @default(cuid())
+  clinicId          String
+  branchId          String?
+  userId            String
+  title             String
+  message           String
+  type              NotificationType @default(SYSTEM)
+  priority          Priority         @default(MEDIUM)
+  isRead            Boolean          @default(false)
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime         @default(now())
+  readAt            DateTime?
 
-  clinic             Clinic           @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  branch             Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinic Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([clinicId])
-  @@index([branchId]) 
+  @@index([branchId])
   @@index([userId, isRead])
   @@index([createdAt])
   @@map("notifications")
@@ -736,7 +691,7 @@ model Reminder {
   status        ReminderStatus @default(PENDING)
   createdAt     DateTime       @default(now())
 
-  appointment   Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   @@index([appointmentId])
   @@index([status, scheduledFor])
@@ -744,17 +699,17 @@ model Reminder {
 }
 
 model NotificationSettings {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  enableInApp           Boolean  @default(true)
-  enableEmail           Boolean  @default(false)
-  enableSMS             Boolean  @default(false)
-  enableWhatsApp        Boolean  @default(false)
-  appointmentReminders  Boolean  @default(true)
-  invoiceNotifications  Boolean  @default(true)
-  systemNotifications   Boolean  @default(true)
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  enableInApp          Boolean @default(true)
+  enableEmail          Boolean @default(false)
+  enableSMS            Boolean @default(false)
+  enableWhatsApp       Boolean @default(false)
+  appointmentReminders Boolean @default(true)
+  invoiceNotifications Boolean @default(true)
+  systemNotifications  Boolean @default(true)
 
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_settings")
 }
@@ -763,24 +718,24 @@ model NotificationSettings {
 
 model Booking {
   id            String        @id @default(cuid())
-  appointmentId String       @unique
+  appointmentId String        @unique
   patientId     String
   doctorId      String
   clinicId      String
-  branchId      String? 
+  branchId      String?
   status        BookingStatus @default(PENDING)
   source        BookingSource @default(WEBSITE)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctor        User          @relation("DoctorBookings", fields: [doctorId], references: [id], onDelete: Cascade)
-  clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  branch        Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      User        @relation("DoctorBookings", fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic      Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  branch      Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@index([clinicId])
-  @@index([branchId]) 
+  @@index([branchId])
   @@index([doctorId])
   @@index([status])
   @@map("bookings")
@@ -791,7 +746,7 @@ model Booking {
 model AuditLog {
   id         String   @id @default(cuid())
   clinicId   String
-  branchId   String? 
+  branchId   String?
   userId     String?
   action     String
   entityType String
@@ -802,13 +757,52 @@ model AuditLog {
   userAgent  String?
   createdAt  DateTime @default(now())
 
-  clinic     Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  branch     Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  clinic Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([clinicId, createdAt])
-  @@index([branchId]) 
+  @@index([branchId])
   @@index([entityType, entityId])
   @@index([userId])
   @@map("audit_logs")
+}
+
+// ── Medical Dictionary & Smart Autocomplete ──────────
+
+model Medication {
+  id            String   @id @default(cuid())
+  tradeName     String
+  genericName   String?
+  strength      String?
+  dosageForm    String?
+  createdAt     DateTime @default(now())
+  @@index([tradeName])
+  @@index([genericName])
+  @@map("medications")
+}
+
+model Diagnosis {
+  id            String   @id @default(cuid())
+  name          String
+  icd10Code     String?
+  createdAt     DateTime @default(now())
+  
+  // ← تمت إضافة العلاقة العكسية هنا
+  visitDiagnoses VisitDiagnosis[] 
+  
+  @@index([name])
+  @@map("diagnoses")
+}
+
+model Complaint {
+  id            String   @id @default(cuid())
+  name          String
+  createdAt     DateTime @default(now())
+  
+  // ← تمت إضافة العلاقة العكسية هنا
+  visitComplaints VisitComplaint[] 
+  
+  @@index([name])
+  @@map("complaints")
 }

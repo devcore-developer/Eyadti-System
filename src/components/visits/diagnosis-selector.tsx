@@ -15,7 +15,7 @@ export function DiagnosisSelector({ diagnoses, setDiagnoses }: Props) {
     return data.map(d => ({
       id: d.id,
       label: d.name,
-      sublabel: d.specialty || undefined,
+      sublabel: d.icd10Code || undefined, // عرض كود ICD-10 بجانب التشخيص
     }))
   }
 

@@ -15,7 +15,6 @@ export function ComplaintSelector({ complaints, setComplaints }: Props) {
     return data.map(d => ({
       id: d.id,
       label: d.name,
-      sublabel: d.specialty || undefined,
     }))
   }
 

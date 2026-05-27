@@ -28,153 +28,50 @@ const emptyItem: PrescriptionItemInput = {
   instructions: "",
 }
 
-function getSmartDefaults(drug: any): { frequency: string; duration: string } {
-  const category = (drug.category || "").toLowerCase()
-  const notes = (drug.notes || "").toLowerCase()
-  const form = (drug.form || "").toLowerCase()
-  const name = (drug.name || "").toLowerCase()
+function getSmartDefaults(med: any): { frequency: string; duration: string } {
+  const name = (med.tradeName || "").toLowerCase()
+  const form = (med.dosageForm || "").toLowerCase()
 
   // Antibiotics
-  if (category.includes("antibiotic")) {
-    if (category.includes("injection")) return { frequency: "Once or twice daily", duration: "5-7 days" }
-    if (name.includes("zithromax") || name.includes("azithromycin")) return { frequency: "Once daily", duration: "3-5 days" }
-    if (name.includes("doxymycin") || name.includes("doxycycline")) return { frequency: "Twice daily", duration: "7-10 days" }
-    if (name.includes("flagyl") || name.includes("metronidazole")) return { frequency: "Three times daily", duration: "5-7 days" }
-    if (name.includes("tavanic") || name.includes("levofloxacin")) return { frequency: "Once daily", duration: "5-7 days" }
-    return { frequency: "Twice daily", duration: "7 days" }
-  }
+  if (name.includes("augmentin") || name.includes("amoxil") || name.includes("keflex")) return { frequency: "Twice daily", duration: "7 days" }
+  if (name.includes("zithromax")) return { frequency: "Once daily", duration: "3-5 days" }
+  if (name.includes("doxymycin")) return { frequency: "Twice daily", duration: "7-10 days" }
+  if (name.includes("flagyl")) return { frequency: "Three times daily", duration: "5-7 days" }
+  if (name.includes("tavanic") || name.includes("ciprobay")) return { frequency: "Once daily", duration: "5-7 days" }
 
-  // NSAIDs / Analgesics
-  if (category.includes("nsaid") || category.includes("analgesic")) {
-    if (category.includes("opioid")) return { frequency: "Every 4-6 hours as needed", duration: "3-5 days" }
-    if (name.includes("solpadeine")) return { frequency: "Every 4-6 hours as needed", duration: "3-5 days" }
-    if (name.includes("cataflam") || name.includes("voltaren")) return { frequency: "Two to three times daily", duration: "5-7 days" }
-    if (name.includes("mobic")) return { frequency: "Once daily", duration: "7-14 days" }
-    if (name.includes("celebrex")) return { frequency: "Once or twice daily", duration: "7-14 days" }
-    if (name.includes("panadol extra")) return { frequency: "Every 4-6 hours as needed", duration: "3-5 days" }
-    if (name.includes("panadol cold")) return { frequency: "Every 4-6 hours as needed", duration: "3-5 days" }
-    return { frequency: "Every 6 hours as needed", duration: "5-7 days" }
-  }
-
-  // Opioid
-  if (category.includes("opioid")) return { frequency: "Every 4-6 hours as needed", duration: "3-5 days" }
+  // Analgesics / NSAIDs
+  if (name.includes("panadol extra") || name.includes("solpadeine")) return { frequency: "Every 4-6 hours as needed", duration: "3-5 days" }
+  if (name.includes("panadol")) return { frequency: "Every 6 hours as needed", duration: "3-5 days" }
+  if (name.includes("brufen") || name.includes("cataflam") || name.includes("voltaren")) return { frequency: "Two to three times daily", duration: "5-7 days" }
+  if (name.includes("mobic") || name.includes("celebrex")) return { frequency: "Once daily", duration: "7-14 days" }
 
   // PPIs
-  if (category.includes("ppi")) return { frequency: "Once daily before breakfast", duration: "4-8 weeks" }
+  if (name.includes("losec") || name.includes("nexium") || name.includes("controloc")) return { frequency: "Once daily before breakfast", duration: "4-8 weeks" }
 
-  // Anti-emetic
-  if (category.includes("anti-emetic")) return { frequency: "Three times daily before meals", duration: "3-5 days" }
+  // Antihistamines
+  if (name.includes("zyrtec") || name.includes("cetrine") || name.includes("telfast")) return { frequency: "Once daily", duration: "2-4 weeks" }
+  if (name.includes("clarinase")) return { frequency: "Once daily", duration: "5-7 days" }
 
-  // Antacid
-  if (category.includes("antacid")) return { frequency: "After meals and at bedtime", duration: "2 weeks" }
+  // Respiratory
+  if (name.includes("ventolin")) return { frequency: "2 puffs as needed", duration: "As needed" }
+  if (name.includes("symbicort") || name.includes("seretide")) return { frequency: "2 puffs twice daily", duration: "Ongoing" }
+  if (name.includes("mucosolvan")) return { frequency: "Three times daily", duration: "5-7 days" }
 
-  // Antispasmodic
-  if (category.includes("antispasmodic")) return { frequency: "Three times daily before meals", duration: "5-7 days" }
+  // Cardiovascular / Chronic
+  if (name.includes("concor") || name.includes("norvasc") || name.includes("amlor") || name.includes("zestril") || name.includes("cozaar")) return { frequency: "Once daily", duration: "Ongoing" }
+  if (name.includes("aspirin protect") || name.includes("plavix")) return { frequency: "Once daily", duration: "Ongoing" }
 
-  // Antidiarrheal
-  if (category.includes("antidiarrheal")) return { frequency: "After each loose stool", duration: "2-3 days" }
+  // Diabetes
+  if (name.includes("glucophage") || name.includes("amaryl") || name.includes("januvia") || name.includes("galvus")) return { frequency: "Once or twice daily", duration: "Ongoing" }
 
-  // Laxative
-  if (category.includes("laxative")) return { frequency: "Once daily", duration: "1-2 weeks" }
+  // Dermatology
+  if (form.includes("cream") || form.includes("gel") || form.includes("ointment")) return { frequency: "Apply twice daily", duration: "1-2 weeks" }
 
-  // Mucolytic
-  if (category.includes("mucolytic")) return { frequency: "Three times daily", duration: "5-7 days" }
+  // Eye/Ear drops
+  if (form.includes("drop")) return { frequency: "1-2 drops three times daily", duration: "5-7 days" }
 
-  // Antitussive
-  if (category.includes("antitussive")) return { frequency: "Three times daily", duration: "3-5 days" }
-
-  // Antifungal
-  if (category.includes("antifungal")) {
-    if (form.includes("cream")) return { frequency: "Apply twice daily", duration: "2-4 weeks" }
-    return { frequency: "As directed", duration: "7-14 days" }
-  }
-
-  // Topical Antibiotic
-  if (category.includes("topical") && category.includes("antibiotic")) return { frequency: "Apply three times daily", duration: "5-7 days" }
-
-  // Topical Corticosteroid
-  if (category.includes("topical") && category.includes("corticosteroid")) return { frequency: "Apply once or twice daily", duration: "1-2 weeks" }
-
-  // Moisturizer
-  if (category.includes("moisturizer")) return { frequency: "Apply as needed", duration: "Ongoing" }
-
-  // Anti-acne
-  if (category.includes("anti-acne")) {
-    if (form.includes("gel")) return { frequency: "Apply at night", duration: "6-8 weeks" }
-    return { frequency: "Once daily with food", duration: "4-6 months" }
-  }
-
-  // Bronchodilator
-  if (category.includes("bronchodilator")) return { frequency: "2 puffs every 4-6 hours as needed", duration: "As needed" }
-
-  // Corticosteroid + Bronchodilator
-  if (category.includes("corticosteroid") && category.includes("bronchodilator")) return { frequency: "2 puffs twice daily", duration: "Ongoing" }
-
-  // Corticosteroid
-  if (category.includes("corticosteroid")) {
-    if (form.includes("nasal")) return { frequency: "2 sprays each nostril once daily", duration: "2-4 weeks" }
-    if (form.includes("nebulizer")) return { frequency: "Once or twice daily", duration: "5-7 days" }
-    if (form.includes("eye")) return { frequency: "1 drop 4 times daily", duration: "5-7 days" }
-    return { frequency: "Once daily", duration: "As directed" }
-  }
-
-  // Antihistamine
-  if (category.includes("antihistamine")) {
-    if (category.includes("decongestant")) return { frequency: "Once daily", duration: "5-7 days" }
-    return { frequency: "Once daily", duration: "2-4 weeks" }
-  }
-
-  // Cold & Flu
-  if (category.includes("cold")) return { frequency: "Every 6 hours as needed", duration: "3-5 days" }
-
-  // Cardiovascular
-  if (category.includes("beta blocker")) return { frequency: "Once daily", duration: "Ongoing" }
-  if (category.includes("calcium")) return { frequency: "Once daily", duration: "Ongoing" }
-  if (category.includes("ace")) return { frequency: "Once daily", duration: "Ongoing" }
-  if (category.includes("arb")) return { frequency: "Once daily", duration: "Ongoing" }
-  if (category.includes("antiplatelet")) return { frequency: "Once daily after meals", duration: "Ongoing" }
-  if (category.includes("diuretic")) return { frequency: "Once daily in the morning", duration: "Ongoing" }
-  if (category.includes("vasodilator")) {
-    if (form.includes("spray")) return { frequency: "Sublingual for acute chest pain", duration: "As needed" }
-    return { frequency: "As directed", duration: "Ongoing" }
-  }
-
-  // Antidiabetic
-  if (category.includes("antidiabetic")) {
-    if (category.includes("insulin")) return { frequency: "As per doctor instructions", duration: "Ongoing" }
-    if (name.includes("glucophage")) return { frequency: "Twice daily with meals", duration: "Ongoing" }
-    if (name.includes("amaryl")) return { frequency: "Once daily with breakfast", duration: "Ongoing" }
-    return { frequency: "Once daily", duration: "Ongoing" }
-  }
-
-  // Thyroid
-  if (category.includes("thyroid")) return { frequency: "Once daily on empty stomach", duration: "Ongoing" }
-  if (category.includes("antithyroid")) return { frequency: "Once or twice daily", duration: "6-18 months" }
-
-  // Neurology
-  if (category.includes("anticonvulsant") || category.includes("neuropathic")) return { frequency: "Twice daily", duration: "As directed" }
-  if (category.includes("antimigraine")) return { frequency: "At migraine onset", duration: "As needed" }
-
-  // Psychiatry
-  if (category.includes("ssri") || category.includes("antidepressant")) return { frequency: "Once daily", duration: "6+ months" }
-  if (category.includes("anxiolytic") || category.includes("benzodiazepine")) return { frequency: "As needed", duration: "Short-term only" }
-  if (category.includes("hypnotic")) return { frequency: "At bedtime", duration: "2-4 weeks" }
-
-  // Urology
-  if (category.includes("alpha")) return { frequency: "Once daily after meal", duration: "Ongoing" }
-  if (category.includes("antimuscarinic")) return { frequency: "Once daily", duration: "Ongoing" }
-
-  // Vitamins & Supplements
-  if (category.includes("vitamin") || category.includes("supplement") || category.includes("iron")) {
-    if (notes.includes("weekly")) return { frequency: "Once weekly", duration: "8 weeks" }
-    return { frequency: "Once daily", duration: "1-3 months" }
-  }
-
-  // Eye drops
-  if (form.includes("eye")) return { frequency: "1-2 drops every 4 hours", duration: "5-7 days" }
-
-  // Artificial tears
-  if (category.includes("artificial")) return { frequency: "As needed", duration: "Ongoing" }
+  // Syrups
+  if (form.includes("syrup")) return { frequency: "Three times daily", duration: "5-7 days" }
 
   // Default
   return { frequency: "As directed", duration: "As directed" }
@@ -206,9 +103,9 @@ export function PrescriptionItems({ items, setItems }: Props) {
     const data = await searchDrugs(query)
     return data.map((d: any) => ({
       id: d.id,
-      label: d.name,
+      label: d.tradeName, // تم التعديل لـ tradeName
       sublabel: d.genericName,
-      detail: `${d.dosage || ""} ${d.form || ""}`.trim() || undefined,
+      detail: `${d.strength || ""} ${d.dosageForm || ""}`.trim() || undefined,
       data: d,
     }))
   }
@@ -227,11 +124,11 @@ export function PrescriptionItems({ items, setItems }: Props) {
     const newItems = [...items]
     newItems[index] = {
       ...newItems[index],
-      medicationName: drug.name,
-      dosage: drug.dosage || "",
+      medicationName: drug.tradeName, // تم التعديل لـ tradeName
+      dosage: drug.strength || "", // تم التعديل لـ strength
       frequency: smartDefaults.frequency,
       duration: smartDefaults.duration,
-      instructions: drug.notes || "",
+      instructions: "", // تمت إزالة notes من الـ Schema الجديد
     }
     setItems(newItems)
   }
@@ -293,7 +190,7 @@ export function PrescriptionItems({ items, setItems }: Props) {
                 searchFn={handleDrugSearch}
                 onSelect={(option) => handleDrugSelect(index, option)}
                 onCustomAdd={(value) => handleCustomAdd(index, value)}
-                placeholder="Search Egyptian drug (e.g. Panadol, Augmentin, Losec)..."
+                placeholder="Search medication (e.g. Panadol, Augmentin, Losec)..."
                 icon={<Pill className="h-4 w-4" />}
               />
             )}
