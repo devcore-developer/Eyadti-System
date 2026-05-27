@@ -7,7 +7,8 @@ import {
   DropdownMenuItem, 
   DropdownMenuLabel, 
   DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuGroup // <-- تمت إضافة هذا
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { LogOut, Settings, Building2, HelpCircle } from "lucide-react"
@@ -37,21 +38,25 @@ export function UserProfileMenu({
       </DropdownMenuTrigger>
       
       <DropdownMenuContent className="w-72 p-2 border-[rgba(148,163,184,0.15)] dark:border-[rgba(255,255,255,0.08)] shadow-[0_20px_40px_rgba(0,0,0,0.15)] rounded-2xl bg-white dark:bg-[#1A2332]" align="end">
-        <DropdownMenuLabel className="font-normal p-3">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-bold leading-none text-foreground">{userName}</p>
-            <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
-            
-            <div className="flex items-center gap-2 pt-2 mt-2 border-t border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)]">
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#F5F8FF] dark:bg-[#223247] text-[#6B9CFF]">
-                {userRole}
-              </span>
-              <span className="text-[10px] text-muted-foreground truncate">
-                {clinicName} {branchName ? `• ${branchName}` : ''}
-              </span>
+        
+        {/* تمت إضافة DropdownMenuGroup هنا */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal p-3">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-bold leading-none text-foreground">{userName}</p>
+              <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
+              
+              <div className="flex items-center gap-2 pt-2 mt-2 border-t border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)]">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#F5F8FF] dark:bg-[#223247] text-[#6B9CFF]">
+                  {userRole}
+                </span>
+                <span className="text-[10px] text-muted-foreground truncate">
+                  {clinicName} {branchName ? `• ${branchName}` : ''}
+                </span>
+              </div>
             </div>
-          </div>
-        </DropdownMenuLabel>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         
         <DropdownMenuSeparator className="bg-[rgba(148,163,184,0.1)] dark:bg-[rgba(255,255,255,0.06)]" />
         
