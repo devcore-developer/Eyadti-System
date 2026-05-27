@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// تشغيل الـ Middleware في بيئة Node.js العادية لدعم Prisma وتجنب أخطاء Edge Runtime
+export const runtime = 'nodejs'
+
 interface AuthRequest extends NextRequest {
   auth: any;
 }
