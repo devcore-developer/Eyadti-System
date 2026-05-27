@@ -1,4 +1,7 @@
-import { CalendarDays, Bell, Building2, Plus, UserPlus, FileText } from "lucide-react"
+"use client"
+
+import { useState, useEffect } from "react"
+import { CalendarDays, Bell, Building2, UserPlus, FileText } from "lucide-react"
 import Link from "next/link"
 
 interface HeroWelcomeProps {
@@ -16,8 +19,38 @@ export function HeroWelcome({
   appointmentsCount = 0, 
   pendingInvoices = 0 
 }: HeroWelcomeProps) {
-  const date = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-  const period = new Date().getHours() < 12 ? "Morning" : new Date().getHours() < 17 ? "Afternoon" : "Evening"
+  const [greeting, setGreeting] = useState("Hello")
+  const [date, setDate] = useState("")
+
+  useEffect(() => {
+    const updateTimeAndGreeting = () => {
+      const now = new Date()
+      const hour = now.getHours()
+
+      // تحديد التحية بناءً على وقت جهاز المستخدم
+      if (hour >= 5 && hour < 12) {
+        setGreeting("Good Morning")
+      } else if (hour >= 12 && hour < 17) {
+        setGreeting("Good Afternoon")
+      } else if (hour >= 17 && hour < 21) {
+        setGreeting("Good Evening")
+      } else {
+        setGreeting("Good Night")
+      }
+
+      // تحديد التاريخ بناءً على وقت جهاز المستخدم
+      setDate(now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
+    }
+
+    // تشغيل الدالة أول مرة
+    updateTimeAndGreeting()
+    
+    // تحديث الوقت والتحية كل دقيقة (60000 ميلي ثانية)
+    // عشان لو المستخدم سيب الصفحة مفتوحة وعدى الصبح، تتغير لوحدها
+    const interval = setInterval(updateTimeAndGreeting, 60000)
+    
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div 
@@ -32,7 +65,7 @@ export function HeroWelcome({
       <div className="relative z-10 flex flex-col md:flex-row md:items-start md:justify-between gap-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight drop-shadow-sm">
-            Good {period}, {doctorName}
+            {greeting}, {doctorName}
           </h1>
           
           <div className="flex items-center gap-2 mt-2 text-white/80">
