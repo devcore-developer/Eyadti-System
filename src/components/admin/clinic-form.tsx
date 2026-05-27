@@ -1,103 +1,89 @@
 // src/components/admin/clinic-form.tsx
 "use client"
 
-import { useTransition, useState } from "react"
-import { useRouter } from "next/navigation"
-import { updateClinicSettings } from "@/lib/actions/admin"
-import type { ActionResult } from "@/types"
+import { useState } from "react"
+import { updateClinicSettings } from "@/actions/admin"
 
-type ClinicData = {
-  name: string
-  phone: string | null
-  address: string | null
-}
+export function ClinicForm({ clinic }: { clinic: { name: string; phone: string | null; address: string | null } }) {
+  const [isPending, setIsPending] = useState(false)
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
-type Props = {
-  clinic: ClinicData
-}
+  const handleSubmit = async (formData: FormData) => {
+    setIsPending(true)
+    setMessage(null)
 
-export function ClinicForm({ clinic }: Props) {
-  const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
+    try {
+      // ✅ استدعاء الـ Server Action اللي عملناه
+      const result = await updateClinicSettings(formData)
 
-  function handleResult(result: ActionResult) {
-    if (!result.success) {
-      setError(result.error || "Something went wrong")
-      setFieldErrors(result.fieldErrors || {})
-    } else {
-      router.refresh()
-      setError(null) // مسح الأخطاء لو اتحفظ بنجاح
+      if (result?.success) {
+        setMessage({ type: "success", text: "تم حفظ الإعدادات بنجاح!" })
+      } else {
+        setMessage({ type: "error", text: result?.error || "حدث خطأ أثناء الحفظ، حاول تاني" })
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "حدث خطأ غير متوقع في السيرفر" })
+    } finally {
+      setIsPending(false)
     }
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError(null)
-    setFieldErrors({})
-    const formData = new FormData(e.currentTarget)
-
-    startTransition(async () => {
-      const result = await updateClinicSettings(formData)
-      handleResult(result)
-    })
-  }
-
-  function fieldError(name: string): string | undefined {
-    return fieldErrors[name]?.[0]
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-5">
-      {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+    <form action={handleSubmit} className="space-y-6">
+      {/* رسالة النجاح أو الخطأ */}
+      {message && (
+        <div className={`p-3 rounded-md text-sm font-medium ${message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+          {message.text}
+        </div>
       )}
 
-      <div className="space-y-5">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-            Clinic Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            defaultValue={clinic.name}
-            required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          {fieldError("name") && <p className="mt-1 text-xs text-red-600">{fieldError("name")}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone</label>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            defaultValue={clinic.phone ?? ""}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          {fieldError("phone") && <p className="mt-1 text-xs text-red-600">{fieldError("phone")}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
-          <textarea
-            id="address"
-            name="address"
-            rows={3}
-            defaultValue={clinic.address ?? ""}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          {fieldError("address") && <p className="mt-1 text-xs text-red-600">{fieldError("address")}</p>}
-        </div>
+      <div>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+          اسم العيادة <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          defaultValue={clinic.name || ""}
+          required
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+        />
       </div>
 
-      <div className="flex items-center gap-3 pt-2">
-        <button type="submit" disabled={isPending} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-          {isPending ? "Saving..." : "Save Changes"}
+      <div>
+        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+          رقم التليفون
+        </label>
+        <input
+          id="phone"
+          name="phone"
+          type="text"
+          defaultValue={clinic.phone || ""}
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+          العنوان
+        </label>
+        <textarea
+          id="address"
+          name="address"
+          rows={3}
+          defaultValue={clinic.address || ""}
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+        />
+      </div>
+
+      <div className="flex justify-end pt-4">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-6 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
         </button>
       </div>
     </form>

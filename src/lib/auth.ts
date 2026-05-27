@@ -2,6 +2,9 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { Role, SubscriptionStatus } from "@prisma/client"
+// ✅ التعديل هنا: استيراد Prisma بشكل طبيعي بدل Dynamic Import
+import { prisma } from "@/lib/db"
+import { compare } from "bcryptjs"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
@@ -18,9 +21,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
-          const { prisma } = await import("@/lib/db")
-          const { compare } = await import("bcryptjs")
-
           const user = await prisma.user.findUnique({
             where: { email: credentials.email as string },
           })
@@ -55,7 +55,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         
         // جلب حالة الاشتراك عند تسجيل الدخول
         try {
-          const { prisma } = await import("@/lib/db")
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: user.clinicId },
             select: { status: true, planId: true, trialEndsAt: true }
@@ -71,9 +70,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // تحديث حالة الاشتراك لو حصل Update للـ Session
       if (trigger === "update" && token.clinicId) {
          try {
-          const { prisma } = await import("@/lib/db")
           const subscription = await prisma.subscription.findUnique({
-            where: { clinicId: token.clinicId },
+            where: { clinicId: token.clinicId as string },
             select: { status: true, planId: true, trialEndsAt: true }
           })
           token.subscriptionStatus = subscription?.status || null

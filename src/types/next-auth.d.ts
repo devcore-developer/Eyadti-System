@@ -17,6 +17,12 @@ declare module "next-auth" {
       trialEndsAt: Date | null;
     };
   }
+
+  // ✅ التعديل هنا: إضافة User interface عشان NextAuth يسمح بمرور role و clinicId
+  interface User extends DefaultUser {
+    role: string;
+    clinicId: string;
+  }
 }
 
 declare module "next-auth/jwt" {
