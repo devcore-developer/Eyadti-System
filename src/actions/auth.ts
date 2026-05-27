@@ -104,32 +104,42 @@ export async function signupAction(
   // Create clinic + admin user atomically
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. توليد الـ IDs يدوياً لفك الارتباط الدائري (Circular Dependency)
       const newUserId = randomUUID();
       const newClinicId = randomUUID();
 
-      // 2. إنشاء العيادة مع ربطها بالمالك (باستخدام الـ ID المولد)
+      // 1. إنشاء العيادة أولاً "بدون مالك" (تأكد أن ownerId في Schema هو String? اختياري)
       const clinic = await tx.clinic.create({
         data: {
           id: newClinicId,
           name: clinicName,
-          ownerId: newUserId, // ← الحل: الـ ID موجود بالفعل
+          // ownerId سيتم إضافته في الخطوة الثالثة
         },
       });
 
-      // 3. إنشاء المستخدم مع ربطه بالعيادة
-      await tx.user.create({
+      // 2. إنشاء المستخدم وربطه بالعيادة التي تم إنشاؤها للتو
+      const user = await tx.user.create({
         data: {
           id: newUserId,
           name,
           email,
           password: hashedPassword,
           role: "ADMIN",
-          clinicId: clinic.id, // ← ربط المستخدم بالعيادة
+          clinicId: clinic.id, // ← العيادة موجودة بالفعل، لن يحدث خطأ
+        },
+      });
+
+      // 3. تحديث العيادة وربطها بالمستخدم كمالك
+      await tx.clinic.update({
+        where: { id: clinic.id },
+        data: {
+          ownerId: user.id, // ← المستخدم موجود بالفعل، لن يحدث خطأ
         },
       });
     });
   } catch (error) {
+    // ⚠️ إضافة هذا السطر مهم جداً لمعرفة الخطأ الحقيقي في Vercel Logs
+    console.error("Signup Error:", error); 
+
     // Handle race condition on unique email constraint
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -149,7 +159,6 @@ export async function signupAction(
       error: "Failed to create account. Please try again.",
     };
   }
-
   // Auto sign-in after successful signup
   try {
     await signIn("credentials", {

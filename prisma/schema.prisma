@@ -215,8 +215,8 @@ model Clinic {
   name         String
   address      String?
   phone        String?
-  ownerId      String
-  owner        User                @relation("ClinicOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  ownerId      String?             // ← تم التعديل هنا: أصبح اختياري
+  owner        User?               @relation("ClinicOwner", fields: [ownerId], references: [id], onDelete: Restrict) // ← تم التعديل هنا: أصبح اختياري
   users        User[]
   patients     Patient[]
   appointments Appointment[]
