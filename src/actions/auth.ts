@@ -8,7 +8,7 @@ import { loginSchema, signupSchema } from "@/lib/validations/auth";
 import type { LoginInput, SignupInput } from "@/lib/validations/auth";
 import { Prisma } from "@prisma/client";
 import { AuthError } from "next-auth";
-import { randomUUID } from "crypto"; // ← تمت إضافة هذا الاستيراد لتوليد الـ IDs
+import { randomUUID } from "crypto";
 
 // ─── Return Type ────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ export async function loginAction(
   const validated = loginSchema.safeParse(values);
 
   if (!validated.success) {
-    const firstError = validated.error.issues[0]; // ← تم تعديلها لـ issues بدلاً من errors لـ Zod v4
+    const firstError = validated.error.issues[0];
     return {
       success: false,
       error: firstError?.message ?? "Invalid input",
@@ -40,8 +40,6 @@ export async function loginAction(
       redirectTo: "/dashboard",
     });
 
-    // This line is unreachable — signIn throws NEXT_REDIRECT on success.
-    // It exists only to satisfy the return type.
     return { success: true };
   } catch (error) {
     if (error instanceof AuthError) {
@@ -64,7 +62,6 @@ export async function loginAction(
       }
     }
 
-    // Re-throw non-auth errors (e.g. NEXT_REDIRECT from Next.js)
     throw error;
   }
 }
@@ -77,7 +74,7 @@ export async function signupAction(
   const validated = signupSchema.safeParse(values);
 
   if (!validated.success) {
-    const firstError = validated.error.issues[0]; // ← تم تعديلها لـ issues بدلاً من errors لـ Zod v4
+    const firstError = validated.error.issues[0];
     return {
       success: false,
       error: firstError?.message ?? "Invalid input",
@@ -101,22 +98,22 @@ export async function signupAction(
 
   const hashedPassword = await hashPassword(password);
 
-  // Create clinic + admin user atomically
+  // Create clinic + admin user + settings + default branch atomically
   try {
     await prisma.$transaction(async (tx) => {
       const newUserId = randomUUID();
       const newClinicId = randomUUID();
+      const newBranchId = randomUUID();
 
-      // 1. إنشاء العيادة أولاً "بدون مالك" (تأكد أن ownerId في Schema هو String? اختياري)
+      // 1. إنشاء العيادة أولاً (ownerId أصبح اختيارياً في الـ Schema)
       const clinic = await tx.clinic.create({
         data: {
           id: newClinicId,
           name: clinicName,
-          // ownerId سيتم إضافته في الخطوة الثالثة
         },
       });
 
-      // 2. إنشاء المستخدم وربطه بالعيادة التي تم إنشاؤها للتو
+      // 2. إنشاء المستخدم وربطه بالعيادة
       const user = await tx.user.create({
         data: {
           id: newUserId,
@@ -124,7 +121,7 @@ export async function signupAction(
           email,
           password: hashedPassword,
           role: "ADMIN",
-          clinicId: clinic.id, // ← العيادة موجودة بالفعل، لن يحدث خطأ
+          clinicId: clinic.id,
         },
       });
 
@@ -132,13 +129,30 @@ export async function signupAction(
       await tx.clinic.update({
         where: { id: clinic.id },
         data: {
-          ownerId: user.id, // ← المستخدم موجود بالفعل، لن يحدث خطأ
+          ownerId: user.id,
+        },
+      });
+
+      // 4. إنشاء إعدادات العيادة الافتراضية (يحل مشكلة الـ FK Error على Vercel)
+      await tx.clinicSettings.create({
+        data: {
+          clinicId: clinic.id,
+          clinicName: clinicName,
+        },
+      });
+
+      // 5. إنشاء الفرع الرئيسي الافتراضي (يحل مشكلة فشل إنشاء مريض لاحقاً)
+      await tx.branch.create({
+        data: {
+          id: newBranchId,
+          clinicId: clinic.id,
+          name: "Main Branch",
+          code: "MAIN",
         },
       });
     });
   } catch (error) {
-    // ⚠️ إضافة هذا السطر مهم جداً لمعرفة الخطأ الحقيقي في Vercel Logs
-    console.error("Signup Error:", error); 
+    console.error("Signup Error:", error);
 
     // Handle race condition on unique email constraint
     if (
@@ -159,6 +173,7 @@ export async function signupAction(
       error: "Failed to create account. Please try again.",
     };
   }
+
   // Auto sign-in after successful signup
   try {
     await signIn("credentials", {
@@ -188,7 +203,6 @@ export async function logoutAction(): Promise<ActionResult> {
 
     return { success: true };
   } catch (error) {
-    // Re-throw NEXT_REDIRECT and other non-auth errors
     throw error;
   }
 }
