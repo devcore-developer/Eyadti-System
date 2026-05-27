@@ -88,7 +88,7 @@ export function TreatmentTemplateSelector({ treatmentPlans, setTreatmentPlans }:
         <label className="flex items-center gap-2 text-sm font-medium text-foreground">
           <ClipboardList className="h-4 w-4 text-amber-500" /> Treatment Plan (Rx) <span className="text-red-500">*</span>
         </label>
-        <Button type="button" variant="ghost" size="xs" onClick={addEmptyPlan} className="text-xs text-amber-600 hover:text-amber-700">
+        <Button type="button" variant="ghost" size="sm" onClick={addEmptyPlan} className="text-xs text-amber-600 hover:text-amber-700">
           <Plus className="h-3 w-3 mr-1" /> Add Line
         </Button>
       </div>
@@ -153,7 +153,7 @@ export function TreatmentTemplateSelector({ treatmentPlans, setTreatmentPlans }:
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-sm"
+                size="icon"
                 onClick={() => removePlan(index)}
                 className="shrink-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
               >

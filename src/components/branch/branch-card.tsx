@@ -52,7 +52,7 @@ export function BranchCard({ branch }: BranchCardProps) {
       <div className="flex items-center gap-4 text-xs text-gray-500 border-t pt-4 mb-4">
         <span>{branch._count?.patients || 0} Patients</span>
         <span>{branch._count?.appointments || 0} Appointments</span>
-        <span>{branch._count?.doctorBranches || 0} Doctors</span>
+        <span>{(branch._count as any)?.doctorBranches || 0} Doctors</span>
       </div>
 
       <div className="flex gap-2">

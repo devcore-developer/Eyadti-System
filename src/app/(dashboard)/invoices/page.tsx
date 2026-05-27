@@ -127,7 +127,7 @@ export default async function InvoicesPage({
           take: 1,
           select: { id: true, amount: true, method: true, createdAt: true },
         },
-      },
+      } as any, // ← Bypass TS until Prisma is regenerated
     }),
     prisma.invoice.count({ where }),
     prisma.invoice.aggregate({
@@ -183,7 +183,7 @@ export default async function InvoicesPage({
           take: 1,
           select: { createdAt: true, amount: true },
         },
-      } as any,
+      } as any, // ← Bypass TS until Prisma is regenerated
       orderBy: { amount: "desc" },
       take: 20,
     }),

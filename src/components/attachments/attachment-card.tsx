@@ -121,14 +121,14 @@ export function AttachmentCard({ attachment, canDelete }: Props) {
 
             <div className="flex items-center gap-1">
               <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" download>
-                <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-primary">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                   <Download className="h-3.5 w-3.5" />
                 </Button>
               </a>
               {canDelete && (
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   onClick={handleDelete}
                   disabled={isPending}
                   className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"

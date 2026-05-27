@@ -14,6 +14,13 @@ function handleAuthError(error: unknown) {
   throw new Error("An unexpected error occurred");
 }
 
+// Helper to convert null to undefined for Prisma compatibility
+function stripNulls<T extends Record<string, any>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [key, value ?? undefined])
+  ) as T;
+}
+
 // ─── PLAN MANAGEMENT (Super Admin Only) ──────────────────
 export async function createPlan(values: unknown) {
   try {
@@ -24,7 +31,9 @@ export async function createPlan(values: unknown) {
     const existing = await prisma.plan.findUnique({ where: { slug: validated.slug } });
     if (existing) throw new Error("Plan slug already exists");
 
-    return await prisma.plan.create({ data: validated });
+    // تحويل null إلى undefined لتجنب خطأ Prisma
+    const cleanData = stripNulls(validated);
+    return await prisma.plan.create({ data: cleanData as any });
   } catch (error) {
     handleAuthError(error);
     throw error;
@@ -35,7 +44,10 @@ export async function updatePlan(planId: string, values: unknown) {
   try {
     await requireRole("ADMIN");
     const validated = createPlanSchema.partial().parse(values);
-    return await prisma.plan.update({ where: { id: planId }, data: validated });
+    
+    // تحويل null إلى undefined لتجنب خطأ Prisma
+    const cleanData = stripNulls(validated);
+    return await prisma.plan.update({ where: { id: planId }, data: cleanData as any });
   } catch (error) {
     handleAuthError(error);
     throw error;
@@ -58,11 +70,10 @@ export async function togglePlanStatus(planId: string, active: boolean) {
 export async function updateSubscription(values: unknown) {
   try {
     const session = await requireRole("ADMIN"); // يمكن تطويرها لتشمل OWNER
-    const { clinicId, planId, billingCycle } = updateSubscriptionSchema.parse(values);
+    const { planId, billingCycle } = updateSubscriptionSchema.parse(values);
 
-    if (clinicId !== session.clinicId) {
-      throw new AuthorizationError("You can only manage your own clinic's subscription.");
-    }
+    // استخدام clinicId من الـ session بدلاً من الـ values
+    const clinicId = session.clinicId;
 
     const currentSub = await prisma.subscription.findUnique({ where: { clinicId } });
     if (!currentSub) throw new Error("No subscription found");

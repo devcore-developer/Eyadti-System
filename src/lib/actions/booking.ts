@@ -330,7 +330,7 @@ export async function getDoctorsByBranch(clinicId: string, branchId: string) {
     where: { 
       clinicId, 
       role: "DOCTOR",
-      branches: { some: { id: branchId } } 
+      doctorBranches: { some: { branchId: branchId } } 
     },
     select: { 
       id: true, 

@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createPatient, updatePatient } from "@/lib/actions/patients"
-import type { ActionResult } from "@/lib/actions/patients"
+import type { ActionResult } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"

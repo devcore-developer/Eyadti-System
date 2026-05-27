@@ -18,5 +18,5 @@ export default async function BookDoctorPage({ params }: { params: Promise<{ doc
     return <div className="p-10 text-center">Doctor not found</div>
   }
 
-  return <BookingWizard clinic={clinic} doctor={doctor} clinicId={CLINIC_ID} />
+  return <BookingWizard {...{ clinic, doctor, clinicId: CLINIC_ID } as any} />
 }

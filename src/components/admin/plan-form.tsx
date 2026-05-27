@@ -70,7 +70,7 @@ export function PlanForm({ plan, mode }: PlanFormProps) {
       router.push("/admin/plans");
       router.refresh();
     } else {
-      setError(result.message);
+      setError(result.error ?? null);
     }
   }
 

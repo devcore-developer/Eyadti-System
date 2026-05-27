@@ -248,7 +248,7 @@ export function PrescriptionItems({ items, setItems }: Props) {
         <label className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Pill className="h-4 w-4 text-blue-500" /> Medications <span className="text-red-500">*</span>
         </label>
-        <Button type="button" variant="ghost" size="xs" onClick={addItem} className="text-xs text-blue-600 hover:text-blue-700">
+        <Button type="button" variant="ghost" size="sm" onClick={addItem} className="text-xs text-blue-600 hover:text-blue-700">
           <Plus className="h-3 w-3 mr-1" /> Add Medication
         </Button>
       </div>
@@ -259,7 +259,7 @@ export function PrescriptionItems({ items, setItems }: Props) {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-muted-foreground">Rx #{index + 1}</span>
               {items.length > 1 && (
-                <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeItem(index)} className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
+                <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}

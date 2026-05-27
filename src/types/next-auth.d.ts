@@ -13,6 +13,7 @@ declare module "next-auth" {
       clinicId: string;
       subscriptionStatus: SubscriptionStatus | null;
       planId: string | null;
+      planSlug?: string | null;
       trialEndsAt: Date | null;
     };
   }

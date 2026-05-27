@@ -15,7 +15,7 @@ export async function hasFeature(
   const subscription = await getSubscription(clinicId);
   if (!subscription) return false;
 
-  const isActive = [SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE].includes(
+  const isActive = ([SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE] as SubscriptionStatus[]).includes(
     subscription.status
   );
   if (!isActive) return false;
