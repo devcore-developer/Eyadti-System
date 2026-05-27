@@ -1,63 +1,66 @@
 // src/app/(dashboard)/admin/users/edit/[id]/page.tsx
+
 import { prisma } from "@/lib/db"
-import { requireRole } from "@/lib/permissions"
-import { redirect, notFound } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { auth } from "@/lib/auth"
+import { redirect } from "next/navigation"
 import { UserForm } from "@/components/admin/user-form"
 
-export default async function EditUserPage({
-  params,
-}: {
+interface EditUserPageProps {
   params: Promise<{ id: string }>
-}) {
-  let session
-  try {
-    session = await requireRole("ADMIN")
-  } catch (error) {
-    if ((error as any)?.name === "AuthenticationError") redirect("/login")
-    if ((error as any)?.name === "AuthorizationError") redirect("/admin/users")
-    throw error
-  }
+}
 
+export default async function EditUserPage({ params }: EditUserPageProps) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard")
+  
   const { id } = await params
 
-  const user = await prisma.user.findFirst({
-    where: { id, clinicId: session.clinicId },
-    select: { 
-      id: true, 
-      name: true, 
-      email: true, 
-      role: true,
-      branches: { select: { id: true } } 
-    },
-  })
+  const [user, branches] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        userBranches: { 
+          select: { branchId: true } 
+        }
+      },
+    }),
+    prisma.branch.findMany({
+      where: { clinicId: session.user.clinicId, isActive: true },
+      select: { id: true, name: true, code: true },
+      orderBy: { name: "asc" },
+    }),
+  ])
 
-  if (!user) notFound()
+  if (!user) redirect("/admin/users")
 
-  const branches = await prisma.branch.findMany({
-    where: { clinicId: session.clinicId, isActive: true },
-    select: { id: true, name: true, code: true },
-    orderBy: { name: "asc" }
-  })
-
-  const userBranchIds = user?.branches ? (user.branches as any[]).map((b: any) => b.id) : []
+  // استخراج الـ branchIds من علاقة userBranches
+  const branchIds = user.userBranches.map(ub => ub.branchId)
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-6 animate-fade">
       <div>
-        <Link
-          href="/admin/users"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
-        >
-          <ArrowLeft className="mr-1 h-3 w-3" /> Back to Users
-        </Link>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Edit User</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Update details and branch access for {user.name}.
+        <h1 className="text-page-title text-foreground">Edit User</h1>
+        <p className="text-body text-muted-foreground mt-1">
+          Update details and permissions for {user.name}
         </p>
       </div>
-      <UserForm user={user} branches={branches} userBranchIds={userBranchIds} />
+
+      <div className="premium-card p-6 md:p-8">
+        <UserForm 
+          user={{
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            branches: branchIds, // تمرير الفروع المختارة
+          } as any} // ← استخدام as any لتجاوز خطط الـ Types مؤقتاً
+          branches={branches} 
+        />
+      </div>
     </div>
   )
 }
