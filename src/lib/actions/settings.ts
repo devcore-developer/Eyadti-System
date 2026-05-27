@@ -15,23 +15,30 @@ import {
 
 async function checkAdmin() {
   const session = await auth()
-  if (!session?.user || !["ADMIN", "CLINIC_OWNER"].includes(session.user.role)) {
+  if (!session?.user || !["ADMIN", "CLINIC_OWNER", "DOCTOR"].includes(session.user.role)) {
     return null
   }
   return session
 }
 
 export async function getClinicSettings(clinicId: string) {
-  let settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
+  try {
+    let settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
 
-  if (!settings) {
-    const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } })
-    settings = await prisma.clinicSettings.create({
-      data: { clinicId, clinicName: clinic?.name || "My Clinic" },
-    })
+    if (!settings) {
+      const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } })
+      if (!clinic) return null // Prevent FK error if clinic doesn't exist
+      
+      settings = await prisma.clinicSettings.create({
+        data: { clinicId, clinicName: clinic.name || "My Clinic" },
+      })
+    }
+
+    return settings
+  } catch (error) {
+    console.error("Error fetching clinic settings:", error)
+    return null // Return null instead of crashing the page
   }
-
-  return settings
 }
 
 export async function updateClinicSettings(clinicId: string, rawData: unknown) {
@@ -40,16 +47,22 @@ export async function updateClinicSettings(clinicId: string, rawData: unknown) {
     return { success: false, error: "Unauthorized" }
   }
 
-  const validated = clinicSettingsSchema.parse(rawData)
+  try {
+    const validated = clinicSettingsSchema.parse(rawData)
 
-  await prisma.clinicSettings.upsert({
-    where: { clinicId },
-    update: validated,
-    create: { clinicId, ...validated },
-  })
+    await prisma.clinicSettings.upsert({
+      where: { clinicId },
+      update: validated,
+      create: { clinicId, ...validated },
+    })
 
-  revalidatePath("/settings/clinic")
-  return { success: true }
+    revalidatePath("/settings/clinics")
+    revalidatePath("/settings")
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating clinic settings:", error)
+    return { success: false, error: "Failed to update settings" }
+  }
 }
 
 export async function uploadClinicLogo(clinicId: string, formData: FormData) {
@@ -90,9 +103,10 @@ export async function uploadClinicLogo(clinicId: string, formData: FormData) {
       create: { clinicId, clinicName: "My Clinic", logoUrl: fileUrl },
     })
 
-    revalidatePath("/settings/clinic")
+    revalidatePath("/settings/clinics")
     return { success: true, url: fileUrl }
   } catch (error) {
+    console.error("Error uploading logo:", error)
     return { success: false, error: "Upload failed" }
   }
 }
@@ -103,35 +117,51 @@ export async function deleteClinicLogo(clinicId: string) {
     return { success: false, error: "Unauthorized" }
   }
 
-  const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
-  if (settings?.logoUrl) {
-    const oldPath = path.join(process.cwd(), "public", settings.logoUrl)
-    await unlink(oldPath).catch(() => {})
+  try {
+    const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
+    if (settings?.logoUrl) {
+      const oldPath = path.join(process.cwd(), "public", settings.logoUrl)
+      await unlink(oldPath).catch(() => {})
+    }
+
+    await prisma.clinicSettings.upsert({
+      where: { clinicId },
+      update: { logoUrl: null },
+      create: { clinicId, clinicName: "My Clinic", logoUrl: null },
+    })
+
+    revalidatePath("/settings/clinics")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting logo:", error)
+    return { success: false, error: "Failed to delete logo" }
   }
-
-  await prisma.clinicSettings.upsert({
-    where: { clinicId },
-    update: { logoUrl: null },
-    create: { clinicId, clinicName: "My Clinic", logoUrl: null },
-  })
-
-  revalidatePath("/settings/clinic")
-  return { success: true }
 }
 
 export async function getWorkingHours(clinicId: string) {
-  const hours = await prisma.clinicWorkingHours.findMany({
-    where: { clinicId },
-    orderBy: { dayOfWeek: "asc" },
-  })
+  try {
+    const hours = await prisma.clinicWorkingHours.findMany({
+      where: { clinicId },
+      orderBy: { dayOfWeek: "asc" },
+    })
 
-  const days = [0, 1, 2, 3, 4, 5, 6]
-  return days.map((day) => {
-    const existing = hours.find((h: any) => h.dayOfWeek === day)
-    return (
-      existing || { dayOfWeek: day, startTime: "09:00", endTime: "17:00", isClosed: day === 5 || day === 6 }
-    )
-  })
+    const days = [0, 1, 2, 3, 4, 5, 6]
+    return days.map((day) => {
+      const existing = hours.find((h: any) => h.dayOfWeek === day)
+      return (
+        existing || { dayOfWeek: day, startTime: "09:00", endTime: "17:00", isClosed: day === 5 || day === 6 }
+      )
+    })
+  } catch (error) {
+    console.error("Error fetching working hours:", error)
+    // Return default hours instead of crashing
+    return [0,1,2,3,4,5,6].map(day => ({
+      dayOfWeek: day, 
+      startTime: "09:00", 
+      endTime: "17:00", 
+      isClosed: day === 5 || day === 6
+    }))
+  }
 }
 
 export async function updateWorkingHours(clinicId: string, rawData: unknown) {
@@ -140,78 +170,97 @@ export async function updateWorkingHours(clinicId: string, rawData: unknown) {
     return { success: false, error: "Unauthorized" }
   }
 
-  const validated = workingHoursArraySchema.parse(rawData)
+  try {
+    const validated = workingHoursArraySchema.parse(rawData)
 
-  await prisma.$transaction(async (tx) => {
-    await tx.clinicWorkingHours.deleteMany({
-      where: { clinicId },
+    await prisma.$transaction(async (tx) => {
+      await tx.clinicWorkingHours.deleteMany({
+        where: { clinicId },
+      })
+
+      const createOps = validated.map((wh) =>
+        tx.clinicWorkingHours.create({
+          data: {
+            clinicId,
+            dayOfWeek: wh.dayOfWeek,
+            startTime: wh.startTime,
+            endTime: wh.endTime,
+            isClosed: wh.isClosed,
+          },
+        })
+      )
+
+      await Promise.all(createOps)
     })
 
-    const createOps = validated.map((wh) =>
-      tx.clinicWorkingHours.create({
-        data: {
-          clinicId,
-          dayOfWeek: wh.dayOfWeek,
-          startTime: wh.startTime,
-          endTime: wh.endTime,
-          isClosed: wh.isClosed,
-        },
-      })
-    )
-
-    await Promise.all(createOps)
-  })
-
-  revalidatePath("/settings/clinic")
-  return { success: true }
+    revalidatePath("/settings/clinics")
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating working hours:", error)
+    return { success: false, error: "Failed to update working hours" }
+  }
 }
 
 export async function getDoctorSchedules(doctorId: string) {
-  const schedules = await prisma.doctorSchedule.findMany({
-    where: { doctorId },
-    orderBy: { dayOfWeek: "asc" },
-  })
+  try {
+    const schedules = await prisma.doctorSchedule.findMany({
+      where: { doctorId },
+      orderBy: { dayOfWeek: "asc" },
+    })
 
-  const days = [0, 1, 2, 3, 4, 5, 6]
-  return days.map((day) => {
-    const existing = schedules.find((s: any) => s.dayOfWeek === day)
-    return (
-      existing || { dayOfWeek: day, startTime: "09:00", endTime: "17:00", isAvailable: day !== 5 && day !== 6 }
-    )
-  })
+    const days = [0, 1, 2, 3, 4, 5, 6]
+    return days.map((day) => {
+      const existing = schedules.find((s: any) => s.dayOfWeek === day)
+      return (
+        existing || { dayOfWeek: day, startTime: "09:00", endTime: "17:00", isAvailable: day !== 5 && day !== 6 }
+      )
+    })
+  } catch (error) {
+    console.error("Error fetching doctor schedules:", error)
+    return [0,1,2,3,4,5,6].map(day => ({
+      dayOfWeek: day, 
+      startTime: "09:00", 
+      endTime: "17:00", 
+      isAvailable: day !== 5 && day !== 6
+    }))
+  }
 }
 
 export async function updateDoctorSchedules(doctorId: string, rawData: unknown) {
   const session = await checkAdmin()
   if (!session) return { success: false, error: "Unauthorized" }
 
-  const validated = doctorScheduleArraySchema.parse(rawData)
+  try {
+    const validated = doctorScheduleArraySchema.parse(rawData)
 
-  await prisma.$transaction(async (tx) => {
-    await tx.doctorSchedule.deleteMany({
-      where: { doctorId },
+    await prisma.$transaction(async (tx) => {
+      await tx.doctorSchedule.deleteMany({
+        where: { doctorId },
+      })
+
+      const createOps = validated.map((s) =>
+        tx.doctorSchedule.create({
+          data: {
+            doctorId,
+            dayOfWeek: s.dayOfWeek,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            isAvailable: s.isAvailable,
+          },
+        })
+      )
+
+      await Promise.all(createOps)
     })
 
-    const createOps = validated.map((s) =>
-      tx.doctorSchedule.create({
-        data: {
-          doctorId,
-          dayOfWeek: s.dayOfWeek,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          isAvailable: s.isAvailable,
-        },
-      })
-    )
-
-    await Promise.all(createOps)
-  })
-
-  revalidatePath("/settings/clinic")
-  return { success: true }
+    revalidatePath("/settings/clinics")
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating doctor schedules:", error)
+    return { success: false, error: "Failed to update doctor schedules" }
+  }
 }
 
-// ← الـ Action الجديد: لحفظ مدة الكشف والحد الأقصى للمواعيد
 export async function updateDoctorCapacity(
   doctorId: string, 
   duration: number, 
@@ -235,26 +284,29 @@ export async function updateDoctorCapacity(
       },
     })
 
-    // عشان يحث صفحة المواعيد والـ Settings مع بعض
     revalidatePath("/appointments")
-    revalidatePath("/settings")
+    revalidatePath("/settings/clinics")
 
     return { success: true }
   } catch (error) {
-    console.error(error)
+    console.error("Error updating doctor capacity:", error)
     return { success: false, error: "Failed to update doctor capacity" }
   }
 }
 
-// ← تعديل الـ Query عشان تجيب الحقول الجديدة
 export async function getClinicDoctors(clinicId: string) {
-  return prisma.user.findMany({
-    where: { clinicId, role: "DOCTOR" },
-    select: { 
-      id: true, 
-      name: true, 
-      appointmentDuration: true, 
-      maxDailyAppointments: true 
-    },
-  })
+  try {
+    return await prisma.user.findMany({
+      where: { clinicId, role: "DOCTOR" },
+      select: { 
+        id: true, 
+        name: true, 
+        appointmentDuration: true, 
+        maxDailyAppointments: true 
+      },
+    })
+  } catch (error) {
+    console.error("Error fetching clinic doctors:", error)
+    return []
+  }
 }
