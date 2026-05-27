@@ -31,9 +31,30 @@ async function main() {
   console.log("🌱 Seeding medical dictionary (New Schema)...")
 
   // ════════════════════════════════════════════════════
-  // COMPLAINTS (الشكاوى)
+  // COMPLAINTS (الأعراض والشكاوى من ملفات CSV + الافتراضية)
   // ════════════════════════════════════════════════════
-  const complaints = [
+  console.log("🔍 Reading Disease & Symptoms CSV files...")
+  
+  const symptomsPath = path.join(__dirname, "data/disease-symptoms.csv")
+  const symptomsData = await readCSV<any>(symptomsPath)
+  
+  const complaintsSet = new Set<string>()
+  
+  // استخراج الأعراض من ملف DiseaseAndSymptoms.csv
+  for (const row of symptomsData) {
+    for (let i = 1; i <= 17; i++) {
+      const symptom = row[`Symptom_${i}`]
+      if (symptom && symptom.trim() !== '') {
+        // تنظيف النص: إزالة الـ Underscores وتصحيح المسافات وتكبير أول حرف
+        const cleanSymptom = symptom.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+        const formattedSymptom = cleanSymptom.charAt(0).toUpperCase() + cleanSymptom.slice(1)
+        complaintsSet.add(formattedSymptom)
+      }
+    }
+  }
+
+  // إضافة الشكاوى الافتراضية اللي كانت عندنا عشان مختشيش
+  const defaultComplaints = [
     "Headache", "Fever", "Chest Pain", "Abdominal Pain", "Cough",
     "Shortness of Breath", "Dizziness", "Nausea", "Vomiting", "Diarrhea",
     "Constipation", "Fatigue", "Back Pain", "Sore Throat", "Joint Pain",
@@ -45,16 +66,20 @@ async function main() {
     "Neck Pain", "Shoulder Pain", "Eye Redness", "Dry Eyes", "Tinnitus",
     "Hearing Loss", "Chest Tightness", "Leg Pain", "Snoring", "Excessive Sweating"
   ]
+  
+  defaultComplaints.forEach(c => complaintsSet.add(c))
 
-  let complaintCount = 0
-  for (const name of complaints) {
-    const existing = await prisma.complaint.findFirst({ where: { name } })
-    if (!existing) {
-      await prisma.complaint.create({ data: { name } })
-      complaintCount++
-    }
+  const finalComplaints = Array.from(complaintsSet).map(name => ({ name }))
+
+  if (finalComplaints.length > 0) {
+    const result = await prisma.complaint.createMany({
+      data: finalComplaints,
+      skipDuplicates: true, // يتجاهل الأعراض المتكررة
+    })
+    console.log(`✅ Seeded ${result.count} complaints (from CSV + defaults)`)
+  } else {
+    console.log("⚠️ No complaints found to seed.")
   }
-  console.log(`✅ Seeded ${complaintCount} complaints`)
 
   // ════════════════════════════════════════════════════
   // DIAGNOSES (ICD-10 Version 2019 - From CSV Files)
@@ -87,9 +112,31 @@ async function main() {
   const cleanDiagnoses = allDiagnosesRaw.filter(d => d.name && d.name.length > 1)
 
   // إزالة التكرار (لو في كود متكرر في الملفين)
-  const uniqueDiagnosesMap = new Map<string, { name: string; icd10Code: string }>()
+  const uniqueDiagnosesMap = new Map<string, { name: string; icd10Code: string | null }>()
   for (const d of cleanDiagnoses) {
     const key = d.icd10Code || d.name // استخدام الكود كمفتاح فريد، أو الاسم لو مفيش كود
+    if (!uniqueDiagnosesMap.has(key)) {
+      uniqueDiagnosesMap.set(key, d)
+    }
+  }
+
+  // ────────────────────────────────────────────────────
+  // إضافة أمراض ملف Precautions كـ Diagnoses إضافية
+  // ────────────────────────────────────────────────────
+  console.log("🔍 Reading Disease Precautions CSV file...")
+  const precautionsPath = path.join(__dirname, "data/disease-precautions.csv")
+  const precautionsData = await readCSV<any>(precautionsPath)
+  
+  const extraDiagnoses = precautionsData
+    .map(row => ({
+      name: (row.Disease || "").trim(),
+      icd10Code: null
+    }))
+    .filter(d => d.name.length > 1)
+
+  // دمج أمراض الـ Precautions مع أمراض الـ ICD-10
+  for (const d of extraDiagnoses) {
+    const key = d.name // الاسم هو المفتاح هنا لأن مفيش كود
     if (!uniqueDiagnosesMap.has(key)) {
       uniqueDiagnosesMap.set(key, d)
     }
@@ -98,169 +145,71 @@ async function main() {
   const finalDiagnoses = Array.from(uniqueDiagnosesMap.values())
 
   if (finalDiagnoses.length > 0) {
-    // استخدام createMany لأنها أسرع بكتر من upsert في ملفات الـ ICD الكبيرة
     const result = await prisma.diagnosis.createMany({
       data: finalDiagnoses,
       skipDuplicates: true, // يتجاهل لو في كود متكرر بالفعل في الداتابيز
     })
-    console.log(`✅ Seeded ${result.count} ICD-10 diagnoses (out of ${finalDiagnoses.length} processed)`)
+    console.log(`✅ Seeded ${result.count} ICD-10 & Precaution diagnoses (out of ${finalDiagnoses.length} processed)`)
   } else {
-    console.log("⚠️ No valid ICD-10 diagnoses found in CSV files.")
+    console.log("⚠️ No valid diagnoses found in CSV files.")
   }
 
   // ════════════════════════════════════════════════════
-  // MEDICATIONS (الأدوية المصرية)
+  // MEDICATIONS (الأدوية من ملف CSV + الافتراضية)
   // ════════════════════════════════════════════════════
-  const medications = [
-    // ── Analgesics & Antipyretics ────────────────────
+  console.log("🔍 Reading Egyptian Medications CSV file...")
+
+  const medsPath = path.join(__dirname, "data/egyptian-medications.csv")
+  const medsData = await readCSV<any>(medsPath)
+
+  // 1. قراءة الأدوية من الـ CSV وتعيين الأعمدة الصحيحة
+  const csvMedications = medsData.map(row => ({
+    tradeName: (row.Drugname || "").trim(),
+    genericName: null, // مش موجود كعمود منفصل في الملف
+    strength: null,    // مش موجود كعمود منفصل في الملف
+    dosageForm: (row.Form || "").trim() || null,
+  })).filter(m => m.tradeName.length > 1) // استبعاد أي صف فاضي
+
+  // 2. الأدوية الافتراضية (لأنها فيها الاسم العلمي والتركيز مفصلة)
+  const defaultMedications = [
     { tradeName: "Panadol", genericName: "Paracetamol", strength: "500mg", dosageForm: "Tablet" },
     { tradeName: "Panadol Extra", genericName: "Paracetamol + Caffeine", strength: "500mg/65mg", dosageForm: "Tablet" },
-    { tradeName: "Panadol Cold & Flu", genericName: "Paracetamol + Pseudoephedrine + Chlorpheniramine", strength: "500mg/30mg/2mg", dosageForm: "Tablet" },
-    { tradeName: "Brufen", genericName: "Ibuprofen", strength: "400mg", dosageForm: "Tablet" },
-    { tradeName: "Cataflam", genericName: "Diclofenac Potassium", strength: "50mg", dosageForm: "Tablet" },
-    { tradeName: "Voltaren", genericName: "Diclofenac Sodium", strength: "50mg", dosageForm: "Tablet" },
-    { tradeName: "Mobic", genericName: "Meloxicam", strength: "15mg", dosageForm: "Tablet" },
-    { tradeName: "Celebrex", genericName: "Celecoxib", strength: "200mg", dosageForm: "Capsule" },
-    { tradeName: "Solpadeine", genericName: "Paracetamol + Codeine + Caffeine", strength: "500mg/8mg/30mg", dosageForm: "Tablet" },
-    { tradeName: "Tramal", genericName: "Tramadol", strength: "50mg", dosageForm: "Capsule" },
-
-    // ── Antibiotics ──────────────────────────────────
     { tradeName: "Augmentin", genericName: "Amoxicillin + Clavulanate", strength: "1g/125mg", dosageForm: "Tablet" },
-    { tradeName: "Amoxil", genericName: "Amoxicillin", strength: "500mg", dosageForm: "Capsule" },
-    { tradeName: "Zithromax", genericName: "Azithromycin", strength: "500mg", dosageForm: "Tablet" },
-    { tradeName: "Ciprobay", genericName: "Ciprofloxacin", strength: "500mg", dosageForm: "Tablet" },
-    { tradeName: "Keflex", genericName: "Cephalexin", strength: "500mg", dosageForm: "Capsule" },
-    { tradeName: "Flagyl", genericName: "Metronidazole", strength: "500mg", dosageForm: "Tablet" },
-    { tradeName: "Erythrocin", genericName: "Erythromycin", strength: "500mg", dosageForm: "Tablet" },
-    { tradeName: "Doxymycin", genericName: "Doxycycline", strength: "100mg", dosageForm: "Capsule" },
-    { tradeName: "Bactrim", genericName: "Trimethoprim + Sulfamethoxazole", strength: "160mg/800mg", dosageForm: "Tablet" },
-    { tradeName: "Rocephin", genericName: "Ceftriaxone", strength: "1g", dosageForm: "Injection" },
-    { tradeName: "Unasyn", genericName: "Ampicillin + Sulbactam", strength: "1.5g", dosageForm: "Injection" },
-    { tradeName: "Tavanic", genericName: "Levofloxacin", strength: "500mg", dosageForm: "Tablet" },
-
-    // ── Gastrointestinal ─────────────────────────────
     { tradeName: "Losec", genericName: "Omeprazole", strength: "20mg", dosageForm: "Capsule" },
-    { tradeName: "Nexium", genericName: "Esomeprazole", strength: "40mg", dosageForm: "Tablet" },
-    { tradeName: "Controloc", genericName: "Pantoprazole", strength: "40mg", dosageForm: "Tablet" },
-    { tradeName: "Motilium", genericName: "Domperidone", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Maxolon", genericName: "Metoclopramide", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Antacid", genericName: "Aluminium Hydroxide + Magnesium Hydroxide", strength: "15ml", dosageForm: "Syrup" },
-    { tradeName: "Maalox", genericName: "Aluminium Hydroxide + Magnesium Hydroxide", strength: "15ml", dosageForm: "Syrup" },
-    { tradeName: "Loperamide", genericName: "Loperamide HCl", strength: "2mg", dosageForm: "Capsule" },
-    { tradeName: "Imodium", genericName: "Loperamide HCl", strength: "2mg", dosageForm: "Capsule" },
-    { tradeName: "Duspatalin", genericName: "Mebeverine", strength: "135mg", dosageForm: "Tablet" },
-    { tradeName: "Buscopan", genericName: "Hyoscine Butylbromide", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Lactulose", genericName: "Lactulose", strength: "15ml", dosageForm: "Syrup" },
-    { tradeName: "Duphalac", genericName: "Lactulose", strength: "15ml", dosageForm: "Syrup" },
-    { tradeName: "Creon", genericName: "Pancreatin", strength: "10000IU", dosageForm: "Capsule" },
-
-    // ── Cardiovascular ───────────────────────────────
     { tradeName: "Concor", genericName: "Bisoprolol", strength: "5mg", dosageForm: "Tablet" },
-    { tradeName: "Betaloc", genericName: "Metoprolol", strength: "50mg", dosageForm: "Tablet" },
-    { tradeName: "Norvasc", genericName: "Amlodipine", strength: "5mg", dosageForm: "Tablet" },
-    { tradeName: "Amlor", genericName: "Amlodipine", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Zestril", genericName: "Lisinopril", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Capoten", genericName: "Captopril", strength: "25mg", dosageForm: "Tablet" },
-    { tradeName: "Cozaar", genericName: "Losartan", strength: "50mg", dosageForm: "Tablet" },
-    { tradeName: "Diovan", genericName: "Valsartan", strength: "160mg", dosageForm: "Tablet" },
-    { tradeName: "Aspirin Protect", genericName: "Aspirin", strength: "100mg", dosageForm: "Tablet" },
-    { tradeName: "Plavix", genericName: "Clopidogrel", strength: "75mg", dosageForm: "Tablet" },
-    { tradeName: "Corvedilol", genericName: "Carvedilol", strength: "12.5mg", dosageForm: "Tablet" },
-    { tradeName: "Aldactone", genericName: "Spironolactone", strength: "25mg", dosageForm: "Tablet" },
-    { tradeName: "Lasix", genericName: "Furosemide", strength: "40mg", dosageForm: "Tablet" },
-    { tradeName: "Isordil", genericName: "Isosorbide Dinitrate", strength: "5mg", dosageForm: "Tablet" },
-    { tradeName: "Nitroglycerin", genericName: "Nitroglycerin", strength: "0.4mg/spray", dosageForm: "Spray" },
-
-    // ── Diabetes ─────────────────────────────────────
     { tradeName: "Glucophage", genericName: "Metformin", strength: "500mg", dosageForm: "Tablet" },
-    { tradeName: "Glucophage XR", genericName: "Metformin", strength: "850mg", dosageForm: "Tablet" },
-    { tradeName: "Amaryl", genericName: "Glimepiride", strength: "2mg", dosageForm: "Tablet" },
-    { tradeName: "Daonil", genericName: "Glibenclamide", strength: "5mg", dosageForm: "Tablet" },
-    { tradeName: "Januvia", genericName: "Sitagliptin", strength: "100mg", dosageForm: "Tablet" },
-    { tradeName: "Galvus", genericName: "Vildagliptin", strength: "50mg", dosageForm: "Tablet" },
-    { tradeName: "Novomix 30", genericName: "Insulin Aspart", strength: "100IU/ml", dosageForm: "Injection Pen" },
-    { tradeName: "Lantus", genericName: "Insulin Glargine", strength: "100IU/ml", dosageForm: "Injection Pen" },
-
-    // ── Respiratory / Asthma & Allergy ───────────────
     { tradeName: "Ventolin", genericName: "Salbutamol", strength: "100mcg/puff", dosageForm: "Inhaler" },
-    { tradeName: "Symbicort", genericName: "Budesonide + Formoterol", strength: "160/4.5mcg", dosageForm: "Inhaler" },
-    { tradeName: "Seretide", genericName: "Fluticasone + Salmeterol", strength: "125/25mcg", dosageForm: "Inhaler" },
-    { tradeName: "Pulmicort", genericName: "Budesonide", strength: "0.5mg/2ml", dosageForm: "Nebulizer" },
+    { tradeName: "Brufen", genericName: "Ibuprofen", strength: "400mg", dosageForm: "Tablet" },
     { tradeName: "Zyrtec", genericName: "Cetirizine", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Cetrine", genericName: "Cetirizine", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Telfast", genericName: "Fexofenadine", strength: "120mg", dosageForm: "Tablet" },
-    { tradeName: "Clarinase", genericName: "Loratadine + Pseudoephedrine", strength: "10mg/120mg", dosageForm: "Tablet" },
-    { tradeName: "Rhinocort", genericName: "Budesonide", strength: "64mcg", dosageForm: "Nasal Spray" },
-    { tradeName: "Nasonex", genericName: "Mometasone", strength: "50mcg", dosageForm: "Nasal Spray" },
-    { tradeName: "Mucosolvan", genericName: "Ambroxol", strength: "30mg/5ml", dosageForm: "Syrup" },
-    { tradeName: "Mucomelt", genericName: "Acetylcysteine", strength: "600mg", dosageForm: "Effervescent Tablet" },
-    { tradeName: "Tuscan", genericName: "Dextromethorphan", strength: "15mg/5ml", dosageForm: "Syrup" },
-
-    // ── Neurology ────────────────────────────────────
-    { tradeName: "Imigran", genericName: "Sumatriptan", strength: "50mg", dosageForm: "Tablet" },
-    { tradeName: "Tegretol", genericName: "Carbamazepine", strength: "200mg", dosageForm: "Tablet" },
-    { tradeName: "Epilim", genericName: "Sodium Valproate", strength: "200mg", dosageForm: "Tablet" },
-    { tradeName: "Lyrica", genericName: "Pregabalin", strength: "75mg", dosageForm: "Capsule" },
-    { tradeName: "Neurontin", genericName: "Gabapentin", strength: "300mg", dosageForm: "Capsule" },
-    { tradeName: "Topamax", genericName: "Topiramate", strength: "25mg", dosageForm: "Tablet" },
-
-    // ── Dermatology ──────────────────────────────────
-    { tradeName: "Fucidin", genericName: "Fusidic Acid", strength: "2%", dosageForm: "Cream" },
-    { tradeName: "Candistan", genericName: "Clotrimazole", strength: "1%", dosageForm: "Cream" },
-    { tradeName: "Daktarin", genericName: "Miconazole", strength: "2%", dosageForm: "Cream" },
-    { tradeName: "Diprosone", genericName: "Betamethasone", strength: "0.05%", dosageForm: "Cream" },
-    { tradeName: "Locoid", genericName: "Hydrocortisone Butyrate", strength: "0.1%", dosageForm: "Cream" },
-    { tradeName: "Elovera", genericName: "Aloe Vera + Vitamin E", strength: "-", dosageForm: "Cream" },
-    { tradeName: "Isotrex", genericName: "Isotretinoin", strength: "0.05%", dosageForm: "Gel" },
-    { tradeName: "Roaccutane", genericName: "Isotretinoin", strength: "20mg", dosageForm: "Capsule" },
-
-    // ── Vitamins & Supplements ───────────────────────
-    { tradeName: "Vitamin D3", genericName: "Cholecalciferol", strength: "50000IU", dosageForm: "Capsule" },
-    { tradeName: "Calcium + Vitamin D3", genericName: "Calcium Carbonate + Vitamin D3", strength: "600mg/400IU", dosageForm: "Tablet" },
-    { tradeName: "Ferrograd C", genericName: "Iron + Vitamin C", strength: "325mg", dosageForm: "Tablet" },
-    { tradeName: "Haemojet", genericName: "Iron + Folic Acid + Vitamin B12", strength: "-", dosageForm: "Capsule" },
-    { tradeName: "Neurobion", genericName: "Vitamin B1 + B6 + B12", strength: "-", dosageForm: "Tablet" },
-    { tradeName: "Folic Acid", genericName: "Folic Acid", strength: "5mg", dosageForm: "Tablet" },
-    { tradeName: "Omega 3", genericName: "Fish Oil", strength: "1000mg", dosageForm: "Capsule" },
-
-    // ── Ophthalmology ────────────────────────────────
-    { tradeName: "Tobrex", genericName: "Tobramycin", strength: "0.3%", dosageForm: "Eye Drop" },
-    { tradeName: "Vigamox", genericName: "Moxifloxacin", strength: "0.5%", dosageForm: "Eye Drop" },
-    { tradeName: "Tears Naturale", genericName: "Hypromellose", strength: "0.3%", dosageForm: "Eye Drop" },
-    { tradeName: "FML", genericName: "Fluorometholone", strength: "0.1%", dosageForm: "Eye Drop" },
-
-    // ── Urology ──────────────────────────────────────
-    { tradeName: "Xatral", genericName: "Alfuzosin", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Urotel", genericName: "Tolterodine", strength: "4mg", dosageForm: "Capsule" },
-    { tradeName: "Macrobid", genericName: "Nitrofurantoin", strength: "100mg", dosageForm: "Capsule" },
-
-    // ── Endocrine / Thyroid ──────────────────────────
-    { tradeName: "Eltroxin", genericName: "Levothyroxine", strength: "50mcg", dosageForm: "Tablet" },
-    { tradeName: "Carbimazole", genericName: "Carbimazole", strength: "5mg", dosageForm: "Tablet" },
-    { tradeName: "Neomercazole", genericName: "Carbimazole", strength: "5mg", dosageForm: "Tablet" },
-
-    // ── Psychiatry ───────────────────────────────────
-    { tradeName: "Prozac", genericName: "Fluoxetine", strength: "20mg", dosageForm: "Capsule" },
-    { tradeName: "Cipralex", genericName: "Escitalopram", strength: "10mg", dosageForm: "Tablet" },
-    { tradeName: "Zoloft", genericName: "Sertraline", strength: "50mg", dosageForm: "Tablet" },
-    { tradeName: "Xanax", genericName: "Alprazolam", strength: "0.25mg", dosageForm: "Tablet" },
-    { tradeName: "Lexotanil", genericName: "Bromazepam", strength: "1.5mg", dosageForm: "Tablet" },
-    { tradeName: "Valium", genericName: "Diazepam", strength: "5mg", dosageForm: "Tablet" },
-    { tradeName: "Stilnox", genericName: "Zolpidem", strength: "10mg", dosageForm: "Tablet" },
+    { tradeName: "Flagyl", genericName: "Metronidazole", strength: "500mg", dosageForm: "Tablet" },
+    // ... (لو حابب تسيب باقي الأدوية اليدوية امسح الكومنت وحطها، أو لو واثق في الـ CSV سيب دول بس)
   ]
 
-  let medCount = 0
-  for (const m of medications) {
-    const existing = await prisma.medication.findFirst({
-      where: { tradeName: m.tradeName, strength: m.strength }
-    })
-    if (!existing) {
-      await prisma.medication.create({ data: m })
-      medCount++
+  // دمج الاتنين
+  const allMedicationsRaw = [...csvMedications, ...defaultMedications]
+
+  // إزالة التكرار (عشان Panadol متتكررش لو موجود في الـ CSV والـ Default)
+  const uniqueMedsMap = new Map<string, typeof allMedicationsRaw[0]>()
+  for (const m of allMedicationsRaw) {
+    const key = `${m.tradeName.toLowerCase()}-${m.strength}` // التكرار مبني على الاسم والتركيز
+    if (!uniqueMedsMap.has(key)) {
+      uniqueMedsMap.set(key, m)
     }
   }
-  console.log(`✅ Seeded ${medCount} Egyptian market medications`)
 
+  const finalMedications = Array.from(uniqueMedsMap.values())
+
+  if (finalMedications.length > 0) {
+    const result = await prisma.medication.createMany({
+      data: finalMedications,
+      skipDuplicates: true, // أمان إضافي من Prisma لو في أسماء متطابقة 100%
+    })
+    console.log(`✅ Seeded ${result.count} Egyptian market medications (from CSV + defaults)`)
+  } else {
+    console.log("⚠️ No medications found to seed.")
+  }
+
+  
   // ════════════════════════════════════════════════════
   // TREATMENT TEMPLATES
   // ════════════════════════════════════════════════════
