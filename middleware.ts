@@ -28,10 +28,12 @@ export default auth((req: AuthRequest) => {
   }
 
   // حماية مسارات الـ Dashboard الأساسية
-  const isProtectedRoute = !pathname.startsWith("/login") && 
-                           !pathname.startsWith("/book") && 
-                           !pathname.startsWith("/api/auth") && 
-                           !pathname.startsWith("/_next");
+const isProtectedRoute = pathname.startsWith("/dashboard") ||
+                         pathname.startsWith("/patients") ||
+                         pathname.startsWith("/appointments") ||
+                         pathname.startsWith("/settings") ||
+                         pathname.startsWith("/admin") ||
+                         pathname.startsWith("/invoices")
 
   if (isProtectedRoute && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.url));

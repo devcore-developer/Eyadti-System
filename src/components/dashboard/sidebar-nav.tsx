@@ -28,7 +28,7 @@ const navigation = [
 
 const adminNavigation = [
   { name: "Users & Roles", href: "/admin/users", icon: Shield },
-  { name: "Clinic Settings", href: "/admin/settings", icon: Settings },
+  { name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
   { name: "Public Booking", href: "/book", icon: Globe },
   { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },

@@ -1,4 +1,4 @@
-// src/app/(dashboard)/settings/clinic/page.tsx
+// src/app/(dashboard)/settings/clinics/page.tsx
 
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
