@@ -1,5 +1,8 @@
 // src/app/book/page.tsx
 
+// منع Next.js من إنشاء الصفحة أثناء البناء لأنها تحتاج الاتصال بقاعدة البيانات
+export const dynamic = 'force-dynamic'
+
 import { getPublicClinicInfo, getAvailableDoctors } from "@/lib/actions/booking"
 import Image from "next/image"
 import Link from "next/link"
