@@ -8,6 +8,7 @@ import { loginSchema, signupSchema } from "@/lib/validations/auth";
 import type { LoginInput, SignupInput } from "@/lib/validations/auth";
 import { Prisma } from "@prisma/client";
 import { AuthError } from "next-auth";
+import { randomUUID } from "crypto"; // ← تمت إضافة هذا الاستيراد لتوليد الـ IDs
 
 // ─── Return Type ────────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ export async function loginAction(
   const validated = loginSchema.safeParse(values);
 
   if (!validated.success) {
-    const firstError = validated.error.errors[0];
+    const firstError = validated.error.issues[0]; // ← تم تعديلها لـ issues بدلاً من errors لـ Zod v4
     return {
       success: false,
       error: firstError?.message ?? "Invalid input",
@@ -76,7 +77,7 @@ export async function signupAction(
   const validated = signupSchema.safeParse(values);
 
   if (!validated.success) {
-    const firstError = validated.error.errors[0];
+    const firstError = validated.error.issues[0]; // ← تم تعديلها لـ issues بدلاً من errors لـ Zod v4
     return {
       success: false,
       error: firstError?.message ?? "Invalid input",
@@ -103,19 +104,28 @@ export async function signupAction(
   // Create clinic + admin user atomically
   try {
     await prisma.$transaction(async (tx) => {
+      // 1. توليد الـ IDs يدوياً لفك الارتباط الدائري (Circular Dependency)
+      const newUserId = randomUUID();
+      const newClinicId = randomUUID();
+
+      // 2. إنشاء العيادة مع ربطها بالمالك (باستخدام الـ ID المولد)
       const clinic = await tx.clinic.create({
         data: {
+          id: newClinicId,
           name: clinicName,
+          ownerId: newUserId, // ← الحل: الـ ID موجود بالفعل
         },
       });
 
+      // 3. إنشاء المستخدم مع ربطه بالعيادة
       await tx.user.create({
         data: {
+          id: newUserId,
           name,
           email,
           password: hashedPassword,
           role: "ADMIN",
-          clinicId: clinic.id,
+          clinicId: clinic.id, // ← ربط المستخدم بالعيادة
         },
       });
     });
