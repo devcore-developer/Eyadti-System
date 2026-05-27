@@ -17,32 +17,30 @@ export default async function EditVisitPage({
 
   const { id: patientId, visitId } = await params
 
-  const [visit, doctors] = await Promise.all([
-    getVisitById(visitId, session.user.clinicId),
-    prisma.user.findMany({
-      where: { clinicId: session.user.clinicId, role: "DOCTOR" },
-      select: { id: true, name: true },
-    }),
-  ])
+  const rawVisit: any = await getVisitById(visitId, session.user.clinicId)
+  const doctors = await prisma.user.findMany({
+    where: { clinicId: session.user.clinicId, role: "DOCTOR" },
+    select: { id: true, name: true },
+  })
 
-  if (!visit) notFound()
-  if (visit.patient.id !== patientId) redirect("/patients")
+  if (!rawVisit) notFound()
+  if (rawVisit.patient.id !== patientId) redirect("/patients")
 
   // لو دكتور، لازم يكون هو صاحب الزيارة
-  if (session.user.role === "DOCTOR" && visit.doctor.id !== session.user.id) {
+  if (session.user.role === "DOCTOR" && rawVisit.doctor.id !== session.user.id) {
     redirect(`/patients/${patientId}/visits/${visitId}`)
   }
 
-  // تحويل البيانات لشكل الـ Form
+  // تحويل البيانات لشكل الـ Form مع استخراج الأسماء من العلاقات الجديدة
   const formVisit = {
-    id: visit.id,
-    patientId: visit.patient.id,
-    doctorId: visit.doctor.id,
-    visitDate: visit.visitDate,
-    notes: visit.notes,
-    complaints: visit.complaints.map(c => c.complaint),
-    diagnoses: visit.diagnoses.map(d => d.diagnosis),
-    treatmentPlans: visit.treatmentPlans.map(t => t.treatment),
+    id: rawVisit.id,
+    patientId: rawVisit.patient.id,
+    doctorId: rawVisit.doctor.id,
+    visitDate: rawVisit.visitDate,
+    notes: rawVisit.notes,
+    complaints: rawVisit.complaints.map((c: any) => c.complaint?.name || c.complaintId || ""),
+    diagnoses: rawVisit.diagnoses.map((d: any) => d.diagnosis?.name || d.diagnosisId || ""),
+    treatmentPlans: rawVisit.treatmentPlans.map((t: any) => t.treatment || ""),
   }
 
   return (
@@ -52,7 +50,7 @@ export default async function EditVisitPage({
           <ArrowLeft className="mr-1 h-3 w-3" /> Back to Visit
         </Link>
         <h1 className="text-2xl font-bold text-foreground">Edit Medical Visit</h1>
-        <p className="text-sm text-muted-foreground mt-1">Update visit details for {visit.patient.fullName}</p>
+        <p className="text-sm text-muted-foreground mt-1">Update visit details for {rawVisit.patient.fullName}</p>
       </div>
       <VisitForm patientId={patientId} doctors={doctors} visit={formVisit} />
     </div>

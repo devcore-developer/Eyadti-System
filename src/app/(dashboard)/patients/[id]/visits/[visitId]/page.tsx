@@ -16,9 +16,26 @@ export default async function VisitDetailPage({
 
   const { id: patientId, visitId } = await params
 
-  const visit = await getVisitById(visitId, session.user.clinicId)
-  if (!visit) notFound()
-  if (visit.patient.id !== patientId) redirect("/patients")
+  const rawVisit: any = await getVisitById(visitId, session.user.clinicId)
+  if (!rawVisit) notFound()
+  if (rawVisit.patient.id !== patientId) redirect("/patients")
+
+  // تحويل البيانات لتتطابق مع النوع VisitFull المتوقع من المكون
+  const visit = {
+    ...rawVisit,
+    complaints: rawVisit.complaints.map((c: any) => ({
+      id: c.id,
+      complaint: c.complaint?.name || c.complaintId || "",
+    })),
+    diagnoses: rawVisit.diagnoses.map((d: any) => ({
+      id: d.id,
+      diagnosis: d.diagnosis?.name || d.diagnosisId || "",
+    })),
+    treatmentPlans: rawVisit.treatmentPlans.map((t: any) => ({
+      id: t.id,
+      treatment: t.treatment || "",
+    })),
+  }
 
   return (
     <div className="space-y-6">

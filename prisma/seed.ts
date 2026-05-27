@@ -96,7 +96,7 @@ async function main() {
   const allDiagnosesRaw = [
     ...icd10Details.map(row => {
       // تنظيف الاسم من أي سطور جديدة (Line breaks) عشان يظهر بشكل سليم في الـ UI
-      let cleanName = (row.definition || "").replace(/(\r\n|\n|\r)/gm, " ").trim()
+      const cleanName = (row.definition || "").replace(/(\r\n|\n|\r)/gm, " ").trim()
       return {
         name: cleanName,
         icd10Code: (row["sub-code"] || "").trim(),
