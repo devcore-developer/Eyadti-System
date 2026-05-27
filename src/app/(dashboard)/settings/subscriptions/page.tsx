@@ -1,7 +1,7 @@
 // src/app/(dashboard)/settings/subscriptions/page.tsx
 
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { getSubscription, getActivePlans } from "@/lib/services/subscription";
 import { getUsageStats } from "@/lib/services/usage-limits";
 import { SubscriptionDetailsClient } from "./subscriptions-client";
@@ -11,13 +11,18 @@ export const metadata = {
 };
 
 export default async function SubscriptionsPage() {
-  const user = await getCurrentUser();
-  if (!user?.clinicId) redirect("/login");
+  // استخدام دالة auth() بدلاً من getCurrentUser
+  const session = await auth();
+  
+  // التحقق من تسجيل الدخول ووجود clinicId
+  if (!session?.user?.clinicId) redirect("/login");
+
+  const clinicId = session.user.clinicId;
 
   const [subscription, plans, usage] = await Promise.all([
-    getSubscription(user.clinicId),
+    getSubscription(clinicId),
     getActivePlans(),
-    getUsageStats(user.clinicId),
+    getUsageStats(clinicId),
   ]);
 
   if (!subscription) {
