@@ -51,16 +51,26 @@ export async function overrideSubscription(
       newEndDate.setDate(newEndDate.getDate() + daysToAdd)
     }
 
-    await prisma.subscription.upsert({
-      where: { clinicId },
-      update: { status: newStatus, endDate: newEndDate },
-      create: { 
-        clinicId, 
-        status: newStatus, 
-        endDate: newEndDate,
-        planId: "manual-override" // هنحط قيمة افتراضية
-      }
-    })
+    // لو مفيش اشتراك خالص، هنجيب أول Plan في النظام عشان ننشئه
+    if (!sub) {
+      const defaultPlan = await prisma.plan.findFirst()
+      if (!defaultPlan) return { success: false, error: "No plans found in database." }
+
+      await prisma.subscription.create({
+        data: { 
+          clinicId, 
+          status: newStatus, 
+          endDate: newEndDate,
+          planId: defaultPlan.id
+        }
+      })
+    } else {
+      // لو موجود بنحدثه بس
+      await prisma.subscription.update({
+        where: { clinicId },
+        data: { status: newStatus, endDate: newEndDate }
+      })
+    }
 
     return { success: true, message: "Subscription updated successfully." }
   } catch (error: any) {
