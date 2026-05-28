@@ -14,10 +14,11 @@ type Props = {
 }
 
 const roleBadge: Record<Role, string> = {
-  ADMIN: "bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/50 dark:text-violet-400 dark:ring-violet-400/20",
+  SUPER_ADMIN: "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-400",
+  ADMIN: "bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/50 dark:text-violet-400",
   DOCTOR: "bg-primary/10 text-primary ring-primary/20 dark:bg-primary/20 dark:text-primary",
-  RECEPTIONIST: "bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-950/50 dark:text-sky-400 dark:ring-sky-400/20",
-}
+  RECEPTIONIST: "bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-950/50 dark:text-sky-400",
+};
 
 export function UserTable({ users, currentUserId }: Props) {
   if (users.length === 0) {
