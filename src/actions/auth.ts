@@ -98,14 +98,14 @@ export async function signupAction(
 
   const hashedPassword = await hashPassword(password);
 
-  // Create clinic + admin user + settings + default branch atomically
+  // Create clinic + admin user + settings + default branch + trial subscription atomically
   try {
     await prisma.$transaction(async (tx) => {
       const newUserId = randomUUID();
       const newClinicId = randomUUID();
       const newBranchId = randomUUID();
 
-      // 1. إنشاء العيادة أولاً (ownerId أصبح اختيارياً في الـ Schema)
+      // 1. إنشاء العيادة أولاً
       const clinic = await tx.clinic.create({
         data: {
           id: newClinicId,
@@ -133,7 +133,7 @@ export async function signupAction(
         },
       });
 
-      // 4. إنشاء إعدادات العيادة الافتراضية (يحل مشكلة الـ FK Error على Vercel)
+      // 4. إنشاء إعدادات العيادة الافتراضية
       await tx.clinicSettings.create({
         data: {
           clinicId: clinic.id,
@@ -141,7 +141,7 @@ export async function signupAction(
         },
       });
 
-      // 5. إنشاء الفرع الرئيسي الافتراضي (يحل مشكلة فشل إنشاء مريض لاحقاً)
+      // 5. إنشاء الفرع الرئيسي الافتراضي
       await tx.branch.create({
         data: {
           id: newBranchId,
@@ -150,6 +150,28 @@ export async function signupAction(
           code: "MAIN",
         },
       });
+
+      // 6. جلب أول باقة متاحة في النظام لربطها بالاشتراك المجاني
+      const defaultPlan = await tx.plan.findFirst({
+        where: { active: true }
+      });
+
+      // 7. إنشاء الاشتراك المجاني (3 أيام)
+      if (defaultPlan) {
+        await tx.subscription.create({
+          data: {
+            clinicId: clinic.id,
+            planId: defaultPlan.id,
+            status: "TRIAL",
+            startDate: new Date(),
+            trialEndsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // ← 3 أيام مجانية
+          }
+        });
+      } else {
+        // لو مفيش باقات، سجل تحذير (المفروض الأدمن يعمل باقة من الـ Super Admin)
+        console.warn("No active Plan found. Trial subscription was not created for clinic:", clinic.id);
+      }
+
     });
   } catch (error) {
     console.error("Signup Error:", error);
