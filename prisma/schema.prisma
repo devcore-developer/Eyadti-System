@@ -215,8 +215,8 @@ model Clinic {
   name          String
   address       String?
   phone         String?
-  ownerId       String? // ← تم التعديل هنا: أصبح اختياري
-  owner         User?                @relation("ClinicOwner", fields: [ownerId], references: [id], onDelete: Restrict) // ← تم التعديل هنا: أصبح اختياري
+  ownerId       String?
+  owner         User?                @relation("ClinicOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   users         User[]
   patients      Patient[]
   appointments  Appointment[]
@@ -231,6 +231,7 @@ model Clinic {
   bookings      Booking[]
   auditLogs     AuditLog[]
   branches      Branch[]
+  usedActivationCodes ActivationCode[] // ← علاقة أكواد التفعيل
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -390,7 +391,8 @@ model Plan {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  subscriptions Subscription[]
+  subscriptions    Subscription[]
+  activationCodes  ActivationCode[] // ← علاقة أكواد التفعيل
 
   @@map("plans")
 }
@@ -403,7 +405,7 @@ model Subscription {
   plan        Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
   status      SubscriptionStatus @default(TRIAL)
   startDate   DateTime           @default(now())
-  endDate     DateTime?
+  endDate     DateTime?          // ← هذا الحقل هو اللي سنحدّثه عند تفعيل الكود
   trialEndsAt DateTime?
   cancelledAt DateTime?
   createdAt   DateTime           @default(now())
@@ -412,6 +414,28 @@ model Subscription {
   @@index([status])
   @@index([endDate])
   @@map("subscriptions")
+}
+
+// ── Activation Codes (الجديد) ──────────────────────────
+
+model ActivationCode {
+  id             String    @id @default(cuid())
+  code           String    @unique // الكود اللي العميل هيدخله (مثلاً A1B2-C3D4)
+  durationDays   Int       // عدد أيام الصلاحية (30 لشهري، 365 لسنوي)
+  planId         String?   // الباقة اللي هيتفعله الكود ده (اختياري)
+  isUsed         Boolean   @default(false) // هل الكود اتاستخدم ولا لسه
+  usedByClinicId String?  // الـ ID بتاع العيادة اللي استخدمته
+  usedAt         DateTime? // امتى اتاستخدم
+  
+  createdAt      DateTime  @default(now())
+
+  // العلاقات
+  plan           Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  usedByClinic   Clinic?   @relation(fields: [usedByClinicId], references: [id], onDelete: SetNull)
+
+  @@index([code])
+  @@index([isUsed])
+  @@map("activation_codes")
 }
 
 // ── Auth Models ─────────────────────────────────────────
@@ -505,7 +529,7 @@ model VisitDiagnosis {
   visitId     String
   diagnosisId String
 
-  severity    String?   // mild / moderate / severe
+  severity    String?
   notes       String?
 
   visit     Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
@@ -788,7 +812,6 @@ model Diagnosis {
   icd10Code     String?
   createdAt     DateTime @default(now())
   
-  // ← تمت إضافة العلاقة العكسية هنا
   visitDiagnoses VisitDiagnosis[] 
   
   @@index([name])
@@ -800,7 +823,6 @@ model Complaint {
   name          String
   createdAt     DateTime @default(now())
   
-  // ← تمت إضافة العلاقة العكسية هنا
   visitComplaints VisitComplaint[] 
   
   @@index([name])

@@ -15,6 +15,7 @@ declare module "next-auth" {
       planId: string | null;
       planSlug?: string | null;
       trialEndsAt: Date | null;
+      currentPeriodEnd: Date | null; // ← تمت الإضافة هنا
     };
   }
 
@@ -33,5 +34,6 @@ declare module "next-auth/jwt" {
     subscriptionStatus: SubscriptionStatus | null;
     planId: string | null;
     trialEndsAt: Date | null;
+    currentPeriodEnd: Date | null; // ← تمت الإضافة هنا
   }
 }

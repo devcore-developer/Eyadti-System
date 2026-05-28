@@ -2,9 +2,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { Role, SubscriptionStatus } from "@prisma/client"
-// ✅ التعديل هنا: استيراد Prisma بشكل طبيعي بدل Dynamic Import
-import { prisma } from "@/lib/db"
-import { compare } from "bcryptjs"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
@@ -21,6 +18,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
+          const { prisma } = await import("@/lib/db")
+          const { compare } = await import("bcryptjs")
+
           const user = await prisma.user.findUnique({
             where: { email: credentials.email as string },
           })
@@ -53,30 +53,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role as Role
         token.clinicId = user.clinicId as string
         
-        // جلب حالة الاشتراك عند تسجيل الدخول
         try {
+          const { prisma } = await import("@/lib/db")
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: user.clinicId },
-            select: { status: true, planId: true, trialEndsAt: true }
+            // ✅ أضفنا endDate هنا
+            select: { status: true, planId: true, trialEndsAt: true, endDate: true }
           })
           token.subscriptionStatus = subscription?.status || null
           token.planId = subscription?.planId || null
           token.trialEndsAt = subscription?.trialEndsAt || null
+          token.currentPeriodEnd = subscription?.endDate || null // ← الجديد
         } catch(e) {
           console.error("Failed to fetch subscription in JWT callback", e)
         }
       }
 
-      // تحديث حالة الاشتراك لو حصل Update للـ Session
       if (trigger === "update" && token.clinicId) {
          try {
+          const { prisma } = await import("@/lib/db")
           const subscription = await prisma.subscription.findUnique({
-            where: { clinicId: token.clinicId as string },
-            select: { status: true, planId: true, trialEndsAt: true }
+            where: { clinicId: token.clinicId },
+            // ✅ أضفنا endDate هنا
+            select: { status: true, planId: true, trialEndsAt: true, endDate: true }
           })
           token.subscriptionStatus = subscription?.status || null
           token.planId = subscription?.planId || null
           token.trialEndsAt = subscription?.trialEndsAt || null
+          token.currentPeriodEnd = subscription?.endDate || null // ← الجديد
         } catch(e) {
           console.error("Failed to fetch subscription on update", e)
         }
@@ -90,10 +94,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as Role
         session.user.clinicId = token.clinicId as string
         
-        // إضافة بيانات الاشتراك للـ Session
         session.user.subscriptionStatus = token.subscriptionStatus as SubscriptionStatus | null
         session.user.planId = token.planId as string | null
         session.user.trialEndsAt = token.trialEndsAt as Date | null
+        session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null // ← الجديد
       }
       return session
     },
