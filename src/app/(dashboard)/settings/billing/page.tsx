@@ -5,7 +5,7 @@ import {
 import { BillingPageClient } from "./billing-page-client";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { RedeemForm } from "@/components/subscription/redeem-form"; // ← استدعاء الفورم
+import { RedeemForm } from "@/components/subscription/redeem-form";
 
 export const metadata = {
   title: "Billing & Subscription | Eyadti",
@@ -33,7 +33,6 @@ export default async function BillingPage() {
           <p className="text-gray-500 mb-6">
             Please enter an activation code or contact support to set up your subscription.
           </p>
-          {/* ✅ عرض فورم الكود لو مفيش اشتراك خالص */}
           <div className="max-w-md mx-auto">
             <RedeemForm />
           </div>
@@ -42,10 +41,10 @@ export default async function BillingPage() {
     );
   }
 
-  // ✅ لو الاشتراك منتهي، اعرضله فورم الكود في الأعلى
+  // ✅ استخدام الـ session بدل الـ overview عشان التحقق من تاريخ الانتهاء
   const isExpired = session.user.subscriptionStatus === "EXPIRED" || 
                     session.user.subscriptionStatus === "SUSPENDED" ||
-                    (overview.currentPeriodEnd && new Date(overview.currentPeriodEnd) < new Date());
+                    (session.user.currentPeriodEnd && new Date(session.user.currentPeriodEnd) < new Date());
 
   return (
     <div className="space-y-6">
@@ -57,7 +56,6 @@ export default async function BillingPage() {
         </div>
       )}
       
-      {/* عرض صفحة الباقات والفواتير العادية */}
       <BillingPageClient overview={overview} plans={plans} />
     </div>
   );
