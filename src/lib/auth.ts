@@ -53,19 +53,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role as Role
         token.clinicId = user.clinicId as string
         
+        // ✅ التعديل هنا: حطينا الاشتراك في try/catch عشان لو حصل خطأ في الداتا بيز الأونلاين، يكمل تسجيل الدخول عادي
         try {
           const { prisma } = await import("@/lib/db")
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: user.clinicId },
-            // ✅ أضفنا endDate هنا
             select: { status: true, planId: true, trialEndsAt: true, endDate: true }
           })
           token.subscriptionStatus = subscription?.status || null
           token.planId = subscription?.planId || null
           token.trialEndsAt = subscription?.trialEndsAt || null
-          token.currentPeriodEnd = subscription?.endDate || null // ← الجديد
+          token.currentPeriodEnd = subscription?.endDate || null
         } catch(e) {
-          console.error("Failed to fetch subscription in JWT callback", e)
+          console.error("Failed to fetch subscription, but login will continue", e)
+          // لو حصل خطأ، هيفضل الاشتراك بـ null والمستخدم هيدخل عادي
         }
       }
 
@@ -74,13 +75,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const { prisma } = await import("@/lib/db")
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: token.clinicId },
-            // ✅ أضفنا endDate هنا
             select: { status: true, planId: true, trialEndsAt: true, endDate: true }
           })
           token.subscriptionStatus = subscription?.status || null
           token.planId = subscription?.planId || null
           token.trialEndsAt = subscription?.trialEndsAt || null
-          token.currentPeriodEnd = subscription?.endDate || null // ← الجديد
+          token.currentPeriodEnd = subscription?.endDate || null
         } catch(e) {
           console.error("Failed to fetch subscription on update", e)
         }
@@ -97,7 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.subscriptionStatus = token.subscriptionStatus as SubscriptionStatus | null
         session.user.planId = token.planId as string | null
         session.user.trialEndsAt = token.trialEndsAt as Date | null
-        session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null // ← الجديد
+        session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null
       }
       return session
     },
