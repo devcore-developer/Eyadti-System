@@ -4,7 +4,7 @@ import { GenerateCodeForm } from "@/components/admin/generate-code-form"
 
 export default async function ActivationCodesPage() {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard")
+  if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) redirect("/dashboard")
 
   return (
     <div className="space-y-6">

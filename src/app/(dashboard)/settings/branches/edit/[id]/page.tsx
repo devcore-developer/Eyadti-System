@@ -7,7 +7,7 @@ import { BranchForm } from "@/components/branch/branch-form";
 
 export default async function EditBranchPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard");
+  if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) redirect("/dashboard");
   
   const { id } = await params;
 

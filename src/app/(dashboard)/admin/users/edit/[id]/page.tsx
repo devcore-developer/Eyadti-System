@@ -11,7 +11,7 @@ interface EditUserPageProps {
 
 export default async function EditUserPage({ params }: EditUserPageProps) {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard")
+  if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) redirect("/dashboard")
   
   const { id } = await params
 
