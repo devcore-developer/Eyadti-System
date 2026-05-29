@@ -1,4 +1,3 @@
-// src/app/(auth)/signup/page.tsx
 "use client"
 
 import { useState, useTransition } from "react"
@@ -8,7 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Stethoscope, Loader2, AlertCircle } from "lucide-react"
+import { Stethoscope, Loader2, AlertCircle, KeyRound } from "lucide-react"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -18,12 +17,12 @@ export default function SignupPage() {
   const handleSubmit = (formData: FormData) => {
     setError(null)
     
-    // تحويل FormData إلى كائن عادي كما يتوقع الـ Zod Validation
     const values = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       password: formData.get("password") as string,
       clinicName: formData.get("clinicName") as string,
+      activationCode: formData.get("activationCode") as string,
     }
 
     startTransition(async () => {
@@ -63,54 +62,44 @@ export default function SignupPage() {
           )}
 
           <form action={handleSubmit} className="space-y-4">
+            
+            {/* Activation Code Field - في الأول عشان يكون واضح */}
+            <div className="space-y-2">
+              <Label htmlFor="activationCode" className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-[#5BC0BE]" />
+                Activation Code
+              </Label>
+              <Input 
+                id="activationCode" 
+                name="activationCode" 
+                placeholder="e.g. A1B2-C3D4" 
+                required 
+                disabled={isPending}
+                className="font-semibold tracking-wider"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                You need an activation code to register. Please contact the system administrator to get yours.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input 
-                id="name" 
-                name="name" 
-                placeholder="Dr. Ahmed" 
-                required 
-                autoComplete="name"
-                disabled={isPending}
-              />
+              <Input id="name" name="name" placeholder="Dr. Ahmed" required autoComplete="name" disabled={isPending} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                name="email" 
-                type="email" 
-                placeholder="doctor@clinic.com" 
-                required 
-                autoComplete="email"
-                disabled={isPending}
-              />
+              <Input id="email" name="email" type="email" placeholder="doctor@clinic.com" required autoComplete="email" disabled={isPending} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                name="password" 
-                type="password" 
-                placeholder="••••••••" 
-                required 
-                autoComplete="new-password"
-                minLength={6}
-                disabled={isPending}
-              />
+              <Input id="password" name="password" type="password" placeholder="••••••••" required autoComplete="new-password" minLength={8} disabled={isPending} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="clinicName">Clinic Name</Label>
-              <Input 
-                id="clinicName" 
-                name="clinicName" 
-                placeholder="Eyadti Medical Center" 
-                required 
-                disabled={isPending}
-              />
+              <Input id="clinicName" name="clinicName" placeholder="Eyadti Medical Center" required disabled={isPending} />
             </div>
 
             <Button 

@@ -35,15 +35,16 @@ export function PrescriptionTable({ prescriptions, patientId }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    // ← استخدمنا gap-3 عشان يكون زيه زي الـ MobileCards
+    <div className="grid grid-cols-1 gap-3">
       {prescriptions.map((rx) => (
         <Link
           key={rx.id}
           href={`/patients/${patientId}/prescriptions/${rx.id}`}
-          className="group flex items-center justify-between rounded-lg bg-white/50 dark:bg-slate-800/50 p-4 transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-md"
+          className="group flex items-center justify-between rounded-xl border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white dark:bg-[#1D2A3B] p-4 transition-all hover:shadow-md active:scale-[0.98] md:active:scale-100"
         >
-          <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/30">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
               <Pill className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
@@ -52,7 +53,7 @@ export function PrescriptionTable({ prescriptions, patientId }: Props) {
             </div>
           </div>
           <span className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-950/30 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
-            {rx._count.items} Medication{rx._count.items !== 1 ? "s" : ""}
+            {rx._count.items} Med{rx._count.items !== 1 ? "s" : ""}
           </span>
         </Link>
       ))}

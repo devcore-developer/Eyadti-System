@@ -1,4 +1,3 @@
-// src/lib/validations/auth.ts
 import { z } from "zod";
 
 export const loginSchema = z.object({
@@ -31,6 +30,10 @@ export const signupSchema = z
       .trim()
       .min(2, { message: "Clinic name must be at least 2 characters" })
       .max(200, { message: "Clinic name must be at most 200 characters" }),
+    activationCode: z
+      .string()
+      .trim()
+      .min(1, { message: "Activation code is required" }),
   })
   .strict();
 

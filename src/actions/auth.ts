@@ -1,4 +1,3 @@
-// src/actions/auth.ts
 "use server";
 
 import { signIn, signOut } from "@/lib/auth";
@@ -47,7 +46,7 @@ export async function loginAction(
         case "CredentialsSignin":
           return {
             success: false,
-            error: "Invalid email or password",
+            error: "Incorrect email or password. Please try again.",
           };
         case "CallbackRouteError":
           return {
@@ -81,39 +80,46 @@ export async function signupAction(
     };
   }
 
-  const { name, email, password, clinicName } = validated.data;
+  const { name, email, password, clinicName, activationCode } = validated.data;
 
-  // Pre-check for existing email (provides friendly error message)
+  // 1. التحقق من كود التفعيل أولاً
+  const codeRecord = await prisma.activationCode.findUnique({
+    where: { code: activationCode },
+  });
+
+  if (!codeRecord) {
+    return { success: false, error: "Invalid activation code. Please contact the administrator." };
+  }
+
+  if (codeRecord.isUsed) {
+    return { success: false, error: "This activation code has already been used." };
+  }
+
+  // 2. التأكد إن الإيميل مش مسجل
   const existingUser = await prisma.user.findUnique({
     where: { email },
     select: { id: true },
   });
 
   if (existingUser) {
-    return {
-      success: false,
-      error: "An account with this email already exists",
-    };
+    return { success: false, error: "An account with this email already exists" };
   }
 
   const hashedPassword = await hashPassword(password);
 
-  // Create clinic + admin user + settings + default branch + trial subscription atomically
+  // 3. إنشاء الحساب وتفعيل الكود في نفس الـ Transaction
   try {
     await prisma.$transaction(async (tx) => {
       const newUserId = randomUUID();
       const newClinicId = randomUUID();
       const newBranchId = randomUUID();
 
-      // 1. إنشاء العيادة أولاً
+      // إنشاء العيادة
       const clinic = await tx.clinic.create({
-        data: {
-          id: newClinicId,
-          name: clinicName,
-        },
+        data: { id: newClinicId, name: clinicName },
       });
 
-      // 2. إنشاء المستخدم وربطه بالعيادة
+      // إنشاء المستخدم
       const user = await tx.user.create({
         data: {
           id: newUserId,
@@ -125,23 +131,18 @@ export async function signupAction(
         },
       });
 
-      // 3. تحديث العيادة وربطها بالمستخدم كمالك
+      // ربط المالك بالعيادة
       await tx.clinic.update({
         where: { id: clinic.id },
-        data: {
-          ownerId: user.id,
-        },
+        data: { ownerId: user.id },
       });
 
-      // 4. إنشاء إعدادات العيادة الافتراضية
+      // الإعدادات الافتراضية
       await tx.clinicSettings.create({
-        data: {
-          clinicId: clinic.id,
-          clinicName: clinicName,
-        },
+        data: { clinicId: clinic.id, clinicName },
       });
 
-      // 5. إنشاء الفرع الرئيسي الافتراضي
+      // الفرع الرئيسي
       await tx.branch.create({
         data: {
           id: newBranchId,
@@ -151,68 +152,74 @@ export async function signupAction(
         },
       });
 
-      // 6. جلب أول باقة متاحة في النظام لربطها بالاشتراك المجاني
-      const defaultPlan = await tx.plan.findFirst({
-        where: { active: true }
-      });
-
-      // 7. إنشاء الاشتراك المجاني (3 أيام)
-      if (defaultPlan) {
-        await tx.subscription.create({
-          data: {
-            clinicId: clinic.id,
-            planId: defaultPlan.id,
-            status: "TRIAL",
-            startDate: new Date(),
-            trialEndsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // ← 3 أيام مجانية
-          }
+      // جلب الباقة المرتبطة بالكود، أو الباقة الافتراضية
+      let planId = codeRecord.planId;
+      if (!planId) {
+        const defaultPlan = await tx.plan.upsert({
+          where: { slug: "default-plan" },
+          update: {},
+          create: {
+            name: "Default Plan",
+            slug: "default-plan",
+            monthlyPrice: 0,
+            yearlyPrice: 0,
+            active: true,
+          },
         });
-      } else {
-        // لو مفيش باقات، سجل تحذير (المفروض الأدمن يعمل باقة من الـ Super Admin)
-        console.warn("No active Plan found. Trial subscription was not created for clinic:", clinic.id);
+        planId = defaultPlan.id;
       }
 
+      // إنشاء الاشتراك بناءً على مدة الكود (durationDays)
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + codeRecord.durationDays);
+
+      await tx.subscription.create({
+        data: {
+          clinicId: clinic.id,
+          planId: planId,
+          status: "ACTIVE", // بما إنه دخل كود، يبقى Active مش Trial
+          startDate,
+          endDate,
+        },
+      });
+
+      // ✨✨ تحديث الكود إنه اتاستخدم وربطه بالعيادة ✨✨
+      await tx.activationCode.update({
+        where: { id: codeRecord.id },
+        data: {
+          isUsed: true,
+          usedByClinicId: clinic.id,
+          usedAt: new Date(),
+        },
+      });
     });
   } catch (error) {
     console.error("Signup Error:", error);
-
-    // Handle race condition on unique email constraint
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
       const target = error.meta?.target as string[] | undefined;
       if (target?.includes("email")) {
-        return {
-          success: false,
-          error: "An account with this email already exists",
-        };
+        return { success: false, error: "An account with this email already exists" };
       }
     }
-
-    return {
-      success: false,
-      error: "Failed to create account. Please try again.",
-    };
+    return { success: false, error: "Failed to create account. Please try again." };
   }
 
-  // Auto sign-in after successful signup
+  // تسجيل الدخول التلقائي
   try {
     await signIn("credentials", {
       email,
       password,
       redirectTo: "/dashboard",
     });
-
     return { success: true };
   } catch (error) {
     if (error instanceof AuthError) {
-      return {
-        success: false,
-        error: "Account created successfully. Please sign in manually.",
-      };
+      return { success: false, error: "Account created successfully. Please sign in manually." };
     }
-
     throw error;
   }
 }
@@ -222,7 +229,6 @@ export async function signupAction(
 export async function logoutAction(): Promise<ActionResult> {
   try {
     await signOut({ redirectTo: "/login" });
-
     return { success: true };
   } catch (error) {
     throw error;

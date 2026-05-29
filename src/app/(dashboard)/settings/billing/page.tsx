@@ -1,4 +1,3 @@
-// src/app/(dashboard)/settings/billing/page.tsx
 import {
   getBillingOverview,
   getPricingPlans,
@@ -33,7 +32,7 @@ export default async function BillingPage() {
             No Subscription Found
           </h2>
           <p className="text-gray-500 mb-6">
-            Please enter an activation code or contact support to set up your subscription.
+            Please enter an activation code or contact support.
           </p>
           <div className="max-w-md mx-auto">
             <RedeemForm />
@@ -43,39 +42,33 @@ export default async function BillingPage() {
     );
   }
 
-  // ✅ حساب الأيام المتبقية في التجربة المجانية
+  // ✅ حساب الأيام المتبقية
   const isTrial = session.user.subscriptionStatus === "TRIAL";
+  const isActive = session.user.subscriptionStatus === "ACTIVE";
   let daysRemaining = 0;
   
   if (isTrial && session.user.trialEndsAt) {
     const remaining = differenceInDays(new Date(session.user.trialEndsAt), new Date());
     daysRemaining = remaining > 0 ? remaining : 0;
-  }
-
-  // ✅ حساب الأيام المتبقية في الاشتراك المدفوع
-  const isActive = session.user.subscriptionStatus === "ACTIVE";
-  let activeDaysRemaining = 0;
-  
-  if (isActive && session.user.currentPeriodEnd) {
+  } else if (isActive && session.user.currentPeriodEnd) {
     const remaining = differenceInDays(new Date(session.user.currentPeriodEnd), new Date());
-    activeDaysRemaining = remaining > 0 ? remaining : 0;
+    daysRemaining = remaining > 0 ? remaining : 0;
   }
 
-  // ✅ تحديد هل الاشتراك منتهي ولا لأ
+  // ✅ هل الاشتراك منتهي؟
   const isExpired = session.user.subscriptionStatus === "EXPIRED" || 
                     session.user.subscriptionStatus === "SUSPENDED" ||
-                    (isTrial && daysRemaining === 0) ||
-                    (isActive && activeDaysRemaining === 0);
+                    ((isTrial || isActive) && daysRemaining === 0);
 
   return (
     <div className="space-y-6">
       
-      {/* ✅ رسالة التجربة المجانية (زرقاء) */}
+      {/* ✅ عداد التجربة المجانية (3 أيام) */}
       {isTrial && daysRemaining > 0 && !isExpired && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-bold text-blue-700 mb-2">Free Trial Active</h2>
-          <p className="text-blue-600 mb-4">
-            You have <span className="font-bold text-2xl">{daysRemaining}</span> days remaining in your free trial.
+          <h2 className="text-xl font-bold text-blue-700 mb-2">🚀 Free Trial Active</h2>
+          <p className="text-blue-600 mb-4 text-lg">
+            You have <span className="font-black text-3xl text-blue-800">{daysRemaining}</span> days remaining in your free trial.
           </p>
           <p className="text-sm text-blue-500 mb-4">
             Activate a subscription code now to continue using all features after the trial ends.
@@ -84,20 +77,21 @@ export default async function BillingPage() {
         </div>
       )}
 
-      {/* ✅ رسالة الاشتراك المدفوع (خضراء) */}
-      {isActive && activeDaysRemaining > 0 && !isExpired && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-          <p className="text-green-700 font-medium">
-            Your subscription is active. <span className="font-bold">{activeDaysRemaining}</span> days remaining.
+      {/* ✅ عداد الاشتراك المدفوع */}
+      {isActive && daysRemaining > 0 && !isExpired && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-bold text-green-700 mb-2">✅ Subscription Active</h2>
+          <p className="text-green-600 mb-4 text-lg">
+            You have <span className="font-black text-3xl text-green-800">{daysRemaining}</span> days remaining.
           </p>
         </div>
       )}
 
-      {/* ✅ رسالة انتهاء الاشتراك (حمراء) */}
+      {/* ✅ رسالة انتهاء الاشتراك (مطلوب كود) */}
       {isExpired && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-bold text-red-700 mb-2">Subscription Expired</h2>
-          <p className="text-red-600 mb-4">Your subscription has expired. Please activate a code to continue.</p>
+          <h2 className="text-xl font-bold text-red-700 mb-2">⛔ Subscription Expired</h2>
+          <p className="text-red-600 mb-4">Your trial or subscription has ended. Please activate a code to continue using the system.</p>
           <RedeemForm />
         </div>
       )}

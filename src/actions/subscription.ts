@@ -34,7 +34,6 @@ export async function redeemActivationCode(inputCode: string): Promise<ActionRes
     })
 
     let startDate = now
-    // ✅ استخدام endDate زي ما هي في الـ Schema
     if (currentSub?.endDate && new Date(currentSub.endDate) > now) {
       // لو الاشتراك لسه شغال، هنزود عليه
       startDate = new Date(currentSub.endDate)
@@ -43,11 +42,20 @@ export async function redeemActivationCode(inputCode: string): Promise<ActionRes
     const newEndDate = new Date(startDate)
     newEndDate.setDate(newEndDate.getDate() + codeRecord.durationDays)
 
-    // ✅ حل مشكلة الـ planId لو الكود مكنش مرتبط بباقة
+    // ✅ جلب أو إنشاء باقة افتراضية لو الكود مش مرتبط بواحدة
     let planId = codeRecord.planId
     if (!planId) {
-      const defaultPlan = await prisma.plan.findFirst({ where: { active: true } })
-      if (!defaultPlan) return { success: false, error: "No active plans found in system." }
+      const defaultPlan = await prisma.plan.upsert({
+        where: { slug: "default-plan" },
+        update: {},
+        create: {
+          name: "Default Plan",
+          slug: "default-plan",
+          monthlyPrice: 0,
+          yearlyPrice: 0,
+          active: true,
+        }
+      })
       planId = defaultPlan.id
     }
 
@@ -58,14 +66,14 @@ export async function redeemActivationCode(inputCode: string): Promise<ActionRes
         where: { clinicId: clinicId },
         update: {
           status: "ACTIVE",
-          endDate: newEndDate, // ✅ التعديل هنا لـ endDate
+          endDate: newEndDate,
           planId: planId,
         },
         create: {
           clinicId: clinicId,
           planId: planId,
           status: "ACTIVE",
-          endDate: newEndDate, // ✅ التعديل هنا لـ endDate
+          endDate: newEndDate,
         },
       }),
       // تسجيل إن الكود اتمسح واتستخدم

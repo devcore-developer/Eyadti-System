@@ -1,4 +1,4 @@
-// src/app/(auth)/login/page.tsx
+
 "use client"
 
 import { useState } from "react"
@@ -29,10 +29,11 @@ export default function LoginPage() {
         router.push("/dashboard")
         router.refresh()
       } else {
-        setError("Invalid email or password")
+        // رسالة أوضح للمستخدم
+        setError("Incorrect email or password. Please try again.")
       }
     } catch {
-      setError("Something went wrong")
+      setError("Something went wrong. Please try again.")
     } finally {
       setLoading(false)
     }
