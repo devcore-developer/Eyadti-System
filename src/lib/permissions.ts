@@ -24,6 +24,15 @@ export async function requireRole(...roles: string[]) {
   if (!session?.user) {
     throw new AuthenticationError()
   }
+
+  // ✅ لو هو SUPER_ADMIN، ادخله على طول في أي عملية من غير فحص
+  if (session.user.role === "SUPER_ADMIN") {
+    return {
+      clinicId: session.user.clinicId,
+      userId: session.user.id,
+      role: session.user.role,
+    }
+  }
   
   if (!roles.includes(session.user.role)) {
     throw new AuthorizationError()
@@ -39,13 +48,13 @@ export async function requireRole(...roles: string[]) {
 // ── Patient Permissions ──────────────────────────────
 
 export function canCreatePatient(role: string): boolean {
-  return role === "ADMIN" || role === "RECEPTIONIST"
+  return role === "ADMIN" || role === "SUPER_ADMIN" || role === "DOCTOR" || role === "RECEPTIONIST"
 }
 
 export function canEditPatient(role: string): boolean {
-  return role === "ADMIN" || role === "DOCTOR"
+  return role === "ADMIN" || role === "SUPER_ADMIN" || role === "DOCTOR"
 }
 
 export function canDeletePatient(role: string): boolean {
-  return role === "ADMIN"
+  return role === "ADMIN" || role === "SUPER_ADMIN"
 }

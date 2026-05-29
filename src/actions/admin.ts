@@ -1,20 +1,23 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { auth } from "@/lib/auth"
+import { requireRole, AuthenticationError, AuthorizationError } from "@/lib/permissions"
 import { createUserSchema, updateUserSchema, updateClinicSchema } from "@/lib/validations/admin"
 import type { ActionResult } from "@/types"
 import { hash } from "bcryptjs"
 import { revalidatePath } from "next/cache"
-import { enforceUsageLimit } from "@/lib/services/usage-limits"
-import crypto from "crypto" // ← جديد لتوليد الأكواد العشوائية
+import crypto from "crypto"
+
+function handleAuthError(error: unknown): ActionResult {
+  if (error instanceof AuthenticationError) return { success: false, error: error.message }
+  if (error instanceof AuthorizationError) return { success: false, error: error.message }
+  return { success: false, error: "An unexpected error occurred" }
+}
 
 // ─── Create User ──────────────────────────────────────────────────
 export async function createUser(formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: "Unauthorized" }
-    if (session.user.role !== "ADMIN") return { success: false, error: "Forbidden" }
+    const session = await requireRole("ADMIN")
 
     const raw = {
       name: formData.get("name") as string,
@@ -37,13 +40,6 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Email is already in use." }
     }
 
-    // ─── فحص حدود الاستخدام ────────────────────────
-    await enforceUsageLimit(session.user.clinicId, "USERS")
-    
-    if (validated.data.role === "DOCTOR") {
-      await enforceUsageLimit(session.user.clinicId, "DOCTORS")
-    }
-
     const hashedPassword = await hash(validated.data.password, 10)
 
     await prisma.user.create({
@@ -52,12 +48,15 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
         email: validated.data.email,
         password: hashedPassword,
         role: validated.data.role,
-        clinicId: session.user.clinicId,
+        clinicId: session.clinicId,
       },
     })
-  } catch (error: any) {
+  } catch (error) {
+    if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
+      return handleAuthError(error)
+    }
     console.error(error)
-    return { success: false, error: error.message || "Failed to create user." }
+    return { success: false, error: "Failed to create user." }
   }
 
   revalidatePath("/admin/users")
@@ -67,16 +66,14 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
 // ─── Update User ──────────────────────────────────────────────────
 export async function updateUser(userId: string, formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: "Unauthorized" }
-    if (session.user.role !== "ADMIN") return { success: false, error: "Forbidden" }
+    const session = await requireRole("ADMIN")
 
     const existingUser = await prisma.user.findFirst({
-      where: { id: userId, clinicId: session.user.clinicId },
+      where: { id: userId, clinicId: session.clinicId },
     })
     if (!existingUser) return { success: false, error: "User not found in your clinic." }
 
-    if (existingUser.id === session.user.id && formData.get("role") !== "ADMIN") {
+    if (existingUser.id === session.userId && formData.get("role") !== "ADMIN") {
       return { success: false, error: "You cannot remove your own Admin role." }
     }
 
@@ -111,6 +108,9 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       data: updateData,
     })
   } catch (error) {
+    if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
+      return handleAuthError(error)
+    }
     console.error(error)
     return { success: false, error: "Failed to update user." }
   }
@@ -122,9 +122,7 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
 // ─── Update Clinic Settings ────────────────────────────────────────
 export async function updateClinicSettings(formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: "Unauthorized" }
-    if (session.user.role !== "ADMIN") return { success: false, error: "Forbidden" }
+    const session = await requireRole("ADMIN")
 
     const raw = {
       name: formData.get("name") as string,
@@ -142,7 +140,7 @@ export async function updateClinicSettings(formData: FormData): Promise<ActionRe
     }
 
     await prisma.clinic.update({
-      where: { id: session.user.clinicId },
+      where: { id: session.clinicId },
       data: {
         name: validated.data.name.trim(),
         phone: validated.data.phone?.trim() || null,
@@ -150,6 +148,9 @@ export async function updateClinicSettings(formData: FormData): Promise<ActionRe
       },
     })
   } catch (error) {
+    if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
+      return handleAuthError(error)
+    }
     console.error(error)
     return { success: false, error: "Failed to update clinic settings." }
   }
@@ -159,28 +160,27 @@ export async function updateClinicSettings(formData: FormData): Promise<ActionRe
   return { success: true }
 }
 
-// ─── Generate Activation Code (جديد) ────────────────────────────
-export async function generateActivationCode(durationDays: number, planId?: string): Promise<ActionResult> {
+// ─── Generate Activation Code ────────────────────────────
+export async function generateActivationCode(type: "SIGNUP" | "SUBSCRIPTION", durationDays: number): Promise<ActionResult> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: "Unauthorized" }
-    if (session.user.role !== "ADMIN") return { success: false, error: "Forbidden" }
+    const session = await requireRole("ADMIN")
 
-    // إنشاء كود عشوائي آمن مكون من 8 حروف وأرقام (مثلا: F4A1-B9C2)
+    // توليد كود عشوائي (مثلا: F4A1-B9C2)
     const rawCode = crypto.randomBytes(4).toString("hex").toUpperCase()
     const formattedCode = `${rawCode.slice(0, 4)}-${rawCode.slice(4)}`
     
-    const days = durationDays || 30
+    // لو الكود لتسجيل، دايماً بيدي 3 أيام تجربة. لو لتفعيل، بيستخدم الـ durationDays
+    const days = type === "SIGNUP" ? 3 : durationDays
 
     await prisma.activationCode.create({
       data: {
         code: formattedCode,
+        type: type,
         durationDays: days,
-        planId: planId || null,
       },
     })
 
-    return { success: true, message: `Code generated: ${formattedCode}` }
+    return { success: true, message: `${type === "SIGNUP" ? "Signup" : "Subscription"} code generated: ${formattedCode}` }
   } catch (error) {
     console.error(error)
     return { success: false, error: "Failed to generate code." }

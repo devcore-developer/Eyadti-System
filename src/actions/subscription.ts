@@ -17,12 +17,15 @@ export async function redeemActivationCode(inputCode: string): Promise<ActionRes
       where: { code: inputCode },
     })
 
-    // 2. التأكد إن الكود موجود ومستخدمش قبل كده
+    // 2. التأكد إن الكود موجود ومستخدمش قبل كده وإنه كود تفعيل (مش كود تسجيل)
     if (!codeRecord) {
       return { success: false, error: "Invalid code." }
     }
     if (codeRecord.isUsed) {
       return { success: false, error: "This code has already been used." }
+    }
+    if (codeRecord.type === "SIGNUP") {
+      return { success: false, error: "This is a signup code. Please use a subscription code to extend your plan." }
     }
 
     const clinicId = session.user.clinicId
@@ -42,22 +45,18 @@ export async function redeemActivationCode(inputCode: string): Promise<ActionRes
     const newEndDate = new Date(startDate)
     newEndDate.setDate(newEndDate.getDate() + codeRecord.durationDays)
 
-    // ✅ جلب أو إنشاء باقة افتراضية لو الكود مش مرتبط بواحدة
-    let planId = codeRecord.planId
-    if (!planId) {
-      const defaultPlan = await prisma.plan.upsert({
-        where: { slug: "default-plan" },
-        update: {},
-        create: {
-          name: "Default Plan",
-          slug: "default-plan",
-          monthlyPrice: 0,
-          yearlyPrice: 0,
-          active: true,
-        }
-      })
-      planId = defaultPlan.id
-    }
+    // ✅ جلب أو إنشاء الباقة الموحدة الافتراضية (بما إننا ألغينا الباقات المتعددة)
+    const defaultPlan = await prisma.plan.upsert({
+      where: { slug: "default-plan" },
+      update: {},
+      create: {
+        name: "Unified Plan",
+        slug: "default-plan",
+        monthlyPrice: 0,
+        yearlyPrice: 0,
+        active: true,
+      }
+    })
 
     // 4. تحديث الداتا بيز في معاملة واحدة (Transaction)
     await prisma.$transaction([
@@ -67,11 +66,12 @@ export async function redeemActivationCode(inputCode: string): Promise<ActionRes
         update: {
           status: "ACTIVE",
           endDate: newEndDate,
-          planId: planId,
+          planId: defaultPlan.id, // دايماً بنربطه بالباقة الموحدة
+          trialEndsAt: null, // بنشيل الـ trial عشان التايمر يقرأ الـ endDate
         },
         create: {
           clinicId: clinicId,
-          planId: planId,
+          planId: defaultPlan.id,
           status: "ACTIVE",
           endDate: newEndDate,
         },

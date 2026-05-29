@@ -4,6 +4,7 @@ import { useState } from "react"
 import { generateActivationCode } from "@/actions/admin"
 
 export function GenerateCodeForm() {
+  const [codeType, setCodeType] = useState<"SIGNUP" | "SUBSCRIPTION">("SUBSCRIPTION")
   const [duration, setDuration] = useState(30)
   const [isPending, setIsPending] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
@@ -13,7 +14,7 @@ export function GenerateCodeForm() {
     setIsPending(true)
     setMessage(null)
 
-    const result = await generateActivationCode(duration)
+    const result = await generateActivationCode(codeType, duration)
 
     if (result?.success) {
       setMessage({ type: "success", text: result.message || "Code generated!" })
@@ -25,21 +26,39 @@ export function GenerateCodeForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ── اختيار نوع الكود ── */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Duration (Days)
+          Code Type
         </label>
         <select
-          value={duration}
-          onChange={(e) => setDuration(Number(e.target.value))}
+          value={codeType}
+          onChange={(e) => setCodeType(e.target.value as "SIGNUP" | "SUBSCRIPTION")}
           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
         >
-          <option value={7}>7 Days (Trial)</option>
-          <option value={30}>30 Days (1 Month)</option>
-          <option value={90}>90 Days (3 Months)</option>
-          <option value={365}>365 Days (1 Year)</option>
+          <option value="SIGNUP">Signup Code (3 Days Trial)</option>
+          <option value="SUBSCRIPTION">Subscription Code</option>
         </select>
       </div>
+
+      {/* ── اختيار المدة (بيظهر بس لو اختار Subscription) ── */}
+      {codeType === "SUBSCRIPTION" && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Duration (Days)
+          </label>
+          <select
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value))}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+          >
+            <option value={30}>30 Days (1 Month)</option>
+            <option value={90}>90 Days (3 Months)</option>
+            <option value={180}>180 Days (6 Months)</option>
+            <option value={365}>365 Days (1 Year)</option>
+          </select>
+        </div>
+      )}
 
       {message && (
         <div className={`p-3 rounded-md text-sm font-mono ${message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>

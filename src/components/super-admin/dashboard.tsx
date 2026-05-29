@@ -14,11 +14,10 @@ export function SuperAdminDashboard({ subscribers }: { subscribers: any[] }) {
     window.location.reload() // عشان يتحدث الجدول
   }
 
-  const handleGenerateCode = async (days: number) => {
-    setIsPending("code")
-    const res = await superAdminGenerateCode(days)
+  const handleGenerateCode = async (type: "SIGNUP" | "SUBSCRIPTION", days: number) => {
+    setIsPending(`code-${type}-${days}`)
+    const res = await superAdminGenerateCode(type, days)
     if (res.success) {
-      // ✅ التعديل هنا عشان ن حل مشكلة الـ TypeScript
       setNewCode(res.message || "Code generated successfully!") 
     }
     setIsPending(null)
@@ -29,25 +28,42 @@ export function SuperAdminDashboard({ subscribers }: { subscribers: any[] }) {
       <h1 className="text-3xl font-bold">Super Admin Panel - Platform Control</h1>
 
       {/* منطقة توليد الأكواد */}
-      <div className="bg-white p-6 rounded-lg shadow border border-gray-200 max-w-md">
-        <h2 className="text-xl font-bold mb-4">Generate Activation Code</h2>
-        <div className="flex gap-2">
+      <div className="bg-white p-6 rounded-lg shadow border border-gray-200 max-w-2xl">
+        <h2 className="text-xl font-bold mb-4">Generate Codes</h2>
+        <div className="flex flex-wrap gap-3">
+          {/* زرار كود التسجيل (بنفسجي) */}
           <button 
-            onClick={() => handleGenerateCode(30)} 
-            disabled={isPending === "code"} 
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+            onClick={() => handleGenerateCode("SIGNUP", 3)} 
+            disabled={isPending === "code-SIGNUP-3"} 
+            className="bg-purple-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
           >
-            30 Days
+            Signup Code (3 Days Trial)
+          </button>
+          
+          {/* أكواد الاشتراك (أزرق) */}
+          <button 
+            onClick={() => handleGenerateCode("SUBSCRIPTION", 30)} 
+            disabled={isPending === "code-SUBSCRIPTION-30"} 
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            1 Month (30d)
           </button>
           <button 
-            onClick={() => handleGenerateCode(365)} 
-            disabled={isPending === "code"} 
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+            onClick={() => handleGenerateCode("SUBSCRIPTION", 180)} 
+            disabled={isPending === "code-SUBSCRIPTION-180"} 
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            1 Year
+            6 Months (180d)
+          </button>
+          <button 
+            onClick={() => handleGenerateCode("SUBSCRIPTION", 365)} 
+            disabled={isPending === "code-SUBSCRIPTION-365"} 
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            1 Year (365d)
           </button>
         </div>
-        {newCode && <div className="mt-4 p-3 bg-green-50 text-green-700 font-mono rounded">{newCode}</div>}
+        {newCode && <div className="mt-4 p-3 bg-green-50 text-green-700 font-mono text-center rounded border border-green-200">{newCode}</div>}
       </div>
 
       {/* جدول المشتركين */}

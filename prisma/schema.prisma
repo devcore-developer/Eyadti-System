@@ -105,6 +105,11 @@ enum BookingSource {
   WHATSAPP
 }
 
+enum CodeType {
+  SIGNUP
+  SUBSCRIPTION
+}
+
 // ── Multi-Branch Support ─────────────────────────────
 
 model Branch {
@@ -232,7 +237,7 @@ model Clinic {
   bookings      Booking[]
   auditLogs     AuditLog[]
   branches      Branch[]
-  usedActivationCodes ActivationCode[] // ← علاقة أكواد التفعيل
+  usedActivationCodes ActivationCode[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -393,7 +398,6 @@ model Plan {
   updatedAt            DateTime @updatedAt
 
   subscriptions    Subscription[]
-  activationCodes  ActivationCode[] // ← علاقة أكواد التفعيل
 
   @@map("plans")
 }
@@ -406,7 +410,7 @@ model Subscription {
   plan        Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
   status      SubscriptionStatus @default(TRIAL)
   startDate   DateTime           @default(now())
-  endDate     DateTime?          // ← هذا الحقل هو اللي سنحدّثه عند تفعيل الكود
+  endDate     DateTime?
   trialEndsAt DateTime?
   cancelledAt DateTime?
   createdAt   DateTime           @default(now())
@@ -417,21 +421,18 @@ model Subscription {
   @@map("subscriptions")
 }
 
-// ── Activation Codes (الجديد) ──────────────────────────
+// ── Activation Codes ──────────────────────────────────
 
 model ActivationCode {
   id             String    @id @default(cuid())
-  code           String    @unique // الكود اللي العميل هيدخله (مثلاً A1B2-C3D4)
-  durationDays   Int       // عدد أيام الصلاحية (30 لشهري، 365 لسنوي)
-  planId         String?   // الباقة اللي هيتفعله الكود ده (اختياري)
-  isUsed         Boolean   @default(false) // هل الكود اتاستخدم ولا لسه
-  usedByClinicId String?  // الـ ID بتاع العيادة اللي استخدمته
-  usedAt         DateTime? // امتى اتاستخدم
-  
+  code           String    @unique
+  type           CodeType  @default(SUBSCRIPTION)
+  durationDays   Int       @default(30)
+  isUsed         Boolean   @default(false)
+  usedByClinicId String?
+  usedAt         DateTime?
   createdAt      DateTime  @default(now())
 
-  // العلاقات
-  plan           Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
   usedByClinic   Clinic?   @relation(fields: [usedByClinicId], references: [id], onDelete: SetNull)
 
   @@index([code])

@@ -1,97 +1,87 @@
 "use server"
 
-import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
-import type { ActionResult } from "@/types"
+import { auth } from "@/lib/auth"
 import crypto from "crypto"
 
-// التأكد إن اللي بيطلب ده هو صاحب المنصة بس
-async function requireSuperAdmin() {
-  const session = await auth()
-  if (!session?.user || session.user.role !== "SUPER_ADMIN") {
-    throw new Error("Unauthorized: Super Admin access required.")
-  }
-  return session
-}
-
-// ─── 1. جلب كل العيادات والاشتراكات ────────────────────
+// ─── Get All Subscribers ────────────────────────────
 export async function getAllSubscribers() {
-  await requireSuperAdmin()
-  
-  const clinics = await prisma.clinic.findMany({
+  const session = await auth()
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") return []
+
+  return await prisma.clinic.findMany({
     include: {
-      subscription: true,
       users: {
         where: { role: "ADMIN" },
-        select: { name: true, email: true }
+        select: { email: true },
+        take: 1,
+      },
+      subscription: {
+        select: { status: true, endDate: true }
       }
     },
     orderBy: { createdAt: "desc" }
   })
-
-  return clinics
 }
 
-// ─── 2. تحديث حالة اشتراك عيادة (قفل/فتح/تمديد) ────────
-export async function overrideSubscription(
-  clinicId: string, 
-  newStatus: "ACTIVE" | "EXPIRED" | "SUSPENDED" | "TRIAL",
-  daysToAdd?: number
-): Promise<ActionResult> {
-  try {
-    await requireSuperAdmin()
+// ─── Override Subscription ──────────────────────────
+export async function overrideSubscription(clinicId: string, status: "ACTIVE" | "EXPIRED" | "SUSPENDED", days?: number) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
 
-    const sub = await prisma.subscription.findUnique({ where: { clinicId } })
+  const sub = await prisma.subscription.findUnique({ where: { clinicId } })
+  
+  if (sub) {
+    const newEndDate = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : sub.endDate
+    await prisma.subscription.update({
+      where: { clinicId },
+      data: { status, endDate: newEndDate }
+    })
+  } else if (status === "ACTIVE" && days) {
+    const defaultPlan = await prisma.plan.upsert({
+      where: { slug: "default-plan" },
+      update: {},
+      create: { name: "Unified Plan", slug: "default-plan", monthlyPrice: 0, yearlyPrice: 0, active: true }
+    })
     
-    let newEndDate = sub?.endDate
-    
-    if (daysToAdd && daysToAdd > 0) {
-      const startDate = (sub?.endDate && new Date(sub.endDate) > new Date()) ? new Date(sub.endDate) : new Date()
-      newEndDate = new Date(startDate)
-      newEndDate.setDate(newEndDate.getDate() + daysToAdd)
-    }
-
-    // لو مفيش اشتراك خالص، هنجيب أول Plan في النظام عشان ننشئه
-    if (!sub) {
-      const defaultPlan = await prisma.plan.findFirst()
-      if (!defaultPlan) return { success: false, error: "No plans found in database." }
-
-      await prisma.subscription.create({
-        data: { 
-          clinicId, 
-          status: newStatus, 
-          endDate: newEndDate,
-          planId: defaultPlan.id
-        }
-      })
-    } else {
-      // لو موجود بنحدثه بس
-      await prisma.subscription.update({
-        where: { clinicId },
-        data: { status: newStatus, endDate: newEndDate }
-      })
-    }
-
-    return { success: true, message: "Subscription updated successfully." }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+    await prisma.subscription.create({
+      data: {
+        clinicId,
+        planId: defaultPlan.id,
+        status: "ACTIVE",
+        endDate: new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+      }
+    })
   }
 }
 
-// ─── 3. توليد كود تفعيل ──────────────────────────────
-export async function superAdminGenerateCode(durationDays: number): Promise<ActionResult> {
+// ─── Super Admin Generate Code ──────────────────────
+export async function superAdminGenerateCode(type: "SIGNUP" | "SUBSCRIPTION", durationDays: number) {
   try {
-    await requireSuperAdmin()
+    const session = await auth()
+    if (!session?.user || session.user.role !== "SUPER_ADMIN") {
+      return { success: false, error: "Unauthorized" }
+    }
 
+    // توليد كود عشوائي
     const rawCode = crypto.randomBytes(4).toString("hex").toUpperCase()
     const formattedCode = `${rawCode.slice(0, 4)}-${rawCode.slice(4)}`
     
+    // لو الكود لتسجيل، دايماً بيدي 3 أيام تجربة. لو لتفعيل، بيستخدم الـ durationDays
+    const days = type === "SIGNUP" ? 3 : durationDays
+
     await prisma.activationCode.create({
-      data: { code: formattedCode, durationDays }
+      data: {
+        code: formattedCode,
+        type: type,
+        durationDays: days,
+      },
     })
 
-    return { success: true, message: `Code generated: ${formattedCode}` }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+    const typeLabel = type === "SIGNUP" ? "Signup (3 Days Trial)" : `Subscription (${days} Days)`
+    return { success: true, message: `${typeLabel} Code: ${formattedCode}` }
+  } catch (error) {
+    console.error(error)
+    return { success: false, error: "Failed to generate code." }
   }
 }

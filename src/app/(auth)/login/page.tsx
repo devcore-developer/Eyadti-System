@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -29,7 +28,6 @@ export default function LoginPage() {
         router.push("/dashboard")
         router.refresh()
       } else {
-        // رسالة أوضح للمستخدم
         setError("Incorrect email or password. Please try again.")
       }
     } catch {
@@ -177,7 +175,15 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-xs text-muted-foreground">
+          {/* Signup Link - أضفنا ده */}
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <a href="/signup" className="font-semibold text-primary hover:underline">
+              Sign up
+            </a>
+          </div>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
             Protected by enterprise-grade security. <br className="sm:hidden" />
             Your data is always encrypted.
           </p>

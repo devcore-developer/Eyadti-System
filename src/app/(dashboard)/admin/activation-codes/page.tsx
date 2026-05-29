@@ -11,7 +11,7 @@ export default async function ActivationCodesPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Activation Codes</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Generate codes to sell to clients and activate their subscriptions.
+          Generate Signup codes to allow new clients to register, or Subscription codes to extend their billing period.
         </p>
       </div>
       

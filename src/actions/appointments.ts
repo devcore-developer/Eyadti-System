@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { auth } from "@/lib/auth"
+import { requireRole, AuthenticationError, AuthorizationError } from "@/lib/permissions" // ← استخدمنا الدالة الموحدة
 import { appointmentCreateSchema, appointmentUpdateSchema, changeAppointmentStatusSchema } from "@/lib/validations/appointment"
 import type { ActionResult } from "@/types"
 import { AppointmentStatus } from "@prisma/client"
@@ -68,11 +68,8 @@ async function validateClinicEntities(patientId: string, doctorId: string, clini
 // ─── Create Appointment ──────────────────────────────────────────────────
 export async function createAppointment(formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: "Unauthorized" }
-    if (session.user.role !== "ADMIN" && session.user.role !== "RECEPTIONIST") {
-      return { success: false, error: "Forbidden" }
-    }
+    // ✅ الأدمين والدكتور والريسبشن يقدروا يحجزوا (السوبر أدمن بيعدي لوحده)
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR", "RECEPTIONIST")
 
     const raw = {
       patientId: formData.get("patientId") as string,
@@ -93,24 +90,23 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
 
     const dateTime = new Date(`${validated.data.date}T${validated.data.time}:00`)
 
-    const entityError = await validateClinicEntities(validated.data.patientId, validated.data.doctorId, session.user.clinicId)
+    const entityError = await validateClinicEntities(validated.data.patientId, validated.data.doctorId, clinicId)
     if (entityError) return { success: false, error: entityError }
 
-    const conflictError = await checkAppointmentConflict(session.user.clinicId, validated.data.doctorId, dateTime)
+    const conflictError = await checkAppointmentConflict(clinicId, validated.data.doctorId, dateTime)
     if (conflictError) return { success: false, error: conflictError }
 
     const appointment = await prisma.appointment.create({
       data: {
         patientId: validated.data.patientId,
         doctorId: validated.data.doctorId,
-        clinicId: session.user.clinicId,
+        clinicId: clinicId,
         dateTime,
         notes: validated.data.notes?.trim() || null,
         status: AppointmentStatus.SCHEDULED,
       },
     })
 
-    // ← إرسال إشعار بإنشاء موعد جديد
     if (appointment) {
       const patient = await prisma.patient.findUnique({ where: { id: validated.data.patientId }, select: { fullName: true } })
       const doctor = await prisma.user.findUnique({ where: { id: validated.data.doctorId }, select: { name: true } })
@@ -120,23 +116,23 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
           patient.fullName,
           `Dr. ${doctor.name}`,
           dateTime.toISOString(),
-          session.user.clinicId,
-          session.user.id
+          clinicId,
+          userId
         )
       }
 
-      // ← Audit Log: تسجيل إنشاء موعد (مع أسماء المريض والدكتور)
       const enrichedData = await enrichAppointmentData(appointment)
       await auditLog({
-        clinicId: session.user.clinicId,
-        userId: session.user.id,
+        clinicId: clinicId,
+        userId: userId,
         action: "CREATE",
         entityType: "APPOINTMENT",
         entityId: appointment.id,
         newValues: enrichedData,
       })
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) return { success: false, error: error.message }
     console.error(error)
     return { success: false, error: "Failed to create appointment." }
   }
@@ -148,11 +144,8 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
 // ─── Update Appointment ──────────────────────────────────────────────────
 export async function updateAppointment(appointmentId: string, formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: "Unauthorized" }
-    if (session.user.role !== "ADMIN" && session.user.role !== "DOCTOR") {
-      return { success: false, error: "Forbidden" }
-    }
+    // ✅ الأدمين والدكتور يقدروا يعدلوا (السوبر أدمن يعدي لوحده)
+    const { clinicId, userId, role } = await requireRole("ADMIN", "DOCTOR")
 
     const raw = {
       patientId: formData.get("patientId") as string,
@@ -172,21 +165,22 @@ export async function updateAppointment(appointmentId: string, formData: FormDat
     }
 
     const existingAppointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId, clinicId: session.user.clinicId },
+      where: { id: appointmentId, clinicId: clinicId },
     })
 
     if (!existingAppointment) return { success: false, error: "Appointment not found" }
 
-    if (session.user.role === "DOCTOR" && existingAppointment.doctorId !== session.user.id) {
+    // ✅ الدكتور يقدر يعدل مواعده هو بس
+    if (role === "DOCTOR" && existingAppointment.doctorId !== userId) {
       return { success: false, error: "You can only edit your own appointments." }
     }
 
     const dateTime = new Date(`${validated.data.date}T${validated.data.time}:00`)
 
-    const entityError = await validateClinicEntities(validated.data.patientId, validated.data.doctorId, session.user.clinicId)
+    const entityError = await validateClinicEntities(validated.data.patientId, validated.data.doctorId, clinicId)
     if (entityError) return { success: false, error: entityError }
 
-    const conflictError = await checkAppointmentConflict(session.user.clinicId, validated.data.doctorId, dateTime, appointmentId)
+    const conflictError = await checkAppointmentConflict(clinicId, validated.data.doctorId, dateTime, appointmentId)
     if (conflictError) return { success: false, error: conflictError }
 
     const updatedAppointment = await prisma.appointment.update({
@@ -199,20 +193,20 @@ export async function updateAppointment(appointmentId: string, formData: FormDat
       },
     })
 
-    // ← Audit Log: تسجيل تعديل موعد (مع أسماء المريض والدكتور)
     const enrichedOld = await enrichAppointmentData(existingAppointment)
     const enrichedNew = await enrichAppointmentData(updatedAppointment)
     
     await auditLog({
-      clinicId: session.user.clinicId,
-      userId: session.user.id,
+      clinicId: clinicId,
+      userId: userId,
       action: "UPDATE",
       entityType: "APPOINTMENT",
       entityId: appointmentId,
       oldValues: enrichedOld,
       newValues: enrichedNew,
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) return { success: false, error: error.message }
     console.error(error)
     return { success: false, error: "Failed to update appointment." }
   }
@@ -225,23 +219,21 @@ export async function updateAppointment(appointmentId: string, formData: FormDat
 // ─── Change Appointment Status ──────────────────────────────────────────
 export async function changeAppointmentStatus(appointmentId: string, newStatus: AppointmentStatus): Promise<ActionResult> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: "Unauthorized" }
-    if (session.user.role !== "ADMIN" && session.user.role !== "DOCTOR") {
-      return { success: false, error: "Forbidden" }
-    }
+    // ✅ الأدمين والدكتور يقدروا يغيروا الحالة (السوبر أدمن يعدي لوحده)
+    const { clinicId, userId, role } = await requireRole("ADMIN", "DOCTOR")
 
     const validated = changeAppointmentStatusSchema.safeParse({ status: newStatus })
     if (!validated.success) return { success: false, error: "Invalid status" }
 
     const existingAppointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId, clinicId: session.user.clinicId },
+      where: { id: appointmentId, clinicId: clinicId },
     })
 
     if (!existingAppointment) return { success: false, error: "Appointment not found" }
 
-    if (session.user.role === "DOCTOR") {
-      if (existingAppointment.doctorId !== session.user.id) {
+    // ✅ الدكتور يغير حالة مواعده هو بس، ومسمح له يعملها Complete بس
+    if (role === "DOCTOR") {
+      if (existingAppointment.doctorId !== userId) {
         return { success: false, error: "You can only change status of your own appointments." }
       }
       if (validated.data.status !== AppointmentStatus.COMPLETED) {
@@ -254,7 +246,6 @@ export async function changeAppointmentStatus(appointmentId: string, newStatus: 
       data: { status: validated.data.status },
     })
 
-    // ← إرسال إشعار في حالة الإلغاء فقط
     if (validated.data.status === AppointmentStatus.CANCELLED) {
       const patient = await prisma.patient.findUnique({ where: { id: existingAppointment.patientId }, select: { fullName: true } })
       if (patient) {
@@ -262,26 +253,26 @@ export async function changeAppointmentStatus(appointmentId: string, newStatus: 
           appointmentId,
           patient.fullName,
           existingAppointment.dateTime.toISOString(),
-          session.user.clinicId,
-          session.user.id
+          clinicId,
+          userId
         )
       }
     }
 
-    // ← Audit Log: تسجيل تغيير حالة الموعد (مع أسماء المريض والدكتور)
     const enrichedOld = await enrichAppointmentData(existingAppointment)
     const enrichedNew = await enrichAppointmentData(updatedAppointment)
 
     await auditLog({
-      clinicId: session.user.clinicId,
-      userId: session.user.id,
+      clinicId: clinicId,
+      userId: userId,
       action: validated.data.status === AppointmentStatus.CANCELLED ? "CANCEL" : "UPDATE",
       entityType: "APPOINTMENT",
       entityId: appointmentId,
       oldValues: enrichedOld,
       newValues: enrichedNew,
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) return { success: false, error: error.message }
     console.error(error)
     return { success: false, error: "Failed to update status." }
   }
@@ -294,14 +285,11 @@ export async function changeAppointmentStatus(appointmentId: string, newStatus: 
 // ─── Delete Appointment (Soft Delete: Status = CANCELLED) ──────────────────
 export async function deleteAppointment(appointmentId: string): Promise<ActionResult> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: "Unauthorized" }
-    if (session.user.role !== "ADMIN") {
-      return { success: false, error: "Forbidden" }
-    }
+    // ✅ الأدمين بس اللي يقدر يحذف/يلغي خالص (السوبر أدمن يعدي لوحده)
+    const { clinicId, userId } = await requireRole("ADMIN")
 
     const existingAppointment = await prisma.appointment.findFirst({
-      where: { id: appointmentId, clinicId: session.user.clinicId },
+      where: { id: appointmentId, clinicId: clinicId },
     })
 
     if (!existingAppointment) return { success: false, error: "Appointment not found" }
@@ -311,32 +299,31 @@ export async function deleteAppointment(appointmentId: string): Promise<ActionRe
       data: { status: AppointmentStatus.CANCELLED },
     })
 
-    // ← إرسال إشعار بالإلغاء
     const patient = await prisma.patient.findUnique({ where: { id: existingAppointment.patientId }, select: { fullName: true } })
     if (patient) {
       await notifyAppointmentCancelled(
         appointmentId,
         patient.fullName,
         existingAppointment.dateTime.toISOString(),
-        session.user.clinicId,
-        session.user.id
+        clinicId,
+        userId
       )
     }
 
-    // ← Audit Log: تسجيل حذف (إلغاء) الموعد (مع أسماء المريض والدكتور)
     const enrichedOld = await enrichAppointmentData(existingAppointment)
     const enrichedNew = await enrichAppointmentData(updatedAppointment)
 
     await auditLog({
-      clinicId: session.user.clinicId,
-      userId: session.user.id,
+      clinicId: clinicId,
+      userId: userId,
       action: "CANCEL",
       entityType: "APPOINTMENT",
       entityId: appointmentId,
       oldValues: enrichedOld,
       newValues: enrichedNew,
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) return { success: false, error: error.message }
     console.error(error)
     return { success: false, error: "Cannot cancel appointment. They may have associated records." }
   }
