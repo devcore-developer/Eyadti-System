@@ -1,5 +1,3 @@
-import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
 import { LogOut, Stethoscope } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -19,20 +17,25 @@ interface Branch {
   code: string;
 }
 
-export async function Sidebar({ 
+interface UserData {
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+}
+
+export function Sidebar({ 
+  user, 
   branches, 
   selectedBranchId,
   isMobile = false 
 }: { 
+  user?: UserData;
   branches: Branch[];
   selectedBranchId: string | null;
   isMobile?: boolean;
 }) {
-  const session = await auth()
-  if (!session?.user) redirect("/login")
-
-  const isAdmin = session.user.role === "ADMIN"
-  const initials = session.user.name
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
+  const initials = user?.name
     ?.split(" ")
     .map((n) => n[0])
     .join("")
@@ -68,7 +71,7 @@ export async function Sidebar({
         </div>
       )}
 
-      {/* ── Navigation (min-h-0 عشان الـ Scroll يشتغل صح جوه الـ Drawer) ── */}
+      {/* ── Navigation ── */}
       <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2">
         <SidebarNav isAdmin={isAdmin} />
       </div>
@@ -89,10 +92,10 @@ export async function Sidebar({
             </div>
             <div className="flex-1 text-left min-w-0">
               <p className="truncate text-sm font-semibold text-slate-800 dark:text-white">
-                {session.user.name}
+                {user?.name || "User"}
               </p>
               <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[rgba(107,156,255,0.1)] text-[#6B9CFF] rounded-md">
-                {session.user.role}
+                {user?.role || "N/A"}
               </span>
             </div>
           </DropdownMenuTrigger>
@@ -104,8 +107,8 @@ export async function Sidebar({
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col space-y-0.5 min-w-0">
-                <p className="text-sm font-semibold truncate">{session.user.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+                <p className="text-sm font-semibold truncate">{user?.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
             <DropdownMenuSeparator className="bg-[rgba(148,163,184,0.1)] dark:bg-[rgba(255,255,255,0.06)]" />

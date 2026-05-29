@@ -1,33 +1,23 @@
 "use client"
 
-import * as React from "react" // ← ضبطنا الـ Import هنا
+import * as React from "react"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu, Stethoscope } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Sidebar } from "./sidebar"
-import { cn } from "@/lib/utils" // ← أضفنا ده
-
-interface Branch {
-  id: string
-  name: string
-  code: string
-}
+import { cn } from "@/lib/utils"
 
 export function MobileNav({ 
-  branches, 
-  selectedBranchId,
-  clinicName
+  clinicName,
+  children // ← استقبلنا الـ Sidebar كـ children
 }: { 
-  branches: Branch[]
-  selectedBranchId: string | null
   clinicName: string
+  children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
-  // إغلاق الـ Drawer لما المستخدم يضغط على لينك
   React.useEffect(() => {
     setOpen(false)
   }, [pathname])
@@ -60,9 +50,9 @@ export function MobileNav({
               <span className="text-base font-bold tracking-tight">Eyadti</span>
             </div>
             
-            {/* ── Sidebar Content (Full Height) ── */}
+            {/* ── Sidebar Content ── */}
             <div className="flex-1 overflow-y-auto">
-              <Sidebar branches={branches} selectedBranchId={selectedBranchId} isMobile />
+              {children}
             </div>
           </div>
         </SheetContent>
