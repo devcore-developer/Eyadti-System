@@ -1,11 +1,28 @@
-// src/lib/auth.ts
-import NextAuth from "next-auth"
-import Credentials from "next-auth/providers/credentials"
-import { Role, SubscriptionStatus } from "@prisma/client"
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import { prisma } from "@/lib/db";
+import bcrypt from "bcryptjs";
+import type { DefaultSession } from "next-auth";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      role: string;
+      clinicId: string;
+      subscriptionStatus: string;
+      trialEndsAt: Date | null;
+      currentPeriodEnd: Date | null;
+    } & DefaultSession["user"];
+  }
+}
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/login",
+  },
+  session: {
+    strategy: "jwt",
   },
   providers: [
     Credentials({
@@ -14,92 +31,95 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      authorize: async (credentials) => {
-        if (!credentials?.email || !credentials?.password) return null;
-
-        try {
-          const { prisma } = await import("@/lib/db")
-          const { compare } = await import("bcryptjs")
-
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email as string },
-          })
-
-          if (!user || !user.password || !(await compare(credentials.password as string, user.password))) {
-            return null;
-          }
-
-          return {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            clinicId: user.clinicId,
-          }
-        } catch (error) {
-          console.error("Auth Error:", error);
-          return null;
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("البريد الإلكتروني وكلمة المرور مطلوبان");
         }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!user || !user.password) {
+          throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+        }
+
+        const isValidPassword = await bcrypt.compare(
+          credentials.password as string,
+          user.password
+        );
+
+        if (!isValidPassword) {
+          throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+        }
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          clinicId: user.clinicId,
+        };
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
   callbacks: {
-    async jwt({ token, user, trigger }: any) {
+    async jwt({ token, user, trigger }) {
+      // 1. لما المستخدم يسجل دخولو لأول مرة
       if (user) {
-        token.id = user.id
-        token.role = user.role as Role
-        token.clinicId = user.clinicId as string
+        token.id = user.id;
+        token.role = user.role;
+        token.clinicId = user.clinicId;
         
-        // ✅ التعديل هنا: حطينا الاشتراك في try/catch عشان لو حصل خطأ في الداتا بيز الأونلاين، يكمل تسجيل الدخول عادي
-        try {
-          const { prisma } = await import("@/lib/db")
+        // هنا بسنجيب بيانات الاشتراك أول مرة
+        if (user.clinicId) {
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: user.clinicId },
-            select: { status: true, planId: true, trialEndsAt: true, endDate: true }
-          })
-          token.subscriptionStatus = subscription?.status || null
-          token.planId = subscription?.planId || null
-          token.trialEndsAt = subscription?.trialEndsAt || null
-          token.currentPeriodEnd = subscription?.endDate || null
-        } catch(e) {
-          console.error("Failed to fetch subscription, but login will continue", e)
-          // لو حصل خطأ، هيفضل الاشتراك بـ null والمستخدم هيدخل عادي
+          });
+          if (subscription) {
+            token.subscriptionStatus = subscription.status;
+            token.trialEndsAt = subscription.trialEndsAt;
+            token.currentPeriodEnd = subscription.currentPeriodEnd;
+          } else {
+            token.subscriptionStatus = "EXPIRED";
+            token.trialEndsAt = null;
+            token.currentPeriodEnd = null;
+          }
+        } else {
+          token.subscriptionStatus = "SUPER_ADMIN";
+          token.trialEndsAt = null;
+          token.currentPeriodEnd = null;
         }
       }
 
-      if (trigger === "update" && token.clinicId) {
-         try {
-          const { prisma } = await import("@/lib/db")
+      // 2. لما نطلب تحديث الـ Session من الـ Frontend (بعد تجديد الاشتراك)
+      if (trigger === "update") {
+        // هنا هنروح نسأل الداتابيز تاني عشان نجيب التاريخ الجديد
+        if (token.clinicId) {
           const subscription = await prisma.subscription.findUnique({
-            where: { clinicId: token.clinicId },
-            select: { status: true, planId: true, trialEndsAt: true, endDate: true }
-          })
-          token.subscriptionStatus = subscription?.status || null
-          token.planId = subscription?.planId || null
-          token.trialEndsAt = subscription?.trialEndsAt || null
-          token.currentPeriodEnd = subscription?.endDate || null
-        } catch(e) {
-          console.error("Failed to fetch subscription on update", e)
+            where: { clinicId: token.clinicId as string },
+          });
+          if (subscription) {
+            token.subscriptionStatus = subscription.status;
+            token.trialEndsAt = subscription.trialEndsAt;
+            token.currentPeriodEnd = subscription.currentPeriodEnd;
+          }
         }
       }
 
-      return token
+      return token;
     },
-    async session({ session, token }: any) {
+
+    async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as Role
-        session.user.clinicId = token.clinicId as string
-        
-        session.user.subscriptionStatus = token.subscriptionStatus as SubscriptionStatus | null
-        session.user.planId = token.planId as string | null
-        session.user.trialEndsAt = token.trialEndsAt as Date | null
-        session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+        session.user.clinicId = token.clinicId as string;
+        session.user.subscriptionStatus = token.subscriptionStatus as string;
+        session.user.trialEndsAt = token.trialEndsAt as Date | null;
+        session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null;
       }
-      return session
+      return session;
     },
   },
-})
+});

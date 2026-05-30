@@ -237,6 +237,7 @@ model Clinic {
   bookings      Booking[]
   auditLogs     AuditLog[]
   branches      Branch[]
+  galleryItems GalleryItem[]
   usedActivationCodes ActivationCode[]
 
   createdAt DateTime @default(now())
@@ -265,6 +266,7 @@ model Patient {
   attachments   Attachment[]
   prescriptions Prescription[]
   bookings      Booking[]
+  galleryItems GalleryItem[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -411,6 +413,7 @@ model Subscription {
   status      SubscriptionStatus @default(TRIAL)
   startDate   DateTime           @default(now())
   endDate     DateTime?
+  currentPeriodEnd DateTime?     // <-- أضف هذا السطر تحديداً هنا
   trialEndsAt DateTime?
   cancelledAt DateTime?
   createdAt   DateTime           @default(now())
@@ -590,6 +593,9 @@ model Prescription {
   patientId String
   doctorId  String
   visitId   String?  @unique
+  complaints String?   // لتخزين الشكاوي (كـ JSON Array أو نصوص مفصولة بفاصلة)
+  diagnoses String?   // لتخزين التشخيصات
+  treatment String?   // خطة العلاج / Treatment
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -829,4 +835,24 @@ model Complaint {
   
   @@index([name])
   @@map("complaints")
+}
+
+model GalleryItem {
+  id             String   @id @default(cuid())
+  clinicId       String
+  patientId      String
+  title          String?
+  description    String?
+  beforeImageUrl String
+  afterImageUrl  String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([patientId])
+  @@map("gallery_items")
 }

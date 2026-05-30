@@ -24,22 +24,27 @@ export async function loginAction(values: LoginInput): Promise<ActionResult> {
   }
 
   try {
+    // شيلنا redirectTo من هنا
     await signIn("credentials", {
       email: validated.data.email,
       password: validated.data.password,
-      redirectTo: "/dashboard",
     });
-    return { success: true };
+    
+    // السطر ده مش هيوصلله أبداً لأن signIn بتعمل Redirect، بس بنكتبه عشان Typescript مزعلش
+    return { success: true }; 
   } catch (error) {
+    // NextAuth v5 بتعمل throw لـ NEXT_REDIRECT عشان ت_redirect المستخدم
+    // لازم نسمح لها تكتمل مش نمسكها
     if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":
-          return { success: false, error: "Incorrect email or password." };
+          return { success: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" };
         default:
-          return { success: false, error: "An authentication error occurred." };
+          return { success: false, error: "حدث خطأ في المصادقة" };
       }
     }
-    throw error;
+    // لو الخطأ مش AuthError، يبقى هو التحديدة (NEXT_REDIRECT) وسيبها تكمل
+    throw error; 
   }
 }
 
@@ -132,6 +137,7 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
           status: "TRIAL",
           startDate,
           trialEndsAt: trialEnd,
+          currentPeriodEnd: trialEnd,          
         },
       });
 

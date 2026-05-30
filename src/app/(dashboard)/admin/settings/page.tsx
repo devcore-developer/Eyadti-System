@@ -7,7 +7,7 @@ import { ClinicForm } from "@/components/admin/clinic-form"
 export default async function ClinicSettingsPage() {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if (session.user.role !== "ADMIN") redirect("/dashboard")
+  if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
 
   const clinic = await prisma.clinic.findUnique({
     where: { id: session.user.clinicId },

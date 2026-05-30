@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+
 export const runtime = 'nodejs'
 
 interface AuthRequest extends NextRequest {
@@ -18,6 +19,12 @@ export default auth((req: AuthRequest) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
+  // 1. لو دخل على الرابط الرئيسي، وجهه للداشبورد أو اللوجين
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(isLoggedIn ? "/dashboard" : "/login", req.url));
+  }
+
+  // 2. لو مسجل ودخل اللوجين، ارجعه الداشبورد
   if (pathname === "/login" && isLoggedIn) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
@@ -27,18 +34,19 @@ export default auth((req: AuthRequest) => {
                            pathname.startsWith("/appointments") ||
                            pathname.startsWith("/settings") ||
                            pathname.startsWith("/admin") ||
-                           pathname.startsWith("/super-admin") || // ← أضفنا المسار الجديد
+                           pathname.startsWith("/super-admin") ||
                            pathname.startsWith("/invoices")
 
+  // 3. لو مش مسجل ودخل صفحة محمية، ارجعه اللوجين
   if (isProtectedRoute && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  // 4. فحص الاشتراكات
   if (isLoggedIn && req.auth?.user) {
     const status = req.auth.user.subscriptionStatus;
     const role = req.auth.user.role;
     
-    // ✅ لو ده صاحب المنصة (SUPER_ADMIN)، سيبه يدخل أي مكان ومش تطبق عليه قوانين الاشتراك
     if (role === "SUPER_ADMIN") {
       return NextResponse.next();
     }

@@ -77,7 +77,7 @@ export default async function InvoicesPage({
 }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if (!["ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) {
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) {
     redirect("/dashboard")
   }
 

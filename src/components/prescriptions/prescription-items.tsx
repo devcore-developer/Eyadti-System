@@ -28,53 +28,54 @@ const emptyItem: PrescriptionItemInput = {
   instructions: "",
 }
 
-function getSmartDefaults(med: any): { frequency: string; duration: string } {
+// ✅ عدلنا الدالة عشان ترجع الـ Instructions كمان
+function getSmartDefaults(med: any): { frequency: string; duration: string; instructions: string } {
   const name = (med.tradeName || "").toLowerCase()
   const form = (med.dosageForm || "").toLowerCase()
 
   // Antibiotics
-  if (name.includes("augmentin") || name.includes("amoxil") || name.includes("keflex")) return { frequency: "Twice daily", duration: "7 days" }
-  if (name.includes("zithromax")) return { frequency: "Once daily", duration: "3-5 days" }
-  if (name.includes("doxymycin")) return { frequency: "Twice daily", duration: "7-10 days" }
-  if (name.includes("flagyl")) return { frequency: "Three times daily", duration: "5-7 days" }
-  if (name.includes("tavanic") || name.includes("ciprobay")) return { frequency: "Once daily", duration: "5-7 days" }
+  if (name.includes("augmentin") || name.includes("amoxil") || name.includes("keflex")) return { frequency: "Twice daily", duration: "7 days", instructions: "After meals" }
+  if (name.includes("zithromax")) return { frequency: "Once daily", duration: "3-5 days", instructions: "On empty stomach" }
+  if (name.includes("doxymycin")) return { frequency: "Twice daily", duration: "7-10 days", instructions: "With plenty of water, avoid lying down for 30 mins" }
+  if (name.includes("flagyl")) return { frequency: "Three times daily", duration: "5-7 days", instructions: "After meals, avoid alcohol" }
+  if (name.includes("tavanic") || name.includes("ciprobay")) return { frequency: "Once daily", duration: "5-7 days", instructions: "After meals" }
 
   // Analgesics / NSAIDs
-  if (name.includes("panadol extra") || name.includes("solpadeine")) return { frequency: "Every 4-6 hours as needed", duration: "3-5 days" }
-  if (name.includes("panadol")) return { frequency: "Every 6 hours as needed", duration: "3-5 days" }
-  if (name.includes("brufen") || name.includes("cataflam") || name.includes("voltaren")) return { frequency: "Two to three times daily", duration: "5-7 days" }
-  if (name.includes("mobic") || name.includes("celebrex")) return { frequency: "Once daily", duration: "7-14 days" }
+  if (name.includes("panadol extra") || name.includes("solpadeine")) return { frequency: "Every 4-6 hours as needed", duration: "3-5 days", instructions: "After meals" }
+  if (name.includes("panadol")) return { frequency: "Every 6 hours as needed", duration: "3-5 days", instructions: "As needed" }
+  if (name.includes("brufen") || name.includes("cataflam") || name.includes("voltaren")) return { frequency: "Two to three times daily", duration: "5-7 days", instructions: "After meals" }
+  if (name.includes("mobic") || name.includes("celebrex")) return { frequency: "Once daily", duration: "7-14 days", instructions: "After meals" }
 
   // PPIs
-  if (name.includes("losec") || name.includes("nexium") || name.includes("controloc")) return { frequency: "Once daily before breakfast", duration: "4-8 weeks" }
+  if (name.includes("losec") || name.includes("nexium") || name.includes("controloc")) return { frequency: "Once daily before breakfast", duration: "4-8 weeks", instructions: "Before breakfast, 30 mins before eating" }
 
   // Antihistamines
-  if (name.includes("zyrtec") || name.includes("cetrine") || name.includes("telfast")) return { frequency: "Once daily", duration: "2-4 weeks" }
-  if (name.includes("clarinase")) return { frequency: "Once daily", duration: "5-7 days" }
+  if (name.includes("zyrtec") || name.includes("cetrine") || name.includes("telfast")) return { frequency: "Once daily", duration: "2-4 weeks", instructions: "Anytime" }
+  if (name.includes("clarinase")) return { frequency: "Once daily", duration: "5-7 days", instructions: "After meals" }
 
   // Respiratory
-  if (name.includes("ventolin")) return { frequency: "2 puffs as needed", duration: "As needed" }
-  if (name.includes("symbicort") || name.includes("seretide")) return { frequency: "2 puffs twice daily", duration: "Ongoing" }
-  if (name.includes("mucosolvan")) return { frequency: "Three times daily", duration: "5-7 days" }
+  if (name.includes("ventolin")) return { frequency: "2 puffs as needed", duration: "As needed", instructions: "Rinse mouth after use" }
+  if (name.includes("symbicort") || name.includes("seretide")) return { frequency: "2 puffs twice daily", duration: "Ongoing", instructions: "Rinse mouth after use" }
+  if (name.includes("mucosolvan")) return { frequency: "Three times daily", duration: "5-7 days", instructions: "After meals" }
 
   // Cardiovascular / Chronic
-  if (name.includes("concor") || name.includes("norvasc") || name.includes("amlor") || name.includes("zestril") || name.includes("cozaar")) return { frequency: "Once daily", duration: "Ongoing" }
-  if (name.includes("aspirin protect") || name.includes("plavix")) return { frequency: "Once daily", duration: "Ongoing" }
+  if (name.includes("concor") || name.includes("norvasc") || name.includes("amlor") || name.includes("zestril") || name.includes("cozaar")) return { frequency: "Once daily", duration: "Ongoing", instructions: "Same time every day" }
+  if (name.includes("aspirin protect") || name.includes("plavix")) return { frequency: "Once daily", duration: "Ongoing", instructions: "After meals" }
 
   // Diabetes
-  if (name.includes("glucophage") || name.includes("amaryl") || name.includes("januvia") || name.includes("galvus")) return { frequency: "Once or twice daily", duration: "Ongoing" }
+  if (name.includes("glucophage") || name.includes("amaryl") || name.includes("januvia") || name.includes("galvus")) return { frequency: "Once or twice daily", duration: "Ongoing", instructions: "With meals" }
 
   // Dermatology
-  if (form.includes("cream") || form.includes("gel") || form.includes("ointment")) return { frequency: "Apply twice daily", duration: "1-2 weeks" }
+  if (form.includes("cream") || form.includes("gel") || form.includes("ointment")) return { frequency: "Apply twice daily", duration: "1-2 weeks", instructions: "Apply a thin layer, wash hands" }
 
   // Eye/Ear drops
-  if (form.includes("drop")) return { frequency: "1-2 drops three times daily", duration: "5-7 days" }
+  if (form.includes("drop")) return { frequency: "1-2 drops three times daily", duration: "5-7 days", instructions: "Avoid touching the eye/ear" }
 
   // Syrups
-  if (form.includes("syrup")) return { frequency: "Three times daily", duration: "5-7 days" }
+  if (form.includes("syrup")) return { frequency: "Three times daily", duration: "5-7 days", instructions: "After meals" }
 
   // Default
-  return { frequency: "As directed", duration: "As directed" }
+  return { frequency: "As directed", duration: "As directed", instructions: "" }
 }
 
 export function PrescriptionItems({ items, setItems }: Props) {
@@ -101,13 +102,25 @@ export function PrescriptionItems({ items, setItems }: Props) {
 
   async function handleDrugSearch(query: string): Promise<AutocompleteOption[]> {
     const data = await searchDrugs(query)
-    return data.map((d: any) => ({
-      id: d.id,
-      label: d.tradeName, // تم التعديل لـ tradeName
-      sublabel: d.genericName,
-      detail: `${d.strength || ""} ${d.dosageForm || ""}`.trim() || undefined,
-      data: d,
-    }))
+    
+    // ✅ فلترة الأدوية المتكررة
+    const seenTradeNames = new Set<string>();
+    
+    return data
+      .map((d: any) => ({
+        id: d.id,
+        label: d.tradeName || d.name,
+        sublabel: d.genericName,
+        detail: `${d.strength || ""} ${d.dosageForm || ""}`.trim() || undefined,
+        data: d,
+      }))
+      .filter((option) => {
+        if (seenTradeNames.has(option.label)) {
+          return false;
+        }
+        seenTradeNames.add(option.label);
+        return true;
+      });
   }
 
   function handleDrugSelect(index: number, option: AutocompleteOption) {
@@ -124,18 +137,27 @@ export function PrescriptionItems({ items, setItems }: Props) {
     const newItems = [...items]
     newItems[index] = {
       ...newItems[index],
-      medicationName: drug.tradeName, // تم التعديل لـ tradeName
-      dosage: drug.strength || "", // تم التعديل لـ strength
+      medicationName: drug.tradeName || drug.name,
+      dosage: drug.strength || drug.dosageForm || "As prescribed",
       frequency: smartDefaults.frequency,
       duration: smartDefaults.duration,
-      instructions: "", // تمت إزالة notes من الـ Schema الجديد
+      // ✅ تعبئة الـ Instructions تلقائياً
+      instructions: smartDefaults.instructions, 
     }
     setItems(newItems)
   }
 
   function handleCustomAdd(index: number, value: string) {
     const newItems = [...items]
-    newItems[index] = { ...newItems[index], medicationName: value }
+    newItems[index] = { 
+      ...newItems[index], 
+      medicationName: value,
+      dosage: "As prescribed",
+      frequency: "As directed",
+      duration: "As directed",
+      // ✅ لو الدكتور كتب الدواء بإيده، نسيبها فاضية عشان الـ Placeholder يوجهه
+      instructions: "" 
+    }
     setItems(newItems)
   }
 
@@ -170,7 +192,7 @@ export function PrescriptionItems({ items, setItems }: Props) {
                   <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 truncate">
                     {item.medicationName}
                   </span>
-                  {item.dosage && (
+                  {item.dosage && item.dosage !== "As prescribed" && (
                     <span className="text-xs text-blue-500 dark:text-blue-400 shrink-0">
                       ({item.dosage})
                     </span>
@@ -230,7 +252,7 @@ export function PrescriptionItems({ items, setItems }: Props) {
                   <Input
                     value={item.instructions}
                     onChange={(e) => handleChange(index, "instructions", e.target.value)}
-                    placeholder="e.g. After meals"
+                    placeholder="e.g. After meals, Before sleep"
                     className="h-8 text-sm bg-white/50 dark:bg-slate-800/50"
                   />
                 </div>

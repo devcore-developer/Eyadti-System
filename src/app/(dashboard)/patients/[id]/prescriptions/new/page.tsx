@@ -14,7 +14,20 @@ export default async function NewPrescriptionPage({
 }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) redirect("/patients")
+  
+  // ✅ أضفنا SUPER_ADMIN عشان يقدر يدخل الصفحة
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) {
+    redirect("/patients")
+  }
+
+  // ✅ لو المستخدم ماعندوش clinicId (زي السوبر أدمن أحياناً)، منعش الكود يكسر من تحت
+  if (!session.user.clinicId) {
+    return (
+      <div className="p-6 text-center text-red-600">
+        You are not assigned to a clinic. Please assign a clinic to your account first.
+      </div>
+    )
+  }
 
   const { id: patientId } = await params
   const { visitId } = await searchParams

@@ -2,14 +2,13 @@
 
 import { useState } from "react"
 import { redeemActivationCode } from "@/actions/subscription"
-import { useSession } from "next-auth/react" // ← مهم جداً لتحديث الـ Session
+import { useSession } from "next-auth/react"
 
 export function RedeemForm() {
   const [code, setCode] = useState("")
   const [isPending, setIsPending] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   
-  // ✅ استدعاء دالة تحديث الـ Session
   const { update } = useSession()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,16 +19,19 @@ export function RedeemForm() {
     const result = await redeemActivationCode(code)
 
     if (result?.success) {
-      setMessage({ type: "success", text: "Subscription activated successfully! Redirecting..." })
+      setMessage({ type: "success", text: "Subscription activated successfully! Updating session..." })
       
-      // ✅ تحديث الـ JWT/Session فوراً عشان الـ Middleware يعرف إن الاشتراك فعال
+      // ✅ تحديث الـ JWT/Session فوراً (هيروح يجيب البيانات الجديدة من الداتابيز لوحده)
       await update()
       
-      setTimeout(() => window.location.href = "/dashboard", 2000) // يرجعه الداشبورد بعد تفعيل
+      // ترجيعه للداشبورد بعد تحديث الـ Session بنجاح
+      setTimeout(() => {
+        window.location.href = "/dashboard"
+      }, 1500)
     } else {
       setMessage({ type: "error", text: result?.error || "Failed to activate" })
+      setIsPending(false) // رجع الزرار يشتغل تاني لو في خطأ
     }
-    setIsPending(false)
   }
 
   return (

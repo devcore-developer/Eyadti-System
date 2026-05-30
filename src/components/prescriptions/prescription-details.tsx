@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { deletePrescription } from "@/lib/actions/prescriptions"
 import { Button } from "@/components/ui/button"
-import { Pill, Printer, Trash2, Pencil, Loader2 } from "lucide-react"
+import { Pill, Printer, Trash2, Pencil, Loader2, Stethoscope } from "lucide-react" // ✅ أضفنا Stethoscope
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -16,6 +16,7 @@ type PrescriptionFull = {
   patient: { id: string; fullName: string; phone: string | null }
   doctor: { id: string; name: string }
   items: { id: string; medicationName: string; dosage: string; frequency: string; duration: string; instructions: string | null }[]
+  diagnoses?: string | null // ✅ أضفنا التشخيص
 }
 
 type Props = {
@@ -27,7 +28,13 @@ type Props = {
 export function PrescriptionDetails({ prescription, role, userId }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const canModify = role === "ADMIN" || (role === "DOCTOR" && prescription.doctorId === userId)
+  const canModify = role === "ADMIN" || role === "SUPER_ADMIN" || (role === "DOCTOR" && prescription.doctorId === userId) // ✅ أضفنا SUPER_ADMIN
+
+  // ✅ تحويل الـ JSON بتاع التشخيص لمصفوفة
+  let diagnosesList: string[] = []
+  try {
+    diagnosesList = prescription.diagnoses ? JSON.parse(prescription.diagnoses) : []
+  } catch { diagnosesList = [] }
 
   function handleDelete() {
     startTransition(async () => {
@@ -80,6 +87,22 @@ export function PrescriptionDetails({ prescription, role, userId }: Props) {
       </div>
 
       <div className="glass-card rounded-xl p-6 space-y-4">
+        {/* ✅ قسم عرض التشخيص */}
+        {diagnosesList.length > 0 && (
+          <div className="pb-4 border-b border-border/50">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-foreground mb-3">
+              <Stethoscope className="h-5 w-5 text-teal-500" /> Diagnosis
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {diagnosesList.map((d, index) => (
+                <span key={index} className="px-3 py-1 text-sm bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 rounded-full ring-1 ring-inset ring-teal-600/20">
+                  {d}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
           <Pill className="h-5 w-5 text-blue-500" /> Medications
         </h2>

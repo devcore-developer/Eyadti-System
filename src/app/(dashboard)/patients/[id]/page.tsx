@@ -19,7 +19,7 @@ export default async function PatientDetailPage({
 }) {
   let session
   try {
-    session = await requireRole("ADMIN", "DOCTOR", "RECEPTIONIST")
+    session = await requireRole("SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST")
   } catch (error) {
     if ((error as any)?.name === "AuthenticationError") redirect("/login")
     if ((error as any)?.name === "AuthorizationError") redirect("/dashboard")

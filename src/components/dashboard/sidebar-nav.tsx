@@ -29,6 +29,7 @@ const navigation = [
 const adminNavigation = [
   { name: "Users & Roles", href: "/admin/users", icon: Shield },
   { name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
+  // ← شيلنا الـ Gallery من هنا
   { name: "Public Booking", href: "/book", icon: Globe },
   { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
@@ -51,15 +52,15 @@ export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
             key={item.name}
             href={item.href}
             className={cn(
-              "group flex items-center gap-3 rounded-md px-3 py-1.5 text-[0.8125rem] font-medium transition-colors duration-150", // حجم خط أصغر شيزة زي Vercel
+              "group flex items-center gap-3 rounded-md px-3 py-1.5 text-[0.8125rem] font-medium transition-colors duration-150",
               active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground" // نستخدم الـ Token الجديد
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground/60 hover:bg-sidebar-accent/20 hover:text-sidebar-foreground"
             )}
           >
             <item.icon
               className={cn(
-                "h-4 w-4 transition-colors duration-150", // أيقونات أصغر
+                "h-4 w-4 transition-colors duration-150",
                 active
                   ? "text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"

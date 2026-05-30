@@ -14,8 +14,8 @@ interface SubscriptionGuardProps {
 export function SubscriptionGuard({ children, status, trialEndsAt, endDate }: SubscriptionGuardProps) {
   const pathname = usePathname()
   
-  // لو اليوزر في صفحة الـ Billing، سيبه يشوفها عشان يقدر يدخل كود التفعيل
-  if (pathname.includes("/settings/billing")) {
+  // لو السوبر أدمن أو في صفحة الـ Billing، سيبه يعدي
+  if (pathname.includes("/settings/billing") || status === "SUPER_ADMIN") {
     return <>{children}</>
   }
 
@@ -25,7 +25,6 @@ export function SubscriptionGuard({ children, status, trialEndsAt, endDate }: Su
   let message = ""
   let icon = <Lock className="h-12 w-12 text-red-500" />
 
-  // التحقق من انتهاء الصلاحية
   if (status === "TRIAL" && trialEndsAt && new Date(trialEndsAt) < now) {
     isExpired = true
     message = "Your 3-day free trial has expired."
@@ -38,7 +37,6 @@ export function SubscriptionGuard({ children, status, trialEndsAt, endDate }: Su
     message = "Your account has been suspended by the administration."
   }
 
-  // لو الحساب موقوف أوالاشتراك خلص، اظهر الشاشة الاحمر
   if (isSuspended || isExpired) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-white rounded-xl border shadow-sm">
@@ -60,6 +58,5 @@ export function SubscriptionGuard({ children, status, trialEndsAt, endDate }: Su
     )
   }
 
-  // لو كل حاجة تمام، اعرض الداشبورد عادي
   return <>{children}</>
 }

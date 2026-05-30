@@ -21,6 +21,9 @@ const PrescriptionSchema = z.object({
   doctorId: z.string().min(1, "Select a doctor"),
   visitId: z.string().optional(),
   items: z.array(PrescriptionItemSchema).min(1, "At least one medication is required"),
+  complaints: z.string().optional(), 
+  diagnoses: z.string().optional(),
+  treatment: z.string().optional(),
 })
 
 // ── Helper ───────────────────────────────────────────
@@ -40,13 +43,23 @@ function safeJsonParse(str: string | null): any[] {
 export async function createPrescription(formData: FormData): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
+  
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) {
+    return { success: false, error: "Forbidden" }
+  }
+
+  if (!session.user.clinicId) {
+    return { success: false, error: "User is not assigned to a clinic." }
+  }
 
   const raw = {
     patientId: (formData.get("patientId") as string) || "",
     doctorId: (formData.get("doctorId") as string) || "",
     visitId: (formData.get("visitId") as string) || undefined,
     items: safeJsonParse(formData.get("items") as string),
+    complaints: (formData.get("complaints") as string) || undefined,
+    diagnoses: (formData.get("diagnoses") as string) || undefined,
+    treatment: (formData.get("treatment") as string) || undefined,
   }
 
   const parsed = PrescriptionSchema.safeParse(raw)
@@ -67,6 +80,9 @@ export async function createPrescription(formData: FormData): Promise<ActionResu
         patientId: parsed.data.patientId,
         doctorId: parsed.data.doctorId,
         visitId: parsed.data.visitId || null,
+        complaints: parsed.data.complaints || null,
+        diagnoses: parsed.data.diagnoses || null,
+        treatment: parsed.data.treatment || null,
         items: {
           create: parsed.data.items,
         },
@@ -87,13 +103,16 @@ export async function createPrescription(formData: FormData): Promise<ActionResu
 export async function updatePrescription(prescriptionId: string, formData: FormData): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
 
   const raw = {
     patientId: (formData.get("patientId") as string) || "",
     doctorId: (formData.get("doctorId") as string) || "",
     visitId: (formData.get("visitId") as string) || undefined,
     items: safeJsonParse(formData.get("items") as string),
+    complaints: (formData.get("complaints") as string) || undefined,
+    diagnoses: (formData.get("diagnoses") as string) || undefined,
+    treatment: (formData.get("treatment") as string) || undefined,
   }
 
   const parsed = PrescriptionSchema.safeParse(raw)
@@ -117,6 +136,9 @@ export async function updatePrescription(prescriptionId: string, formData: FormD
         data: {
           doctorId: parsed.data.doctorId,
           visitId: parsed.data.visitId || null,
+          complaints: parsed.data.complaints || null,
+          diagnoses: parsed.data.diagnoses || null,
+          treatment: parsed.data.treatment || null,
         },
       }),
       prisma.prescriptionItem.deleteMany({ where: { prescriptionId } }),
@@ -139,7 +161,7 @@ export async function updatePrescription(prescriptionId: string, formData: FormD
 export async function deletePrescription(prescriptionId: string): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
 
   try {
     const prescription = await prisma.prescription.findFirst({

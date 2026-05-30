@@ -8,7 +8,7 @@ import { UserTable } from "@/components/admin/user-table"
 export default async function UsersPage() {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if (session.user.role !== "ADMIN") redirect("/dashboard")
+  if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
 
   const users = await prisma.user.findMany({
     where: { clinicId: session.user.clinicId },

@@ -60,14 +60,14 @@ export function UserProfileMenu({
         
         <DropdownMenuSeparator className="bg-[rgba(148,163,184,0.1)] dark:bg-[rgba(255,255,255,0.06)]" />
         
-        <Link href="/settings" legacyBehavior passHref>
+        <Link href="/settings">
           <DropdownMenuItem className="rounded-xl cursor-pointer py-2.5 my-1 focus:bg-[#F5F8FF] dark:focus:bg-[#223247]">
             <Settings className="h-4 w-4 mr-3 text-muted-foreground" />
             <span className="text-sm font-medium">Account Settings</span>
           </DropdownMenuItem>
         </Link>
         
-        <Link href="/settings/clinics" legacyBehavior passHref>
+        <Link href="/settings/clinics">
           <DropdownMenuItem className="rounded-xl cursor-pointer py-2.5 my-1 focus:bg-[#F5F8FF] dark:focus:bg-[#223247]">
             <Building2 className="h-4 w-4 mr-3 text-muted-foreground" />
             <span className="text-sm font-medium">Clinic Settings</span>

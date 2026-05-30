@@ -12,7 +12,7 @@ export default async function PrescriptionDetailPage({
 }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if (!["ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) redirect("/dashboard")
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) redirect("/dashboard")
 
   const { id: patientId, prescriptionId } = await params
   const prescription = await getPrescriptionById(prescriptionId, session.user.clinicId)

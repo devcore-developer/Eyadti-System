@@ -1,14 +1,17 @@
 "use client"
 
-import { useTransition, useState } from "react"
+import { useTransition, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createPrescription, updatePrescription } from "@/lib/actions/prescriptions"
 import type { ActionResult } from "@/types"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { PrescriptionItems, type PrescriptionItemInput } from "./prescription-items"
+
+// ✅ شيلنا الـ TreatmentTemplateSelector
+import { ComplaintSelector } from "@/components/visits/complaint-selector"
+import { DiagnosisSelector } from "@/components/visits/diagnosis-selector"
 
 type DoctorOption = { id: string; name: string }
 
@@ -18,6 +21,8 @@ type PrescriptionData = {
   doctorId: string
   visitId?: string | null
   items: PrescriptionItemInput[]
+  complaints?: string | null
+  diagnoses?: string | null
 }
 
 type Props = {
@@ -37,6 +42,22 @@ export function PrescriptionForm({ patientId, doctors, visitId, prescription }: 
   const [items, setItems] = useState<PrescriptionItemInput[]>(
     prescription?.items?.length ? prescription.items : [{ medicationName: "", dosage: "", frequency: "", duration: "", instructions: "" }]
   )
+
+  // ✅ States للشكوى والتشخيص بس
+  const [complaints, setComplaints] = useState<string[]>([])
+  const [diagnoses, setDiagnoses] = useState<string[]>([])
+
+  useEffect(() => {
+    if (prescription) {
+      try {
+        if (prescription.complaints) setComplaints(JSON.parse(prescription.complaints))
+      } catch { setComplaints([]) }
+      
+      try {
+        if (prescription.diagnoses) setDiagnoses(JSON.parse(prescription.diagnoses))
+      } catch { setDiagnoses([]) }
+    }
+  }, [prescription])
 
   function handleResult(result: ActionResult) {
     if (!result.success) {
@@ -64,6 +85,10 @@ export function PrescriptionForm({ patientId, doctors, visitId, prescription }: 
     formData.set("patientId", patientId)
     formData.set("items", JSON.stringify(validItems))
     if (visitId) formData.set("visitId", visitId)
+
+    // ✅ إرسال الشكوى والتشخيص بس
+    formData.set("complaints", JSON.stringify(complaints))
+    formData.set("diagnoses", JSON.stringify(diagnoses))
 
     startTransition(async () => {
       if (isEdit && prescription?.id) {
@@ -100,7 +125,18 @@ export function PrescriptionForm({ patientId, doctors, visitId, prescription }: 
         </div>
       </div>
 
-      <PrescriptionItems items={items} setItems={setItems} />
+      {/* ✅ قسم الشكوى والتشخيص */}
+      <div className="space-y-4 border-t pt-6">
+        <h3 className="text-lg font-semibold">Clinical Details</h3>
+        
+        <ComplaintSelector complaints={complaints} setComplaints={setComplaints} />
+
+        <DiagnosisSelector diagnoses={diagnoses} setDiagnoses={setDiagnoses} />
+      </div>
+
+      <div className="border-t pt-6">
+        <PrescriptionItems items={items} setItems={setItems} />
+      </div>
 
       <div className="flex items-center gap-3 pt-4">
         <Button type="submit" disabled={isPending} className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md shadow-blue-500/20 hover:shadow-blue-500/40 transition-all">

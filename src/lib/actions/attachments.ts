@@ -37,7 +37,7 @@ const AttachmentSchema = z.object({
 export async function uploadAttachment(formData: FormData): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) {
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) {
     return { success: false, error: "Forbidden" }
   }
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react"; // ← أضفنا الـ useSession
 import { BillingOverview as BillingOverviewType, PlanType, BillingCycle } from "@/types/subscription";
 import { BillingOverview } from "@/components/billing/billing-overview";
 import {
@@ -17,6 +18,7 @@ interface BillingPageClientProps {
 
 export function BillingPageClient({ overview, plans }: BillingPageClientProps) {
   const router = useRouter();
+  const { update } = useSession(); // ← استدعاء دالة التحديث
   const [loading, setLoading] = useState(false);
 
   async function handleSelectPlan(planId: string, billingCycle: BillingCycle) {
@@ -28,7 +30,8 @@ export function BillingPageClient({ overview, plans }: BillingPageClientProps) {
     });
 
     if (result.success) {
-      router.refresh();
+      await update(); // ✅ تحديث الـ JWT/Session أولاً
+      router.refresh(); // ثم تحديث بيانات الصفحة
     } else {
       alert(result.error || "Failed to change plan");
     }
@@ -46,6 +49,7 @@ export function BillingPageClient({ overview, plans }: BillingPageClientProps) {
     });
 
     if (result.success) {
+      await update(); // ✅ تحديث الـ JWT/Session أولاً
       router.refresh();
     } else {
       alert(result.error || "Failed to cancel subscription");
@@ -66,6 +70,7 @@ export function BillingPageClient({ overview, plans }: BillingPageClientProps) {
     );
 
     if (result.success) {
+      await update(); // ✅ تحديث الـ JWT/Session أولاً
       router.refresh();
     } else {
       alert(result.error || "Failed to reactivate subscription");
