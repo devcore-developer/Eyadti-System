@@ -1,4 +1,3 @@
-// src/components/appointments/appointment-detail-actions.tsx
 "use client"
 
 import { useState, useTransition } from "react"
@@ -21,16 +20,17 @@ export function AppointmentDetailActions({ appointmentId, status, doctorId, role
   const [error, setError] = useState<string | null>(null)
 
   const isDoctorOwner = role === "DOCTOR" && doctorId === userId
-  const canEdit = (role === "SUPER_ADMIN" || session.user.role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
-  const canComplete = (role === "SUPER_ADMIN" || session.user.role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
-  const canCancel = role === "SUPER_ADMIN" || session.user.role === "ADMIN" && status !== AppointmentStatus.CANCELLED
+  
+  // ✅ استخدمنا role بدل session.user.role
+  const canEdit = (role === "SUPER_ADMIN" || role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
+  const canComplete = (role === "SUPER_ADMIN" || role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
+  const canCancel = role === "SUPER_ADMIN" || (role === "ADMIN" && status !== AppointmentStatus.CANCELLED)
 
   function handleStatusChange(newStatus: AppointmentStatus) {
     setError(null)
     startTransition(async () => {
       const result = await changeAppointmentStatus(appointmentId, newStatus)
       if (!result.success) {
-        // التعديل هنا: أضفنا ?? null عشان نطمن TypeScript إننا بنبعت null مش undefined
         setError(result.error ?? null) 
       } else {
         router.refresh()
@@ -43,7 +43,6 @@ export function AppointmentDetailActions({ appointmentId, status, doctorId, role
     startTransition(async () => {
       const result = await deleteAppointment(appointmentId)
       if (!result.success) {
-        // التعديل هنا كمان
         setError(result.error ?? null) 
       } else {
         router.push("/appointments")

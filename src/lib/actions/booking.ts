@@ -1,5 +1,3 @@
-// src/lib/actions/booking.ts
-
 "use server"
 
 import { prisma } from "@/lib/db"
@@ -70,14 +68,12 @@ export async function getAvailableTimeSlots(doctorId: string, clinicId: string, 
   const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
   const duration = settings?.defaultAppointmentDuration || 30
 
-  // تم التعديل: استخدام findFirst بدلاً من findUnique مع المفتاح المركب
   const doctorSchedule = await prisma.doctorSchedule.findFirst({
     where: { doctorId, dayOfWeek },
   })
 
   if (!doctorSchedule || !doctorSchedule.isAvailable) return []
 
-  // تم التعديل: استخدام findFirst بدلاً من findUnique مع المفتاح المركب
   const clinicHours = await prisma.clinicWorkingHours.findFirst({
     where: { clinicId, dayOfWeek },
   })
@@ -220,14 +216,20 @@ export async function createBooking(clinicId: string, rawData: unknown) {
     })
 
     const doctor = await prisma.user.findUnique({ where: { id: validated.doctorId } })
+    
+    // ✅ دمج إشعار الواتساب للـ Online Booking
     if (doctor) {
+      const bookingClinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } })
+      
       await notifyAppointmentCreated(
         appointment.id,
         patient.fullName,
+        patient.phone, // ← رقم المريض
         `Dr. ${doctor.name}`,
         dateTime.toISOString(),
+        bookingClinic?.name || "The Clinic", // ← اسم العيادة
         clinicId,
-        doctor.id
+        doctor.id // الـ userId هنا هوا الـ doctorId
       )
     }
 

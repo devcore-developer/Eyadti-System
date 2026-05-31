@@ -40,7 +40,7 @@ export default async function InvoiceDetailPage({
     lineTotal: item.quantity * Number(item.unitPrice), // الحساب ده بقى أمن 100%
   }))
 
-  const canUpdateStatus = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
+  const canUpdateStatus = session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "RECEPTIONIST"
 
   function formatCurrency(amount: number): string {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)

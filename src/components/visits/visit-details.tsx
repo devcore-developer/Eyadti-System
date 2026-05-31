@@ -49,7 +49,7 @@ export function VisitDetails({ visit, role, userId, patientId }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const canModify = role === "SUPER_ADMIN" || session.user.role === "ADMIN" || (role === "DOCTOR" && visit.doctor.id === userId)
+  const canModify = role === "SUPER_ADMIN" || role === "ADMIN" || (role === "DOCTOR" && visit.doctor.id === userId)
 
   function handleDelete() {
     startTransition(async () => {

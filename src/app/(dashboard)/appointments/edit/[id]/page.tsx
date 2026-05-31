@@ -28,7 +28,7 @@ export default async function EditAppointmentPage({
   if (!appointment) notFound()
 
   // لو الدكتور، لازم يتأكد إن الموعد بتاعه
-  if (session.user.role === "DOCTOR" && appointment.doctorId !== session.userId) {
+  if (session.role === "DOCTOR" && appointment.doctorId !== session.userId) {
     redirect("/appointments")
   }
 

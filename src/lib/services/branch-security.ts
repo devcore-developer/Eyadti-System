@@ -11,7 +11,7 @@ export async function hasBranchAccess(
   userRole: string,
   clinicId: string
 ): Promise<boolean> {
-  if (userRole === "SUPER_ADMIN" || session.user.role === "ADMIN") return true;
+  if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") return true;
 
   if (userRole === "DOCTOR") {
     const assignment = await prisma.doctorBranch.findFirst({
@@ -40,7 +40,7 @@ export async function getUserAccessibleBranches(
   userRole: string,
   clinicId: string
 ): Promise<string[]> {
-  if (userRole === "SUPER_ADMIN" || session.user.role === "ADMIN") {
+  if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
     const branches = await prisma.branch.findMany({
       where: { clinicId, isActive: true },
       select: { id: true },

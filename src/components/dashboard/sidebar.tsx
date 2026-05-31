@@ -34,7 +34,9 @@ export function Sidebar({
   selectedBranchId: string | null;
   isMobile?: boolean;
 }) {
-  const isAdmin = user?.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || user?.role === "SUPER_ADMIN"
+  // ✅ استخدام user?.role بدل session.user.role وتجنب التكرار
+  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN"
+  
   const initials = user?.name
     ?.split(" ")
     .map((n) => n[0])

@@ -28,7 +28,7 @@ type Props = {
 export function PrescriptionDetails({ prescription, role, userId }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const canModify = role === "SUPER_ADMIN" || session.user.role === "ADMIN" || role === "SUPER_ADMIN" || (role === "DOCTOR" && prescription.doctorId === userId) // ✅ أضفنا SUPER_ADMIN
+  const canModify = role === "SUPER_ADMIN" || role === "ADMIN" || role === "SUPER_ADMIN" || (role === "DOCTOR" && prescription.doctorId === userId) // ✅ أضفنا SUPER_ADMIN
 
   // ✅ تحويل الـ JSON بتاع التشخيص لمصفوفة
   let diagnosesList: string[] = []
