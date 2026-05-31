@@ -1,21 +1,27 @@
 // src/lib/actions/settings.ts
-
 "use server"
 
 import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
-import { writeFile, unlink, mkdir } from "fs/promises"
-import path from "path"
+import { v2 as cloudinary } from "cloudinary"
 import {
   clinicSettingsSchema,
   workingHoursArraySchema,
   doctorScheduleArraySchema,
 } from "@/lib/validations/settings"
 
+// إعداد Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
+
 async function checkAdmin() {
   const session = await auth()
-  if (!session?.user || !["ADMIN", "CLINIC_OWNER", "DOCTOR"].includes(session.user.role)) {
+  // ⬅️ أضفنا "SUPER_ADMIN" عشان يسمح لصاحب النظام بالرفع
+  if (!session?.user || !["SUPER_ADMIN", "ADMIN", "CLINIC_OWNER", "DOCTOR"].includes(session.user.role)) {
     return null
   }
   return session
@@ -27,7 +33,7 @@ export async function getClinicSettings(clinicId: string) {
 
     if (!settings) {
       const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } })
-      if (!clinic) return null // Prevent FK error if clinic doesn't exist
+      if (!clinic) return null 
       
       settings = await prisma.clinicSettings.create({
         data: { clinicId, clinicName: clinic.name || "My Clinic" },
@@ -37,7 +43,7 @@ export async function getClinicSettings(clinicId: string) {
     return settings
   } catch (error) {
     console.error("Error fetching clinic settings:", error)
-    return null // Return null instead of crashing the page
+    return null
   }
 }
 
@@ -79,32 +85,37 @@ export async function uploadClinicLogo(clinicId: string, formData: FormData) {
   }
 
   try {
-    const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
-    
-    if (settings?.logoUrl) {
-      const oldPath = path.join(process.cwd(), "public", settings.logoUrl)
-      await unlink(oldPath).catch(() => {})
-    }
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
 
-    const ext = path.extname(file.name) || `.${file.type.split("/")[1]}`
-    const uniqueName = `logo-${Date.now()}${ext}`
-    const uploadDir = path.join(process.cwd(), "public", "uploads", clinicId)
-    await mkdir(uploadDir, { recursive: true })
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          {
+            resource_type: "image",
+            folder: "clinic_logos",
+          },
+          (error, result) => {
+            if (error) reject(error)
+            else resolve(result)
+          }
+        )
+        .end(buffer)
+    })
 
-    const filePath = path.join(uploadDir, uniqueName)
-    const buffer = Buffer.from(await file.arrayBuffer())
-    await writeFile(filePath, buffer)
+    const uploadResult = result as any
+    const logoUrl = uploadResult.secure_url
 
-    const fileUrl = `/uploads/${clinicId}/${uniqueName}`
-    
     await prisma.clinicSettings.upsert({
       where: { clinicId },
-      update: { logoUrl: fileUrl },
-      create: { clinicId, clinicName: "My Clinic", logoUrl: fileUrl },
+      update: { logoUrl: logoUrl },
+      create: { clinicId, clinicName: "My Clinic", logoUrl: logoUrl },
     })
 
     revalidatePath("/settings/clinics")
-    return { success: true, url: fileUrl }
+    revalidatePath("/patients/[id]") 
+
+    return { success: true, url: logoUrl }
   } catch (error) {
     console.error("Error uploading logo:", error)
     return { success: false, error: "Upload failed" }
@@ -119,9 +130,16 @@ export async function deleteClinicLogo(clinicId: string) {
 
   try {
     const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
-    if (settings?.logoUrl) {
-      const oldPath = path.join(process.cwd(), "public", settings.logoUrl)
-      await unlink(oldPath).catch(() => {})
+    
+    if (settings?.logoUrl && settings.logoUrl.includes("cloudinary")) {
+      try {
+        const urlParts = settings.logoUrl.split('/')
+        const publicIdWithExt = urlParts.slice(-2).join('/') 
+        const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf('.'))
+        await cloudinary.uploader.destroy(publicId)
+      } catch (e) {
+        console.error("Could not delete old logo from Cloudinary", e)
+      }
     }
 
     await prisma.clinicSettings.upsert({
@@ -131,6 +149,7 @@ export async function deleteClinicLogo(clinicId: string) {
     })
 
     revalidatePath("/settings/clinics")
+    revalidatePath("/patients/[id]")
     return { success: true }
   } catch (error) {
     console.error("Error deleting logo:", error)
@@ -154,7 +173,6 @@ export async function getWorkingHours(clinicId: string) {
     })
   } catch (error) {
     console.error("Error fetching working hours:", error)
-    // Return default hours instead of crashing
     return [0,1,2,3,4,5,6].map(day => ({
       dayOfWeek: day, 
       startTime: "09:00", 

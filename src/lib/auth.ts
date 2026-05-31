@@ -2,20 +2,9 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import type { DefaultSession } from "next-auth";
+import { SubscriptionStatus } from "@prisma/client";
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      role: string;
-      clinicId: string;
-      subscriptionStatus: string;
-      trialEndsAt: Date | null;
-      currentPeriodEnd: Date | null;
-    } & DefaultSession["user"];
-  }
-}
+// ✅ شيلنا الـ declare module من هنا عشان ميتعارضش مع ملف next-auth.d.ts
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
@@ -36,23 +25,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error("البريد الإلكتروني وكلمة المرور مطلوبان");
         }
 
+        // ✅ تحويل النص لـ string عشان Prisma يقبلو (الخطأ التالت)
+        const email = credentials.email as string;
+        const password = credentials.password as string;
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email },
         });
 
         if (!user || !user.password) {
           throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         }
 
-        const isValidPassword = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
+        const isValidPassword = await bcrypt.compare(password, user.password);
 
         if (!isValidPassword) {
           throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         }
 
+        // ✅ رجعنا البيانات الأساسية فقط اللي في الـ User interface (الخطأ التاني)
         return {
           id: user.id,
           name: user.name,
@@ -65,28 +56,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user, trigger }) {
-      // 1. لما المستخدم يسجل دخولو لأول مرة
+      // 1. لما المستخدم يسجل دخول لأول مرة
       if (user) {
-        token.id = user.id;
+        token.id = user.id!;
         token.role = user.role;
         token.clinicId = user.clinicId;
         
-        // هنا بسنجيب بيانات الاشتراك أول مرة
+        // هنا هنجيب بيانات الاشتراك أول مرة
         if (user.clinicId) {
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: user.clinicId },
           });
           if (subscription) {
             token.subscriptionStatus = subscription.status;
+            token.planId = subscription.planId;
             token.trialEndsAt = subscription.trialEndsAt;
             token.currentPeriodEnd = subscription.currentPeriodEnd;
           } else {
             token.subscriptionStatus = "EXPIRED";
+            token.planId = null;
             token.trialEndsAt = null;
             token.currentPeriodEnd = null;
           }
         } else {
           token.subscriptionStatus = "SUPER_ADMIN";
+          token.planId = null;
           token.trialEndsAt = null;
           token.currentPeriodEnd = null;
         }
@@ -94,13 +88,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       // 2. لما نطلب تحديث الـ Session من الـ Frontend (بعد تجديد الاشتراك)
       if (trigger === "update") {
-        // هنا هنروح نسأل الداتابيز تاني عشان نجيب التاريخ الجديد
         if (token.clinicId) {
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: token.clinicId as string },
           });
           if (subscription) {
             token.subscriptionStatus = subscription.status;
+            token.planId = subscription.planId;
             token.trialEndsAt = subscription.trialEndsAt;
             token.currentPeriodEnd = subscription.currentPeriodEnd;
           }
@@ -115,7 +109,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.clinicId = token.clinicId as string;
-        session.user.subscriptionStatus = token.subscriptionStatus as string;
+        // ✅ التعديل هنا عشان يتوافق مع النوع الجديد في next-auth.d.ts (الخطأ الرابع)
+        session.user.subscriptionStatus = token.subscriptionStatus as SubscriptionStatus | "SUPER_ADMIN" | "EXPIRED" | null;
+        session.user.planId = token.planId as string | null;
         session.user.trialEndsAt = token.trialEndsAt as Date | null;
         session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null;
       }

@@ -11,29 +11,31 @@ declare module "next-auth" {
       image?: string | null;
       role: string;
       clinicId: string;
-      subscriptionStatus: SubscriptionStatus | null;
+      subscriptionStatus: SubscriptionStatus | "SUPER_ADMIN" | "EXPIRED" | null;
       planId: string | null;
       planSlug?: string | null;
       trialEndsAt: Date | null;
-      currentPeriodEnd: Date | null; // ← تمت الإضافة هنا
+      currentPeriodEnd: Date | null;
     };
   }
 
-  // ✅ التعديل هنا: إضافة User interface عشان NextAuth يسمح بمرور role و clinicId
+  // ✅ شلنا الخصائص بتاعة الاشتراك من هنا عشان الـ authorize يرضى
   interface User extends DefaultUser {
     role: string;
     clinicId: string;
   }
 }
 
-declare module "next-auth/jwt" {
+// ✅ التعديل السحري هنا: غيرنا المسار من next-auth/jwt لـ @auth/core/jwt
+declare module "@auth/core/jwt" {
   interface JWT {
     id: string;
     role: string;
     clinicId: string;
-    subscriptionStatus: SubscriptionStatus | null;
+    subscriptionStatus: SubscriptionStatus | "SUPER_ADMIN" | "EXPIRED" | null;
     planId: string | null;
+    planSlug?: string | null;
     trialEndsAt: Date | null;
-    currentPeriodEnd: Date | null; // ← تمت الإضافة هنا
+    currentPeriodEnd: Date | null;
   }
 }

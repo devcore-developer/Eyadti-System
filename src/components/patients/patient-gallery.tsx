@@ -3,30 +3,47 @@
 import { useState } from "react"
 import { createGalleryItem, deleteGalleryItem } from "@/actions/gallery"
 import { BeforeAfterSlider } from "@/components/gallery/before-after-slider"
+import { SocialShareButton } from "@/components/gallery/social-share-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Loader2, Upload, ImagePlus, Trash2 } from "lucide-react"
 
-interface PatientGalleryProps {
-  patientId: string
-  items: any[]
+interface GalleryItem {
+  id: string
+  beforeImageUrl: string
+  afterImageUrl: string
+  title?: string | null
+  description?: string | null
 }
 
-export function PatientGallery({ patientId, items }: PatientGalleryProps) {
+interface PatientGalleryProps {
+  patientId: string
+  items: GalleryItem[]
+  clinicLogo?: string | null
+}
+
+export function PatientGallery({ patientId, items, clinicLogo }: PatientGalleryProps) {
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [beforePreview, setBeforePreview] = useState<string | null>(null)
   const [afterPreview, setAfterPreview] = useState<string | null>(null)
+  const [beforeFile, setBeforeFile] = useState<File | null>(null)
+  const [afterFile, setAfterFile] = useState<File | null>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "before" | "after") => {
     const file = e.target.files?.[0]
     if (file) {
       const reader = new FileReader()
       reader.onloadend = () => {
-        if (type === "before") setBeforePreview(reader.result as string)
-        else setAfterPreview(reader.result as string)
+        if (type === "before") {
+          setBeforePreview(reader.result as string)
+          setBeforeFile(file)
+        } else {
+          setAfterPreview(reader.result as string)
+          setAfterFile(file)
+        }
       }
       reader.readAsDataURL(file)
     }
@@ -35,8 +52,10 @@ export function PatientGallery({ patientId, items }: PatientGalleryProps) {
   const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData()
     formData.append("file", file)
+    
     const response = await fetch("/api/upload", { method: "POST", body: formData })
     if (!response.ok) throw new Error("Failed to upload image")
+    
     const data = await response.json()
     return data.url
   }
@@ -46,33 +65,38 @@ export function PatientGallery({ patientId, items }: PatientGalleryProps) {
     setIsPending(true)
     setError(null)
 
-    const formData = new FormData(e.currentTarget)
-    
+    if (!beforeFile || !afterFile) {
+      setError("Both before and after images are required")
+      setIsPending(false)
+      return
+    }
+
     try {
-      const beforeFile = (document.getElementById("beforeFile") as HTMLInputElement).files?.[0]
-      const afterFile = (document.getElementById("afterFile") as HTMLInputElement).files?.[0]
-
-      if (!beforeFile || !afterFile) {
-        setError("Both before and after images are required")
-        setIsPending(false)
-        return
-      }
-
       const [beforeUrl, afterUrl] = await Promise.all([
         uploadImage(beforeFile),
         uploadImage(afterFile)
       ])
 
-      formData.set("beforeImageUrl", beforeUrl)
-      formData.set("afterImageUrl", afterUrl)
+      const formData = new FormData()
+      formData.append("beforeImageUrl", beforeUrl)
+      formData.append("afterImageUrl", afterUrl)
+      
+      const title = (document.getElementById("title") as HTMLInputElement).value
+      const description = (document.getElementById("description") as HTMLTextAreaElement).value
+      
+      if (title) formData.append("title", title)
+      if (description) formData.append("description", description)
 
       const result = await createGalleryItem(patientId, formData)
-      if (result.error) setError(result.error)
       
-      if (result.success) {
+      if (result.error) {
+        setError(result.error)
+      } else if (result.success) {
         (e.target as HTMLFormElement).reset()
         setBeforePreview(null)
         setAfterPreview(null)
+        setBeforeFile(null)
+        setAfterFile(null)
       }
     } catch (err) {
       setError("Something went wrong while uploading images.")
@@ -96,18 +120,45 @@ export function PatientGallery({ patientId, items }: PatientGalleryProps) {
           Add Before & After
         </h3>
         
-        {error && <p className="text-sm text-red-500 bg-red-50 p-2 rounded-lg">{error}</p>}
+        {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{error}</p>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Before Image</Label>
-            <Input id="beforeFile" type="file" accept="image/*" onChange={(e) => handleFileChange(e, "before")} disabled={isPending} />
-            {beforePreview && <div className="mt-2 h-24 w-full rounded-lg overflow-hidden bg-muted"><img src={beforePreview} alt="Before" className="w-full h-full object-cover" /></div>}
+            <div className="relative">
+              <Input 
+                id="beforeFile" 
+                type="file" 
+                accept="image/*" 
+                onChange={(e) => handleFileChange(e, "before")} 
+                disabled={isPending} 
+                className="cursor-pointer"
+              />
+            </div>
+            {beforePreview && (
+              <div className="mt-2 h-40 w-full rounded-lg overflow-hidden bg-muted border">
+                <img src={beforePreview} alt="Before Preview" className="w-full h-full object-cover" />
+              </div>
+            )}
           </div>
+          
           <div className="space-y-2">
             <Label>After Image</Label>
-            <Input id="afterFile" type="file" accept="image/*" onChange={(e) => handleFileChange(e, "after")} disabled={isPending} />
-            {afterPreview && <div className="mt-2 h-24 w-full rounded-lg overflow-hidden bg-muted"><img src={afterPreview} alt="After" className="w-full h-full object-cover" /></div>}
+            <div className="relative">
+              <Input 
+                id="afterFile" 
+                type="file" 
+                accept="image/*" 
+                onChange={(e) => handleFileChange(e, "after")} 
+                disabled={isPending} 
+                className="cursor-pointer"
+              />
+            </div>
+            {afterPreview && (
+              <div className="mt-2 h-40 w-full rounded-lg overflow-hidden bg-muted border">
+                <img src={afterPreview} alt="After Preview" className="w-full h-full object-cover" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -121,9 +172,9 @@ export function PatientGallery({ patientId, items }: PatientGalleryProps) {
           <Textarea id="description" name="description" placeholder="Briefly describe the procedure..." rows={2} disabled={isPending} />
         </div>
 
-        <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white">
+        <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white hover:opacity-90 transition-opacity">
           {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-          Save Photos
+          {isPending ? "Uploading..." : "Save Photos"}
         </Button>
       </form>
 
@@ -131,7 +182,7 @@ export function PatientGallery({ patientId, items }: PatientGalleryProps) {
       {items.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((item) => (
-            <div key={item.id} className="group relative space-y-3 border rounded-2xl p-4 bg-white dark:bg-[#223247]">
+            <div key={item.id} className="group relative space-y-3 border rounded-2xl p-4 bg-white dark:bg-[#223247] transition-shadow hover:shadow-lg">
               <BeforeAfterSlider beforeSrc={item.beforeImageUrl} afterSrc={item.afterImageUrl} />
               
               <div className="px-1">
@@ -139,14 +190,21 @@ export function PatientGallery({ patientId, items }: PatientGalleryProps) {
                 {item.description && <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>}
               </div>
 
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                onClick={() => handleDelete(item.id)}
-              >
-                <Trash2 className="h-4 w-4 mr-1" /> Remove
-              </Button>
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => handleDelete(item.id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Remove
+                </Button>
+              </div>
+
+              <SocialShareButton 
+                beforeSrc={item.beforeImageUrl} 
+                afterSrc={item.afterImageUrl}
+                clinicLogo={clinicLogo}
+              />
             </div>
           ))}
         </div>
