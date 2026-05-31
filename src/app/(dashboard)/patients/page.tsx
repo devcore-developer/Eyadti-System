@@ -64,7 +64,7 @@ export default async function PatientsPage({
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
-  const showCreate = session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
+  const showCreate = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
   
   const serializableParams: Record<string, string> = {}
   if (search) serializableParams.search = search

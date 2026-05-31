@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { requireRole, AuthenticationError, AuthorizationError } from "@/lib/permissions" // ← استخدمنا الدالة الموحدة
+import { requireRole, AuthenticationError, AuthorizationError } from "@/lib/permissions"
 import { appointmentCreateSchema, appointmentUpdateSchema, changeAppointmentStatusSchema } from "@/lib/validations/appointment"
 import type { ActionResult } from "@/types"
 import { AppointmentStatus } from "@prisma/client"
@@ -68,8 +68,8 @@ async function validateClinicEntities(patientId: string, doctorId: string, clini
 // ─── Create Appointment ──────────────────────────────────────────────────
 export async function createAppointment(formData: FormData): Promise<ActionResult> {
   try {
-    // ✅ الأدمين والدكتور والريسبشن يقدروا يحجزوا (السوبر أدمن بيعدي لوحده)
-    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR", "RECEPTIONIST")
+    // ✅ السوبر أدمن والأدمين والدكتور والريسبشن يقدروا يحجزوا
+    const { clinicId, userId } = await requireRole("SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST")
 
     const raw = {
       patientId: formData.get("patientId") as string,
@@ -108,14 +108,19 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
     })
 
     if (appointment) {
-      const patient = await prisma.patient.findUnique({ where: { id: validated.data.patientId }, select: { fullName: true } })
+      const patient = await prisma.patient.findUnique({ where: { id: validated.data.patientId }, select: { fullName: true, phone: true } })
       const doctor = await prisma.user.findUnique({ where: { id: validated.data.doctorId }, select: { name: true } })
+      
       if (patient && doctor) {
+        const clinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } })
+        
         await notifyAppointmentCreated(
           appointment.id,
           patient.fullName,
+          patient.phone, // ← رقم تليفون المريض
           `Dr. ${doctor.name}`,
           dateTime.toISOString(),
+          clinic?.name || "The Clinic", // ← اسم العيادة
           clinicId,
           userId
         )
@@ -144,8 +149,8 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
 // ─── Update Appointment ──────────────────────────────────────────────────
 export async function updateAppointment(appointmentId: string, formData: FormData): Promise<ActionResult> {
   try {
-    // ✅ الأدمين والدكتور يقدروا يعدلوا (السوبر أدمن يعدي لوحده)
-    const { clinicId, userId, role } = await requireRole("ADMIN", "DOCTOR")
+    // ✅ السوبر أدمن والأدمين والدكتور يقدروا يعدلوا
+    const { clinicId, userId, role } = await requireRole("SUPER_ADMIN", "ADMIN", "DOCTOR")
 
     const raw = {
       patientId: formData.get("patientId") as string,
@@ -219,8 +224,8 @@ export async function updateAppointment(appointmentId: string, formData: FormDat
 // ─── Change Appointment Status ──────────────────────────────────────────
 export async function changeAppointmentStatus(appointmentId: string, newStatus: AppointmentStatus): Promise<ActionResult> {
   try {
-    // ✅ الأدمين والدكتور يقدروا يغيروا الحالة (السوبر أدمن يعدي لوحده)
-    const { clinicId, userId, role } = await requireRole("ADMIN", "DOCTOR")
+    // ✅ السوبر أدمن والأدمين والدكتور يقدروا يغيروا الحالة
+    const { clinicId, userId, role } = await requireRole("SUPER_ADMIN", "ADMIN", "DOCTOR")
 
     const validated = changeAppointmentStatusSchema.safeParse({ status: newStatus })
     if (!validated.success) return { success: false, error: "Invalid status" }
@@ -247,12 +252,16 @@ export async function changeAppointmentStatus(appointmentId: string, newStatus: 
     })
 
     if (validated.data.status === AppointmentStatus.CANCELLED) {
-      const patient = await prisma.patient.findUnique({ where: { id: existingAppointment.patientId }, select: { fullName: true } })
+      const patient = await prisma.patient.findUnique({ where: { id: existingAppointment.patientId }, select: { fullName: true, phone: true } })
+      const clinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } })
+      
       if (patient) {
         await notifyAppointmentCancelled(
           appointmentId,
           patient.fullName,
+          patient.phone, // ← رقم تليفون المريض
           existingAppointment.dateTime.toISOString(),
+          clinic?.name || "The Clinic", // ← اسم العيادة
           clinicId,
           userId
         )
@@ -285,8 +294,8 @@ export async function changeAppointmentStatus(appointmentId: string, newStatus: 
 // ─── Delete Appointment (Soft Delete: Status = CANCELLED) ──────────────────
 export async function deleteAppointment(appointmentId: string): Promise<ActionResult> {
   try {
-    // ✅ الأدمين بس اللي يقدر يحذف/يلغي خالص (السوبر أدمن يعدي لوحده)
-    const { clinicId, userId } = await requireRole("ADMIN")
+    // ✅ السوبر أدمن والأدمين بس اللي يقدروا يحذفوا/يلغوا خالص
+    const { clinicId, userId } = await requireRole("SUPER_ADMIN", "ADMIN")
 
     const existingAppointment = await prisma.appointment.findFirst({
       where: { id: appointmentId, clinicId: clinicId },
@@ -299,12 +308,16 @@ export async function deleteAppointment(appointmentId: string): Promise<ActionRe
       data: { status: AppointmentStatus.CANCELLED },
     })
 
-    const patient = await prisma.patient.findUnique({ where: { id: existingAppointment.patientId }, select: { fullName: true } })
+    const patient = await prisma.patient.findUnique({ where: { id: existingAppointment.patientId }, select: { fullName: true, phone: true } })
+    const clinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } })
+    
     if (patient) {
       await notifyAppointmentCancelled(
         appointmentId,
         patient.fullName,
+        patient.phone, // ← رقم تليفون المريض
         existingAppointment.dateTime.toISOString(),
+        clinic?.name || "The Clinic", // ← اسم العيادة
         clinicId,
         userId
       )

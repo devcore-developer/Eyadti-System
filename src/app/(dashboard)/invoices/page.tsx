@@ -299,7 +299,7 @@ export default async function InvoicesPage({
     .slice(0, 10)
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
-  const canCreate = session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
+  const canCreate = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
 
   const serializableParams: Record<string, string> = {}
   if (filterStatus) serializableParams.status = filterStatus

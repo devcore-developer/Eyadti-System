@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Loader2, Upload, ImagePlus, Trash2 } from "lucide-react"
+import { Loader2, Upload, ImagePlus, Trash2, X } from "lucide-react"
 
 interface GalleryItem {
   id: string
-  beforeImageUrl: string
-  afterImageUrl: string
+  beforeImageUrls: string[]
+  afterImageUrls: string[]
   title?: string | null
   description?: string | null
 }
@@ -27,37 +27,47 @@ interface PatientGalleryProps {
 export function PatientGallery({ patientId, items, clinicLogo }: PatientGalleryProps) {
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [beforePreview, setBeforePreview] = useState<string | null>(null)
-  const [afterPreview, setAfterPreview] = useState<string | null>(null)
-  const [beforeFile, setBeforeFile] = useState<File | null>(null)
-  const [afterFile, setAfterFile] = useState<File | null>(null)
+  const [beforePreviews, setBeforePreviews] = useState<string[]>([])
+  const [afterPreviews, setAfterPreviews] = useState<string[]>([])
+  const [beforeFiles, setBeforeFiles] = useState<File[]>([])
+  const [afterFiles, setAfterFiles] = useState<File[]>([])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "before" | "after") => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        if (type === "before") {
-          setBeforePreview(reader.result as string)
-          setBeforeFile(file)
-        } else {
-          setAfterPreview(reader.result as string)
-          setAfterFile(file)
-        }
-      }
-      reader.readAsDataURL(file)
+    const files = e.target.files
+    if (!files) return
+
+    const newFiles = Array.from(files)
+    const newPreviews = newFiles.map(file => URL.createObjectURL(file))
+
+    if (type === "before") {
+      setBeforeFiles(prev => [...prev, ...newFiles])
+      setBeforePreviews(prev => [...prev, ...newPreviews])
+    } else {
+      setAfterFiles(prev => [...prev, ...newFiles])
+      setAfterPreviews(prev => [...prev, ...newPreviews])
     }
   }
 
-  const uploadImage = async (file: File): Promise<string> => {
-    const formData = new FormData()
-    formData.append("file", file)
-    
-    const response = await fetch("/api/upload", { method: "POST", body: formData })
-    if (!response.ok) throw new Error("Failed to upload image")
-    
-    const data = await response.json()
-    return data.url
+  const removeFile = (index: number, type: "before" | "after") => {
+    if (type === "before") {
+      setBeforeFiles(prev => prev.filter((_, i) => i !== index))
+      setBeforePreviews(prev => prev.filter((_, i) => i !== index))
+    } else {
+      setAfterFiles(prev => prev.filter((_, i) => i !== index))
+      setAfterPreviews(prev => prev.filter((_, i) => i !== index))
+    }
+  }
+
+  const uploadImages = async (files: File[]): Promise<string[]> => {
+    const urls = await Promise.all(files.map(async (file) => {
+      const formData = new FormData()
+      formData.append("file", file)
+      const response = await fetch("/api/upload", { method: "POST", body: formData })
+      if (!response.ok) throw new Error("Failed to upload image")
+      const data = await response.json()
+      return data.url
+    }))
+    return urls
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -65,21 +75,22 @@ export function PatientGallery({ patientId, items, clinicLogo }: PatientGalleryP
     setIsPending(true)
     setError(null)
 
-    if (!beforeFile || !afterFile) {
-      setError("Both before and after images are required")
+    if (!beforeFiles.length || !afterFiles.length) {
+      setError("At least one before and one after image are required")
       setIsPending(false)
       return
     }
 
     try {
-      const [beforeUrl, afterUrl] = await Promise.all([
-        uploadImage(beforeFile),
-        uploadImage(afterFile)
+      const [beforeUrls, afterUrls] = await Promise.all([
+        uploadImages(beforeFiles),
+        uploadImages(afterFiles)
       ])
 
       const formData = new FormData()
-      formData.append("beforeImageUrl", beforeUrl)
-      formData.append("afterImageUrl", afterUrl)
+      // إضافة المصفوفات للـ FormData
+      beforeUrls.forEach(url => formData.append("beforeImageUrls", url))
+      afterUrls.forEach(url => formData.append("afterImageUrls", url))
       
       const title = (document.getElementById("title") as HTMLInputElement).value
       const description = (document.getElementById("description") as HTMLTextAreaElement).value
@@ -93,10 +104,10 @@ export function PatientGallery({ patientId, items, clinicLogo }: PatientGalleryP
         setError(result.error)
       } else if (result.success) {
         (e.target as HTMLFormElement).reset()
-        setBeforePreview(null)
-        setAfterPreview(null)
-        setBeforeFile(null)
-        setAfterFile(null)
+        setBeforePreviews([])
+        setAfterPreviews([])
+        setBeforeFiles([])
+        setAfterFiles([])
       }
     } catch (err) {
       setError("Something went wrong while uploading images.")
@@ -113,7 +124,6 @@ export function PatientGallery({ patientId, items, clinicLogo }: PatientGalleryP
 
   return (
     <div className="space-y-8">
-      {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4 bg-white dark:bg-[#223247] p-6 rounded-2xl border border-[rgba(148,163,184,0.1)]">
         <h3 className="text-lg font-bold flex items-center gap-2">
           <ImagePlus className="h-5 w-5 text-[#5BC0BE]" />
@@ -124,41 +134,33 @@ export function PatientGallery({ patientId, items, clinicLogo }: PatientGalleryP
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Before Image</Label>
-            <div className="relative">
-              <Input 
-                id="beforeFile" 
-                type="file" 
-                accept="image/*" 
-                onChange={(e) => handleFileChange(e, "before")} 
-                disabled={isPending} 
-                className="cursor-pointer"
-              />
+            <Label>Before Images</Label>
+            <Input id="beforeFiles" type="file" accept="image/*" multiple onChange={(e) => handleFileChange(e, "before")} disabled={isPending} className="cursor-pointer" />
+            <div className="flex flex-wrap gap-2 mt-2">
+              {beforePreviews.map((src, i) => (
+                <div key={i} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
+                  <img src={src} alt={`Before ${i+1}`} className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => removeFile(i, "before")} className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
-            {beforePreview && (
-              <div className="mt-2 h-40 w-full rounded-lg overflow-hidden bg-muted border">
-                <img src={beforePreview} alt="Before Preview" className="w-full h-full object-cover" />
-              </div>
-            )}
           </div>
           
           <div className="space-y-2">
-            <Label>After Image</Label>
-            <div className="relative">
-              <Input 
-                id="afterFile" 
-                type="file" 
-                accept="image/*" 
-                onChange={(e) => handleFileChange(e, "after")} 
-                disabled={isPending} 
-                className="cursor-pointer"
-              />
+            <Label>After Images</Label>
+            <Input id="afterFiles" type="file" accept="image/*" multiple onChange={(e) => handleFileChange(e, "after")} disabled={isPending} className="cursor-pointer" />
+            <div className="flex flex-wrap gap-2 mt-2">
+              {afterPreviews.map((src, i) => (
+                <div key={i} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
+                  <img src={src} alt={`After ${i+1}`} className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => removeFile(i, "after")} className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
-            {afterPreview && (
-              <div className="mt-2 h-40 w-full rounded-lg overflow-hidden bg-muted border">
-                <img src={afterPreview} alt="After Preview" className="w-full h-full object-cover" />
-              </div>
-            )}
           </div>
         </div>
 
@@ -178,12 +180,12 @@ export function PatientGallery({ patientId, items, clinicLogo }: PatientGalleryP
         </Button>
       </form>
 
-      {/* Gallery Grid */}
       {items.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((item) => (
             <div key={item.id} className="group relative space-y-3 border rounded-2xl p-4 bg-white dark:bg-[#223247] transition-shadow hover:shadow-lg">
-              <BeforeAfterSlider beforeSrc={item.beforeImageUrl} afterSrc={item.afterImageUrl} />
+              {/* بنمرر أول صورتين للـ Slider كـ Main Display */}
+              <BeforeAfterSlider beforeSrc={item.beforeImageUrls[0]} afterSrc={item.afterImageUrls[0]} />
               
               <div className="px-1">
                 {item.title && <h3 className="font-semibold text-foreground">{item.title}</h3>}
@@ -191,18 +193,15 @@ export function PatientGallery({ patientId, items, clinicLogo }: PatientGalleryP
               </div>
 
               <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={() => handleDelete(item.id)}
-                >
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(item.id)}>
                   <Trash2 className="h-4 w-4 mr-1" /> Remove
                 </Button>
               </div>
 
+              {/* تمرير المصفوفات الكاملة لزرار الشير */}
               <SocialShareButton 
-                beforeSrc={item.beforeImageUrl} 
-                afterSrc={item.afterImageUrl}
+                beforeSrcs={item.beforeImageUrls} 
+                afterSrcs={item.afterImageUrls}
                 clinicLogo={clinicLogo}
               />
             </div>

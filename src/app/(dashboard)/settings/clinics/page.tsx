@@ -18,7 +18,7 @@ export default async function ClinicSettingsPage() {
   const clinicId = session.user.clinicId
   
   // ✅ أضفنا SUPER_ADMIN لللستة عشان يقدر يعدل
-  const isReadOnly = !["ADMIN", "CLINIC_OWNER", "SUPER_ADMIN"].includes(session.user.role)
+  const isReadOnly = !["SUPER_ADMIN", "ADMIN", "CLINIC_OWNER", "SUPER_ADMIN"].includes(session.user.role)
 
   const [settings, workingHours, doctors] = await Promise.all([
     getClinicSettings(clinicId),

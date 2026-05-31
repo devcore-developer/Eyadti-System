@@ -25,8 +25,8 @@ export default async function AttachmentsPage({
   if (!patient) notFound()
 
   const attachments = await getAttachmentsByPatientId(patientId, session.user.clinicId)
-  const canUpload = session.user.role === "ADMIN" || session.user.role === "DOCTOR" || session.user.role === "RECEPTIONIST"
-  const canDelete = session.user.role === "ADMIN" || session.user.role === "DOCTOR"
+  const canUpload = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "DOCTOR" || session.user.role === "RECEPTIONIST"
+  const canDelete = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "DOCTOR"
 
   return (
     <div className="space-y-6 animate-fade-in-up">

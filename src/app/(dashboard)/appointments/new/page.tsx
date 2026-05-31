@@ -1,4 +1,3 @@
-// src/app/(dashboard)/appointments/new/page.tsx
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
@@ -9,8 +8,8 @@ export default async function NewAppointmentPage() {
   const session = await auth()
   if (!session?.user) redirect("/login")
   
-  // الأدمن والريسبشنيست بس اللي يقدروا يحجزوا
-  if (session.user.role !== "ADMIN" && session.user.role !== "RECEPTIONIST") {
+  // ✅ السوبر أدمن والأدمن والدكتور والريسبشن يقدروا يحجزوا
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) {
     redirect("/appointments")
   }
 

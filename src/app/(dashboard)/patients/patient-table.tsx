@@ -72,7 +72,7 @@ export function PatientTable({ patients, role, currentPage, totalPages, searchPa
                       <Link href={`/patients/${patient.id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-4 w-4" /></Button>
                       </Link>
-                      {role === "ADMIN" && (
+                      {role === "SUPER_ADMIN" || session.user.role === "ADMIN" && (
                         <Link href={`/patients/edit/${patient.id}`}>
                           <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-4 w-4" /></Button>
                         </Link>

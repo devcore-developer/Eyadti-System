@@ -68,7 +68,7 @@ async function getTreatmentIds(titles: string[]) {
 export async function createVisit(formData: FormData): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
 
   const raw = {
     patientId: (formData.get("patientId") as string) || "",
@@ -146,7 +146,7 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
 export async function updateVisit(visitId: string, formData: FormData): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
 
   const raw = {
     patientId: (formData.get("patientId") as string) || "",
@@ -228,7 +228,7 @@ export async function updateVisit(visitId: string, formData: FormData): Promise<
 export async function deleteVisit(visitId: string): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
 
   try {
     const visit = await prisma.visit.findFirst({

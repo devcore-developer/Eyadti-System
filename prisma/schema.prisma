@@ -838,21 +838,20 @@ model Complaint {
 }
 
 model GalleryItem {
-  id             String   @id @default(cuid())
-  clinicId       String
-  patientId      String
-  title          String?
-  description    String?
-  beforeImageUrl String
-  afterImageUrl  String
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  clinicId        String
+  patientId       String
+  title           String?
+  description     String?
+  beforeImageUrls String[] // <- اتغيرت لمصفوفة
+  afterImageUrls  String[] // <- اتغيرت لمصفوفة
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
 
   @@index([clinicId])
   @@index([patientId])
-  @@map("gallery_items")
 }

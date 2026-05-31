@@ -13,29 +13,59 @@ export async function notifyPatientCreated(patientId: string, patientName: strin
   })
 }
 
-export async function notifyAppointmentCreated(appointmentId: string, patientName: string, doctorName: string, date: string, clinicId: string, userId: string) {
+export async function notifyAppointmentCreated(
+  appointmentId: string, 
+  patientName: string, 
+  patientPhone: string | null, 
+  doctorName: string, 
+  date: string, 
+  clinicName: string, 
+  clinicId: string, 
+  userId: string
+) {
+  // رسالة للدكتور (داخل السيستم)
+  const internalMessage = `Appointment for ${patientName} with ${doctorName} on ${date}.`
+  
+  // رسالة واتساب للمريض (لذيذة ومتناسقة)
+  const whatsappMessage = `مرحباً ${patientName} 👋\nتم حجز موعدك بنجاح في عيادة *${clinicName}*.\nالدكتور: ${doctorName}\nالموعد: ${new Date(date).toLocaleString('ar-EG', { dateStyle: 'full', timeStyle: 'short' })}\nننتظرك! 🏥`
+
   await dispatchNotification({
     userId,
     clinicId,
     title: "New Appointment Booked",
-    message: `Appointment for ${patientName} with ${doctorName} on ${date}.`,
+    message: internalMessage,
     type: "APPOINTMENT_CREATED",
     priority: "MEDIUM",
     relatedEntityType: "APPOINTMENT",
     relatedEntityId: appointmentId,
+    patientPhone: patientPhone,
+    externalMessage: whatsappMessage, // رسالة الواتساب
   })
 }
 
-export async function notifyAppointmentCancelled(appointmentId: string, patientName: string, date: string, clinicId: string, userId: string) {
+export async function notifyAppointmentCancelled(
+  appointmentId: string, 
+  patientName: string, 
+  patientPhone: string | null, 
+  date: string, 
+  clinicName: string,
+  clinicId: string, 
+  userId: string
+) {
+  const internalMessage = `Appointment for ${patientName} on ${date} has been cancelled.`
+  const whatsappMessage = `مرحباً ${patientName}، نأسف لإبلاغك بأن موعدك في عيادة *${clinicName}* يوم ${new Date(date).toLocaleDateString('ar-EG')} قد تم إلغاؤه.\nلإعادة الحجز، يرجى التواصل معنا.`
+
   await dispatchNotification({
     userId,
     clinicId,
     title: "Appointment Cancelled",
-    message: `Appointment for ${patientName} on ${date} has been cancelled.`,
+    message: internalMessage,
     type: "APPOINTMENT_CANCELLED",
     priority: "HIGH",
     relatedEntityType: "APPOINTMENT",
     relatedEntityId: appointmentId,
+    patientPhone: patientPhone,
+    externalMessage: whatsappMessage,
   })
 }
 

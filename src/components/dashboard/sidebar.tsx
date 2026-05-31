@@ -34,7 +34,7 @@ export function Sidebar({
   selectedBranchId: string | null;
   isMobile?: boolean;
 }) {
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
+  const isAdmin = user?.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || user?.role === "SUPER_ADMIN"
   const initials = user?.name
     ?.split(" ")
     .map((n) => n[0])

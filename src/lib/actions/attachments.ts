@@ -114,7 +114,7 @@ export async function uploadAttachment(formData: FormData): Promise<ActionResult
 export async function deleteAttachment(attachmentId: string): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) {
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) {
     return { success: false, error: "Forbidden" }
   }
 

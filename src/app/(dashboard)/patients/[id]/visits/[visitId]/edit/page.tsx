@@ -13,7 +13,7 @@ export default async function EditVisitPage({
 }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if (!["ADMIN", "DOCTOR"].includes(session.user.role)) redirect("/patients")
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) redirect("/patients")
 
   const { id: patientId, visitId } = await params
 

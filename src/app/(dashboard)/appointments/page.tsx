@@ -91,7 +91,6 @@ export default async function AppointmentsPage({
     prisma.appointment.count({ where: { ...baseTodayWhere, status: "SCHEDULED" } }),
     prisma.appointment.count({ where: { ...baseTodayWhere, status: "COMPLETED" } }),
     prisma.appointment.count({ where: { ...baseTodayWhere, status: "CANCELLED" } }),
-    // الـ Query الجديدة لعدد حجوزات الدكاترة النهارده
     prisma.appointment.groupBy({
       by: ['doctorId'],
       where: baseTodayWhere,
@@ -99,7 +98,6 @@ export default async function AppointmentsPage({
     })
   ])
 
-  // بناء بيانات الـ Doctor Availability بالأرقام الحقيقية
   const doctorAvailabilityData = doctors.map(doc => {
     const bookedData = doctorBookings.find(b => b.doctorId === doc.id)
     const booked = bookedData?._count.id || 0
@@ -117,8 +115,10 @@ export default async function AppointmentsPage({
   })
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
-  const canCreate = session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
-  const isAdmin = session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
+  
+  // تم تنظيف السطور دي من الأخطاء بتاعة الـ Replace
+  const canCreate = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
+  const isAdmin = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN"
   
   const serializableParams: Record<string, string> = {}
   if (filterDate) serializableParams.date = filterDate
@@ -170,14 +170,12 @@ export default async function AppointmentsPage({
         </div>
 
         <div className="space-y-8">
-          {/* تمرير أول 5 مواعيد حقيقية لـ Timeline */}
           <TodayTimeline appointments={appointments.slice(0, 5)} />
-          {/* تمرير بيانات الدكاترة المحسوبة لـ Availability */}
           <DoctorAvailability doctors={doctorAvailabilityData} />
         </div>
       </div>
 
       <QuickBooking />
     </div>
-  )
+  ) 
 }

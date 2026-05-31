@@ -30,9 +30,9 @@ export default async function PatientDetailPage({
 
   const { id } = await params
 
-  // ━━━━ جلب بيانات العيادة (الاسم من Clinics واللوجو من ClinicSettings) ━━━━
   const [patient, timeline, galleryItems, clinic] = await Promise.all([
     prisma.patient.findFirst({
+      // لاحظ هنا session.clinicId مش session.user.clinicId
       where: { id: id, clinicId: session.clinicId },
       include: {
         _count: { select: { visits: true, prescriptions: true, attachments: true, invoices: true } },
@@ -55,24 +55,19 @@ export default async function PatientDetailPage({
     }),
     getEntityTimeline("PATIENT", id),
     getPatientGallery(id),
-    // استعلام العيادة والـ Settings
     session.clinicId ? prisma.clinic.findUnique({
       where: { id: session.clinicId },
-      select: { 
-        name: true, 
-        settings: { 
-          select: { logoUrl: true, clinicName: true } 
-        } 
-      }
+      select: { name: true, settings: { select: { logoUrl: true, clinicName: true } } }
     }) : Promise.resolve(null)
   ])
 
   if (!patient) notFound()
 
-  const showEdit = session.role === "ADMIN" || session.role === "DOCTOR"
-  const showDelete = session.role === "ADMIN"
-  const canAddVisit = session.role === "ADMIN" || session.role === "DOCTOR"
-  const canUpload = session.role === "ADMIN" || session.role === "DOCTOR" || session.role === "RECEPTIONIST"
+  // لاحظ هنا session.role مش session.user.role
+  const showEdit = session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "DOCTOR"
+  const showDelete = session.role === "SUPER_ADMIN" || session.role === "ADMIN"
+  const canAddVisit = session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "DOCTOR"
+  const canUpload = session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "DOCTOR" || session.role === "RECEPTIONIST"
 
   function formatDate(date: Date | string | null | undefined): string {
     if (!date) return "—"
@@ -126,7 +121,7 @@ export default async function PatientDetailPage({
         lastVisit={patient.visits.length > 0 ? formatDateTime(patient.visits[0].visitDate) : "No visits yet"}
       />
 
-      {/* ── Action Buttons Row ── */}
+      {/* Action Buttons Row */}
       <div className="flex flex-wrap items-center gap-3 -mt-4">
         {canAddVisit && (
           <Link href={`/patients/${patient.id}/visits/new`} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 transition-all duration-200">
@@ -154,7 +149,7 @@ export default async function PatientDetailPage({
         <PatientTabs>
           <div className="space-y-12 mt-2">
             
-            {/* ── Overview Section ── */}
+            {/* Overview Section */}
             <div id="overview">
               <h2 className="text-xl font-semibold text-foreground mb-6">Patient Overview</h2>
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -179,7 +174,7 @@ export default async function PatientDetailPage({
               </div>
             </div>
 
-            {/* ── Recent Visits Section ── */}
+            {/* Recent Visits Section */}
             <div id="visits">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-foreground">Recent Visits</h2>
@@ -203,7 +198,7 @@ export default async function PatientDetailPage({
               )}
             </div>
 
-            {/* ── Recent Prescriptions Section ── */}
+            {/* Recent Prescriptions Section */}
             <div id="prescriptions">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-foreground">Prescriptions</h2>
@@ -227,7 +222,7 @@ export default async function PatientDetailPage({
               )}
             </div>
 
-            {/* ── Recent Attachments Section ── */}
+            {/* Recent Attachments Section */}
             <div id="attachments">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-foreground">Medical Files</h2>
@@ -248,7 +243,7 @@ export default async function PatientDetailPage({
               )}
             </div>
 
-            {/* ━━━ Before & After Gallery Section ━━━ */}
+            {/* Before & After Gallery Section */}
             <div id="gallery">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
@@ -256,7 +251,6 @@ export default async function PatientDetailPage({
                   Before & After Gallery
                 </h2>
               </div>
-              {/* تمرير اللوجو من الـ settings والاسم من الـ clinic أو الـ settings */}
               <PatientGallery 
                 patientId={id} 
                 items={galleryItems} 
@@ -264,7 +258,7 @@ export default async function PatientDetailPage({
               />
             </div>
 
-            {/* ── Activity Timeline Section ── */}
+            {/* Activity Timeline Section */}
             <div id="timeline">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-foreground">Activity Timeline</h2>

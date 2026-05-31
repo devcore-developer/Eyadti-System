@@ -21,9 +21,9 @@ export function AppointmentDetailActions({ appointmentId, status, doctorId, role
   const [error, setError] = useState<string | null>(null)
 
   const isDoctorOwner = role === "DOCTOR" && doctorId === userId
-  const canEdit = (role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
-  const canComplete = (role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
-  const canCancel = role === "ADMIN" && status !== AppointmentStatus.CANCELLED
+  const canEdit = (role === "SUPER_ADMIN" || session.user.role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
+  const canComplete = (role === "SUPER_ADMIN" || session.user.role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
+  const canCancel = role === "SUPER_ADMIN" || session.user.role === "ADMIN" && status !== AppointmentStatus.CANCELLED
 
   function handleStatusChange(newStatus: AppointmentStatus) {
     setError(null)

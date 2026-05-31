@@ -48,13 +48,13 @@ export async function requireRole(...roles: string[]) {
 // ── Patient Permissions ──────────────────────────────
 
 export function canCreatePatient(role: string): boolean {
-  return role === "ADMIN" || role === "SUPER_ADMIN" || role === "DOCTOR" || role === "RECEPTIONIST"
+  return role === "SUPER_ADMIN" || session.user.role === "ADMIN" || role === "SUPER_ADMIN" || role === "DOCTOR" || role === "RECEPTIONIST"
 }
 
 export function canEditPatient(role: string): boolean {
-  return role === "ADMIN" || role === "SUPER_ADMIN" || role === "DOCTOR"
+  return role === "SUPER_ADMIN" || session.user.role === "ADMIN" || role === "SUPER_ADMIN" || role === "DOCTOR"
 }
 
 export function canDeletePatient(role: string): boolean {
-  return role === "ADMIN" || role === "SUPER_ADMIN"
+  return role === "SUPER_ADMIN" || session.user.role === "ADMIN" || role === "SUPER_ADMIN"
 }

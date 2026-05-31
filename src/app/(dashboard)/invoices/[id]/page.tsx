@@ -38,7 +38,7 @@ export default async function InvoiceDetailPage({
     lineTotal: item.quantity * Number(item.unitPrice),
   }))
 
-  const canUpdateStatus = session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
+  const canUpdateStatus = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
 
   // Simplified calculation for demo (you should replace with real payment tracking later)
   const paidAmount = invoice.status === "PAID" ? safeAmount : (invoice.status === "PARTIAL" ? safeAmount * 0.5 : 0)

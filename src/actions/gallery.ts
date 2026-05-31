@@ -8,7 +8,6 @@ import { revalidatePath } from "next/cache"
 export async function getPatientGallery(patientId: string) {
   const session = await auth()
   if (!session?.user?.clinicId) {
-    // لو مش مسجل دخول، نرجع массив فاضي عشان الصفحة ماتقعش
     return [] 
   }
 
@@ -16,10 +15,10 @@ export async function getPatientGallery(patientId: string) {
     const items = await prisma.galleryItem.findMany({
       where: {
         patientId: patientId,
-        clinicId: session.user.clinicId, // لازم نتأكد إنه بيجيب صور عيادته بس
+        clinicId: session.user.clinicId,
       },
       orderBy: {
-        createdAt: "desc", // ترتيب من الأحدث للأقدم
+        createdAt: "desc",
       },
     })
     
@@ -30,7 +29,7 @@ export async function getPatientGallery(patientId: string) {
   }
 }
 
-// 2. حفظ صورة جديدة في الداتابيز (بعد رفعها على Cloudinary)
+// 2. حفظ صور جديدة في الداتابيز (بعد رفعها على Cloudinary)
 export async function createGalleryItem(patientId: string, formData: FormData) {
   const session = await auth()
   if (!session?.user?.clinicId) {
@@ -38,20 +37,21 @@ export async function createGalleryItem(patientId: string, formData: FormData) {
   }
 
   try {
-    const beforeImageUrl = formData.get("beforeImageUrl") as string
-    const afterImageUrl = formData.get("afterImageUrl") as string
+    // استخدام getAll عشان نجيب كل الروابط اللي اترفعت (المصفوفة)
+    const beforeImageUrls = formData.getAll("beforeImageUrls") as string[]
+    const afterImageUrls = formData.getAll("afterImageUrls") as string[]
     const title = formData.get("title") as string
     const description = formData.get("description") as string
 
-    if (!beforeImageUrl || !afterImageUrl) {
-      return { error: "Both before and after images are required" }
+    if (!beforeImageUrls.length || !afterImageUrls.length) {
+      return { error: "At least one before and one after image are required" }
     }
 
     await prisma.galleryItem.create({
       data: {
         patientId,
-        beforeImageUrl,
-        afterImageUrl,
+        beforeImageUrls, // حفظ المصفوفة كاملة
+        afterImageUrls,  // حفظ المصفوفة كاملة
         title: title || null,
         description: description || null,
         clinicId: session.user.clinicId,
@@ -77,7 +77,7 @@ export async function deleteGalleryItem(id: string, patientId: string) {
     await prisma.galleryItem.delete({
       where: { 
         id, 
-        clinicId: session.user.clinicId // أمان إضافي عشان يمسح من عيادته بس
+        clinicId: session.user.clinicId
       },
     })
     revalidatePath(`/patients/${patientId}`)

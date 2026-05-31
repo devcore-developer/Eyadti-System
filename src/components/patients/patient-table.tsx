@@ -111,12 +111,12 @@ export function PatientTable({
                     <Link href={`/patients/${patient.id}`} className="text-xs font-semibold text-[#6B9CFF] hover:underline">
                       View
                     </Link>
-                    {(role === "ADMIN" || role === "DOCTOR") && (
+                    {(role === "SUPER_ADMIN" || session.user.role === "ADMIN" || role === "DOCTOR") && (
                       <Link href={`/patients/edit/${patient.id}`} className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
                         Edit
                       </Link>
                     )}
-                    {role === "ADMIN" && (
+                    {role === "SUPER_ADMIN" || session.user.role === "ADMIN" && (
                       <PatientDeleteButton patientId={patient.id} />
                     )}
                   </div>

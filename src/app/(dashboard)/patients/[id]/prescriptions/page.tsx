@@ -24,7 +24,7 @@ export default async function PrescriptionsPage({
   if (!patient) notFound()
 
   const prescriptions = await getPrescriptionsByPatientId(patientId, session.user.clinicId)
-  const canCreate = session.user.role === "ADMIN" || session.user.role === "DOCTOR"
+  const canCreate = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "DOCTOR"
 
   return (
     <div className="space-y-6 animate-fade-in-up">
