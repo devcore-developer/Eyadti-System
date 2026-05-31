@@ -261,7 +261,6 @@ export default async function PatientDetailPage({
                 patientId={id} 
                 items={galleryItems} 
                 clinicLogo={clinic?.settings?.logoUrl} 
-                clinicName={clinic?.name || clinic?.settings?.clinicName} 
               />
             </div>
 
