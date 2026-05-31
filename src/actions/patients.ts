@@ -139,7 +139,7 @@ export async function updatePatient(
 export async function deletePatient(patientId: string): Promise<ActionResult> {
   try {
     // ✅ مسموح للأدمين بس (والسوبر أدمن)
-    const { clinicId, userId } = await requireRole("ADMIN", "SUPER_ADMIN")
+    const { clinicId, userId } = await requireRole("SUPER_ADMIN", "ADMIN")
 
     const existing = await prisma.patient.findFirst({
       where: { id: patientId, clinicId: clinicId },
