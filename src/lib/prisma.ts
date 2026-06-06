@@ -4,19 +4,18 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-function createPrismaClient() {
+export const prisma = globalForPrisma.prisma ?? (() => {
   try {
-    // لو الـ DATABASE_URL موجود، هيبني العميل صح
-    return new PrismaClient()
+    const client = new PrismaClient()
+    // نحفظ الـ Client الحقيقي بس في وضع التطوير (عشان الـ Hot Reload)
+    if (process.env.NODE_ENV !== 'production') {
+      globalForPrisma.prisma = client
+    }
+    return client
   } catch (error) {
-    // لو وقت الـ Build الـ URL مش موجود، Prisma هترمي خطأ، هنمسكه ونرجع Dummy Object عشان البناء يكمل
-    console.warn('⚠️ PrismaClient could not be initialized (Build phase). Returning dummy client.')
+    // لو الداتابيز مش موجودة (وقت البناء)، نرجع Dummy Object عشان يكمل البناء
+    // ومش نحفظه في الـ Global عشان وقت التشغيل الحقيقي يبني Client جديد
+    console.warn('⚠️ DATABASE_URL missing. Returning Prisma Proxy for build phase.')
     return {} as PrismaClient
   }
-}
-
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
-
-if (process.env.NODE_ENV !== 'production' && process.env.DATABASE_URL) {
-  globalForPrisma.prisma = prisma
-}
+})()
