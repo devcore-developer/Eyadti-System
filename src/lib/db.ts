@@ -7,14 +7,25 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// إعداد الـ Adapter الجديد لـ PostgreSQL
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not defined in the environment variables");
+}
+
+// إعداد الـ Pool مع تفعيل SSL كما يتطلب Neon
+const pool = new Pool({ 
+  connectionString,
+  ssl: {
+    rejectUnauthorized: true // مطلوب لـ sslmode=verify-full في Neon
+  }
+})
+
 const adapter = new PrismaPg(pool)
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    adapter, // بنمرر الـ Adapter هنا بدل ما نسيبها عادية
+    adapter,
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]

@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // ↓↓↓ أضف الكود ده عشان يتجاوز خطأ الـ Prisma وقت البناء ↓↓↓
-  env: {
-    DATABASE_URL: process.env.DATABASE_URL || "postgresql://neondb_owner:npg_nHumTDN5dL4p@ep-divine-meadow-aqa26gum-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=verify-full&channel_binding=require",
-  },
+  // هذا الإعداد يمنع Next.js من دمج Prisma و pg داخل الـ Serverless Functions بشكل خاطئ
+  // ويجعلها تعمل كـ External Packages وهو المطلوب لقواعد بيانات Neon
+  serverExternalPackages: ["@prisma/client", "prisma", "pg", "@prisma/adapter-pg"],
 };
 
 export default nextConfig;
