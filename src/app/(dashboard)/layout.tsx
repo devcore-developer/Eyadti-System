@@ -7,6 +7,7 @@ import { UserProfileMenu } from "@/components/dashboard/user-profile-menu"
 import { prisma } from "@/lib/db"
 import { getSelectedBranch } from "@/lib/actions/branch-context"
 import { SubscriptionGuard } from "@/components/billing/subscription-guard" // ← أضفنا ده
+export const dynamic = 'force-dynamic' // ↓↓↓ ده يمنع Turbopack إنه يجيب داتابيز وقت البناء ↓↓↓
 
 export default async function DashboardLayout({
   children,

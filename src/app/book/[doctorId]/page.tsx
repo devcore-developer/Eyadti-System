@@ -2,7 +2,7 @@
 
 import { getPublicClinicInfo, getAvailableDoctors } from "@/lib/actions/booking"
 import { BookingWizard } from "@/components/booking/booking-wizard"
-
+export const dynamic = 'force-dynamic'
 const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID || "c1"
 
 export default async function BookDoctorPage({ params }: { params: Promise<{ doctorId: string }> }) {

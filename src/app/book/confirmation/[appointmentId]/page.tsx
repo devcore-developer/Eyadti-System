@@ -5,6 +5,7 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Calendar, Clock, User, Building2 } from "lucide-react"
+export const dynamic = 'force-dynamic'
 
 export default async function ConfirmationPage({ params }: { params: Promise<{ appointmentId: string }> }) {
   const { appointmentId } = await params  // ← لازم نعمل await

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "sonner"
 import { Providers } from "@/components/providers"
+export const dynamic = 'force-dynamic'
 
 const inter = Inter({
   subsets: ["latin"],
