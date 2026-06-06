@@ -46,6 +46,7 @@ export class WhatsAppProvider implements NotificationChannel {
         headers: {
           "Content-Type": "application/json",
           "apikey": apiKey,
+          "ngrok-skip-browser-warning": "true", // ↓↓↓ أضف السطر ده عشان يتخطى صفحة التحذير ↓↓↓
         },
         body: JSON.stringify({
           number: formattedPhone,
