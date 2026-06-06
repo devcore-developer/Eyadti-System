@@ -53,6 +53,8 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
       timeFormat: settings?.timeFormat || "24h",
       enableNotifications: settings?.enableNotifications ?? true,
       enableOnlineBooking: settings?.enableOnlineBooking ?? false,
+      // ↓↓↓ التعديل الجديد ↓↓↓
+      whatsappInstanceName: settings?.whatsappInstanceName || "",
     },
   })
 
@@ -142,7 +144,6 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
           </div>
           <div>
             <Label>Default Appointment Duration (mins)</Label>
-            {/* التعديل هنا: اضفنا valueAsNumber عشان يبعت رقم مش نص */}
             <Input 
               type="number" 
               {...form.register("defaultAppointmentDuration", { valueAsNumber: true })} 
@@ -166,6 +167,29 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
         </CardContent>
       </Card>
 
+      {/* ↓↓↓ الـ Card الجديد الخاص بالـ Evolution API ↓↓↓ */}
+      <Card>
+        <CardHeader>
+          <CardTitle>WhatsApp Integration (Evolution API)</CardTitle>
+          <CardDescription>
+            Enter the WhatsApp instance name for this clinic. Make sure the instance is created and connected on your Evolution API server.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div>
+            <Label>Instance Name</Label>
+            <Input 
+              {...form.register("whatsappInstanceName")} 
+              disabled={isReadOnly} 
+              placeholder="e.g., mos_clinic" 
+            />
+            {form.formState.errors.whatsappInstanceName && (
+              <p className="text-xs text-destructive mt-1">{form.formState.errors.whatsappInstanceName.message}</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>System Preferences</CardTitle>
@@ -174,7 +198,7 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
               <p className="font-medium text-sm">Enable Notifications</p>
-              <p className="text-xs text-muted-foreground">Send SMS/Email notifications.</p>
+              <p className="text-xs text-muted-foreground">Send SMS/WhatsApp/Email notifications.</p>
             </div>
             <input
               type="checkbox"
@@ -187,7 +211,7 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
               <p className="font-medium text-sm">Enable Online Booking</p>
-              <p className="text-xs text-muted-foreground">Allow patients to book online (Future).</p>
+              <p className="text-xs text-muted-foreground">Allow patients to book online.</p>
             </div>
             <input
               type="checkbox"

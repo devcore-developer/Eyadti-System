@@ -648,6 +648,10 @@ model ClinicSettings {
   timeFormat                 String   @default("24h")
   enableNotifications        Boolean  @default(true)
   enableOnlineBooking        Boolean  @default(false)
+  
+  // ↓↓↓ شيلنا ultramsg وحطينا ده ↓↓↓
+  whatsappInstanceName       String?  // اسم الـ Instance في Evolution API
+
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 
