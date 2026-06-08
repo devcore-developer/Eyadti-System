@@ -1,13 +1,21 @@
-// src/app/book/page.tsx
-export const dynamic = 'force-dynamic'
-
-import { getPublicClinicInfo } from "@/lib/actions/booking"
+import { prisma } from "@/lib/db"
+import { notFound } from "next/navigation"
 import { BookingWizard } from "@/components/booking/booking-wizard"
 
-const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID || "c1"
+// هنا بنستقبل الكود من الرابط
+export default async function BookPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
 
-export default async function BookPage() {
-  const clinic = await getPublicClinicInfo(CLINIC_ID)
+  // بنبحث عن العيادة بالكود بتاعها مش بالـ ID
+  const clinic = await prisma.clinic.findUnique({
+    where: { slug },
+    include: { 
+      settings: true,
+      branches: { where: { isActive: true } }
+    }
+  })
 
-  return <BookingWizard clinic={clinic} clinicId={CLINIC_ID} />
+  if (!clinic) notFound()
+
+  return <BookingWizard clinic={clinic} clinicId={clinic.id} />
 }

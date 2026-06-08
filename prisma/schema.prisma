@@ -221,6 +221,7 @@ model User {
 model Clinic {
   id            String               @id @default(cuid())
   name          String
+  slug          String?              @unique // ← أضف السطر ده
   address       String?
   phone         String?
   ownerId       String?
