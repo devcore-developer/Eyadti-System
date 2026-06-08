@@ -1,21 +1,22 @@
 import { prisma } from "@/lib/db"
-import { notFound } from "next/navigation"
-import { BookingWizard } from "@/components/booking/booking-wizard"
+import { redirect } from "next/navigation"
 
-// هنا بنستقبل الكود من الرابط
-export default async function BookPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-
-  // بنبحث عن العيادة بالكود بتاعها مش بالـ ID
-  const clinic = await prisma.clinic.findUnique({
-    where: { slug },
-    include: { 
-      settings: true,
-      branches: { where: { isActive: true } }
-    }
+export default async function BookRootPage() {
+  // لو حد دخل على /book من غير slug، بنوجهه لأول عيادة موجودة في السيستم
+  const clinic = await prisma.clinic.findFirst({
+    where: { slug: { not: null } },
+    orderBy: { createdAt: "asc" },
+    select: { slug: true }
   })
 
-  if (!clinic) notFound()
+  if (clinic?.slug) {
+    redirect(`/book/${clinic.slug}`)
+  }
 
-  return <BookingWizard clinic={clinic} clinicId={clinic.id} />
+  // Fallback لو مفيش عيادات ليها slug
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <p>No clinics available for booking yet.</p>
+    </div>
+  )
 }
