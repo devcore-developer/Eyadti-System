@@ -5,13 +5,21 @@ import { auth } from "@/lib/auth"
 import { z } from "zod"
 import type { ActionResult } from "@/types"
 import { revalidatePath } from "next/cache"
+import { Gender } from "@prisma/client"
 
 // ── Zod Schemas ──────────────────────────────────────
 
 const VisitItemSchema = z.string().min(1, "Cannot be empty")
 
-const VisitSchema = z.object({
-  patientId: z.string().min(1, "Select a patient"),
+const PatientVisitSchema = z.object({
+  // Patient Info (if new)
+  patientId: z.string().optional(),
+  fullName: z.string().optional(),
+  phone: z.string().optional(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+  dateOfBirth: z.string().optional(),
+  
+  // Visit Info
   doctorId: z.string().min(1, "Select a doctor"),
   visitDate: z.string().min(1, "Visit date is required"),
   notes: z.string().optional(),
@@ -63,15 +71,29 @@ async function getTreatmentIds(titles: string[]) {
   )
 }
 
-// ── Create Visit ─────────────────────────────────────
+// ── UNIFIED: Create Patient + Visit (Atomic Transaction) ──────
 
-export async function createVisit(formData: FormData): Promise<ActionResult> {
+export async function createPatientVisit(formData: FormData): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
-  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR"].includes(session.user.role)) return { success: false, error: "Forbidden" }
+  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) return { success: false, error: "Forbidden" }
+
+  const patientId = (formData.get("patientId") as string) || ""
+  const isNewPatient = !patientId
+
+  // Validate based on context
+  if (isNewPatient) {
+    const name = formData.get("fullName") as string
+    const phone = formData.get("phone") as string
+    if (!name || !phone) return { success: false, error: "Name and Phone are required for new patients" }
+  }
 
   const raw = {
-    patientId: (formData.get("patientId") as string) || "",
+    patientId,
+    fullName: (formData.get("fullName") as string) || "",
+    phone: (formData.get("phone") as string) || "",
+    gender: (formData.get("gender") as string) || undefined,
+    dateOfBirth: (formData.get("dateOfBirth") as string) || "",
     doctorId: (formData.get("doctorId") as string) || "",
     visitDate: (formData.get("visitDate") as string) || "",
     notes: (formData.get("notes") as string) || "",
@@ -80,23 +102,11 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
     treatmentPlans: safeJsonParse(formData.get("treatmentPlans") as string),
   }
 
-  const parsed = VisitSchema.safeParse(raw)
+  const parsed = PatientVisitSchema.safeParse(raw)
   if (!parsed.success) {
     const fieldErrors = parsed.error.flatten().fieldErrors
-    const firstError = 
-      fieldErrors.patientId?.[0] ||
-      fieldErrors.doctorId?.[0] ||
-      fieldErrors.visitDate?.[0] ||
-      fieldErrors.complaints?.[0] ||
-      fieldErrors.diagnoses?.[0] ||
-      fieldErrors.treatmentPlans?.[0] ||
-      "Validation failed"
-    
-    return { 
-      success: false, 
-      error: firstError,
-      fieldErrors: fieldErrors as Record<string, string[]>
-    }
+    const firstError = Object.values(fieldErrors).flat()[0] || "Validation failed"
+    return { success: false, error: firstError, fieldErrors: fieldErrors as Record<string, string[]> }
   }
 
   try {
@@ -104,40 +114,55 @@ export async function createVisit(formData: FormData): Promise<ActionResult> {
     const diagnosisIds = await getDiagnosisIds(parsed.data.diagnoses)
     const treatmentIds = await getTreatmentIds(parsed.data.treatmentPlans)
 
-    // إنشاء الزيارة أولاً
-    const visit = await prisma.visit.create({
-      data: {
-        clinicId: session.user.clinicId,
-        patientId: parsed.data.patientId,
-        doctorId: parsed.data.doctorId,
-        visitDate: new Date(parsed.data.visitDate),
-        notes: parsed.data.notes || null,
-      },
+    // 🔥 ATOMIC TRANSACTION
+    const result = await prisma.$transaction(async (tx) => {
+      let currentPatientId = parsed.data.patientId!
+
+      // Step 1: Create Patient if not exists
+      if (isNewPatient) {
+        const newPatient = await tx.patient.create({
+          data: {
+            fullName: parsed.data.fullName!,
+            phone: parsed.data.phone!,
+            gender: (parsed.data.gender || "MALE") as Gender,
+            dateOfBirth: parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth) : new Date("1990-01-01"),
+            clinicId: session.user.clinicId,
+          }
+        })
+        currentPatientId = newPatient.id
+      }
+
+      // Step 2: Create Visit
+      const visit = await tx.visit.create({
+        data: {
+          clinicId: session.user.clinicId,
+          patientId: currentPatientId,
+          doctorId: parsed.data.doctorId,
+          visitDate: new Date(parsed.data.visitDate),
+          notes: parsed.data.notes || null,
+        },
+      })
+
+      // Step 3: Create Relations
+      if (complaintIds.length > 0) {
+        await tx.visitComplaint.createMany({ data: complaintIds.map(complaintId => ({ visitId: visit.id, complaintId })) as any })
+      }
+      if (diagnosisIds.length > 0) {
+        await tx.visitDiagnosis.createMany({ data: diagnosisIds.map(diagnosisId => ({ visitId: visit.id, diagnosisId })) as any })
+      }
+      if (treatmentIds.length > 0) {
+        await tx.visitTreatmentPlan.createMany({ data: treatmentIds.map(treatmentId => ({ visitId: visit.id, treatmentId })) as any })
+      }
+
+      return visit
     })
 
-    // ثم إضافة العلاقات بشكل منفصل لتجنب أخطاء TypeScript المعقدة
-    if (complaintIds.length > 0) {
-      await prisma.visitComplaint.createMany({
-        data: complaintIds.map(complaintId => ({ visitId: visit.id, complaintId })) as any,
-      })
-    }
-    if (diagnosisIds.length > 0) {
-      await prisma.visitDiagnosis.createMany({
-        data: diagnosisIds.map(diagnosisId => ({ visitId: visit.id, diagnosisId })) as any,
-      })
-    }
-    if (treatmentIds.length > 0) {
-      await prisma.visitTreatmentPlan.createMany({
-        data: treatmentIds.map(treatmentId => ({ visitId: visit.id, treatmentId })) as any,
-      })
-    }
-
-    revalidatePath(`/patients/${parsed.data.patientId}/visits`)
-    revalidatePath(`/patients/${parsed.data.patientId}`)
+    revalidatePath(`/patients/${result.patientId}/visits`)
+    revalidatePath(`/patients`)
     return { success: true }
   } catch (error) {
-    console.error("❌ DB error:", error)
-    return { success: false, error: "Failed to create visit" }
+    console.error("❌ DB Transaction error:", error)
+    return { success: false, error: "Failed to create patient visit" }
   }
 }
 
@@ -158,11 +183,10 @@ export async function updateVisit(visitId: string, formData: FormData): Promise<
     treatmentPlans: safeJsonParse(formData.get("treatmentPlans") as string),
   }
 
-  const parsed = VisitSchema.safeParse(raw)
+  const parsed = PatientVisitSchema.safeParse(raw)
   if (!parsed.success) {
     const fieldErrors = parsed.error.flatten().fieldErrors
     const firstError = 
-      fieldErrors.patientId?.[0] ||
       fieldErrors.doctorId?.[0] ||
       fieldErrors.visitDate?.[0] ||
       fieldErrors.complaints?.[0] ||
@@ -275,12 +299,12 @@ export async function getVisitById(visitId: string, clinicId: string) {
         include: {
           complaint: true
         }
-      } as any, // تجاوز خطأ TS المؤقت
+      } as any,
       diagnoses: {
         include: {
           diagnosis: true
         }
-      } as any, // تجاوز خطأ TS المؤقت
+      } as any,
       treatmentPlans: true,
       prescription: {
         include: {
