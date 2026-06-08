@@ -6,7 +6,7 @@ import { AvailableSlots } from "./available-slots"
 import { PatientInfoForm } from "./patient-info-form"
 import { Loader2, Calendar, Clock, User, CheckCircle, Building2, ChevronRight, ArrowLeft } from "lucide-react"
 
-type Doctor = { id: string; name: string; workingDays: string[] }
+type Doctor = { id: string; name: string; workingDays: string[]; allBranchAccess?: boolean }
 type Branch = { id: string; name: string; code: string; city: string | null }
 type Clinic = { name: string; logoUrl?: string | null; phone?: string | null; address?: string | null }
 
@@ -52,11 +52,13 @@ export function BookingWizard({ clinic, clinicId }: Props) {
     setLoading(true)
     setError("")
     try {
+      // ✅ تمرير الـ clinicId والـ branch.id الصحيحين
       const data = await getDoctorsByBranch(clinicId, branch.id)
       setDoctors(data || [])
-      if (data.length === 0) setError("No doctors available at this branch")
+      if (!data || data.length === 0) setError("No doctors available at this branch")
       setStep(2)
-    } catch {
+    } catch (err) {
+      console.error(err)
       setError("Failed to load doctors")
     } finally {
       setLoading(false)
@@ -79,7 +81,7 @@ export function BookingWizard({ clinic, clinicId }: Props) {
       setSlots(available)
       if (available.length === 0) setError("No available slots for this date")
       setStep(4)
-    } catch {
+    } catch (err) {
       setError("Failed to load slots")
     } finally {
       setLoading(false)
@@ -103,7 +105,7 @@ export function BookingWizard({ clinic, clinicId }: Props) {
       } else {
         setError(result.error || "Booking failed")
       }
-    } catch {
+    } catch (err) {
       setError("An unexpected error occurred")
     } finally {
       setSubmitting(false)
@@ -186,7 +188,10 @@ export function BookingWizard({ clinic, clinicId }: Props) {
                         <User className="h-6 w-6 text-teal-600" />
                         <div>
                           <p className="font-semibold text-gray-900">Dr. {doctor.name}</p>
-                          <p className="text-xs text-gray-500">Available: {doctor.workingDays.join(", ")}</p>
+                          <p className="text-xs text-gray-500">
+                            Available: {doctor.workingDays.join(", ")}
+                            {doctor.allBranchAccess && <span className="ml-2 text-blue-500">(All Branches)</span>}
+                          </p>
                         </div>
                       </div>
                       <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-teal-600 transition-colors" />

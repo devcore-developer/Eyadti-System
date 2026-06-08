@@ -217,19 +217,18 @@ export async function createBooking(clinicId: string, rawData: unknown) {
 
     const doctor = await prisma.user.findUnique({ where: { id: validated.doctorId } })
     
-    // ✅ دمج إشعار الواتساب للـ Online Booking
     if (doctor) {
       const bookingClinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } })
       
       await notifyAppointmentCreated(
         appointment.id,
         patient.fullName,
-        patient.phone, // ← رقم المريض
+        patient.phone,
         `Dr. ${doctor.name}`,
         dateTime.toISOString(),
-        bookingClinic?.name || "The Clinic", // ← اسم العيادة
+        bookingClinic?.name || "The Clinic",
         clinicId,
-        doctor.id // الـ userId هنا هوا الـ doctorId
+        doctor.id
       )
     }
 
@@ -328,15 +327,29 @@ export async function getBranches(clinicId: string) {
 }
 
 export async function getDoctorsByBranch(clinicId: string, branchId: string) {
+  // ✅ الحل الجذري: إذا كان الـ branchId يبدأ بـ "branch_for_" فهو فرع افتراضي وليس حقيقياً في قاعدة البيانات
+  // في هذه الحالة نجلب كل الدكاترة في العيادة بدون فلترة الفرع
+  const isFallbackBranch = branchId.startsWith("branch_for_");
+
   const doctors = await prisma.user.findMany({
     where: { 
       clinicId, 
       role: "DOCTOR",
-      doctorBranches: { some: { branchId: branchId } } 
+      ...(isFallbackBranch 
+        ? {} // لا توجد فلترة للفرع، اجلب الكل
+        : {
+            // فلترة عادية: الدكاترة اللي في الفرع ده، أو اللي ليهم صلاحية كل الفروع
+            OR: [
+              { allBranchAccess: true },
+              { doctorBranches: { some: { branchId: branchId } } }
+            ]
+          }
+      )
     },
     select: { 
       id: true, 
       name: true,
+      allBranchAccess: true,
       schedules: {
         where: { isAvailable: true },
         orderBy: { dayOfWeek: "asc" },

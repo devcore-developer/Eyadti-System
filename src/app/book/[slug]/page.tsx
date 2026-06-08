@@ -8,17 +8,14 @@ export const dynamic = 'force-dynamic'
 export default async function BookClinicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
 
-  // حماية: لو الـ slug فاضي أو مش موجود، ارجع صفحة 404
   if (!slug) notFound()
 
-  // بنبحث عن العيادة بالكود بتاعها
   const clinic = await prisma.clinic.findUnique({
     where: { slug },
   })
 
   if (!clinic) notFound()
 
-  // بنجيب باقي بيانات العيادة بالـ ID
   const clinicInfo = await getPublicClinicInfo(clinic.id)
   
   if (!clinicInfo) notFound()
