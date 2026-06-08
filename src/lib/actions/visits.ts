@@ -18,14 +18,18 @@ const PatientVisitSchema = z.object({
   phone: z.string().optional(),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   dateOfBirth: z.string().optional(),
+  nationalId: z.string().optional(),
   
   // Visit Info
   doctorId: z.string().min(1, "Select a doctor"),
   visitDate: z.string().min(1, "Visit date is required"),
+  visitType: z.string().optional(), // كشف ولا استشارة
   notes: z.string().optional(),
-  complaints: z.array(VisitItemSchema).min(1, "At least one complaint is required"),
-  diagnoses: z.array(VisitItemSchema).min(1, "At least one diagnosis is required"),
-  treatmentPlans: z.array(VisitItemSchema).min(1, "At least one treatment plan is required"),
+  
+  // بيانات طبية (اختيارية للريسبشن، واجبة للدكتور لو عدّل الزيارة)
+  complaints: z.array(z.string()).optional(), 
+  diagnoses: z.array(z.string()).optional(),
+  treatmentPlans: z.array(z.string()).optional(),
 })
 
 // ── Helper: Parse Form Data Safely ───────────────────
@@ -94,8 +98,10 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
     phone: (formData.get("phone") as string) || "",
     gender: (formData.get("gender") as string) || undefined,
     dateOfBirth: (formData.get("dateOfBirth") as string) || "",
+    nationalId: (formData.get("nationalId") as string) || "",
     doctorId: (formData.get("doctorId") as string) || "",
     visitDate: (formData.get("visitDate") as string) || "",
+    visitType: (formData.get("visitType") as string) || "",
     notes: (formData.get("notes") as string) || "",
     complaints: safeJsonParse(formData.get("complaints") as string),
     diagnoses: safeJsonParse(formData.get("diagnoses") as string),
@@ -110,9 +116,9 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
   }
 
   try {
-    const complaintIds = await getComplaintIds(parsed.data.complaints)
-    const diagnosisIds = await getDiagnosisIds(parsed.data.diagnoses)
-    const treatmentIds = await getTreatmentIds(parsed.data.treatmentPlans)
+    const complaintIds = parsed.data.complaints ? await getComplaintIds(parsed.data.complaints) : []
+    const diagnosisIds = parsed.data.diagnoses ? await getDiagnosisIds(parsed.data.diagnoses) : []
+    const treatmentIds = parsed.data.treatmentPlans ? await getTreatmentIds(parsed.data.treatmentPlans) : []
 
     // 🔥 ATOMIC TRANSACTION
     const result = await prisma.$transaction(async (tx) => {
@@ -126,24 +132,37 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
             phone: parsed.data.phone!,
             gender: (parsed.data.gender || "MALE") as Gender,
             dateOfBirth: parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth) : new Date("1990-01-01"),
+            // بنخزن الـ National Id مؤقتاً في الـ address لو مش عندك حقل مخصص
+            address: parsed.data.nationalId || null, 
             clinicId: session.user.clinicId,
           }
         })
         currentPatientId = newPatient.id
+      } else if (parsed.data.nationalId) {
+        // لو المريض موجود ومش حط الـ nationalId قبل كده، نحدثه
+        await tx.patient.update({
+          where: { id: currentPatientId },
+          data: { address: parsed.data.nationalId }
+        })
       }
 
       // Step 2: Create Visit
+      // بنحط نوع الكشف في أول الـ Notes عشان يظهر للدكتور
+      const visitNotes = parsed.data.visitType 
+        ? `[${parsed.data.visitType}] ${parsed.data.notes || ''}`.trim()
+        : parsed.data.notes || null
+
       const visit = await tx.visit.create({
         data: {
           clinicId: session.user.clinicId,
           patientId: currentPatientId,
           doctorId: parsed.data.doctorId,
           visitDate: new Date(parsed.data.visitDate),
-          notes: parsed.data.notes || null,
+          notes: visitNotes,
         },
       })
 
-      // Step 3: Create Relations
+      // Step 3: Create Relations (if provided by doctor)
       if (complaintIds.length > 0) {
         await tx.visitComplaint.createMany({ data: complaintIds.map(complaintId => ({ visitId: visit.id, complaintId })) as any })
       }
@@ -159,6 +178,7 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
 
     revalidatePath(`/patients/${result.patientId}/visits`)
     revalidatePath(`/patients`)
+    revalidatePath(`/waiting-room`)
     return { success: true }
   } catch (error) {
     console.error("❌ DB Transaction error:", error)
@@ -189,9 +209,6 @@ export async function updateVisit(visitId: string, formData: FormData): Promise<
     const firstError = 
       fieldErrors.doctorId?.[0] ||
       fieldErrors.visitDate?.[0] ||
-      fieldErrors.complaints?.[0] ||
-      fieldErrors.diagnoses?.[0] ||
-      fieldErrors.treatmentPlans?.[0] ||
       "Validation failed"
     
     return { 
@@ -211,9 +228,9 @@ export async function updateVisit(visitId: string, formData: FormData): Promise<
       return { success: false, error: "You can only edit your own visits" }
     }
 
-    const complaintIds = await getComplaintIds(parsed.data.complaints)
-    const diagnosisIds = await getDiagnosisIds(parsed.data.diagnoses)
-    const treatmentIds = await getTreatmentIds(parsed.data.treatmentPlans)
+    const complaintIds = parsed.data.complaints ? await getComplaintIds(parsed.data.complaints) : []
+    const diagnosisIds = parsed.data.diagnoses ? await getDiagnosisIds(parsed.data.diagnoses) : []
+    const treatmentIds = parsed.data.treatmentPlans ? await getTreatmentIds(parsed.data.treatmentPlans) : []
 
     await prisma.$transaction([
       prisma.visit.update({

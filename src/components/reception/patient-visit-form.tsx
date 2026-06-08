@@ -10,9 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { ComplaintSelector } from "@/components/visits/complaint-selector"
-import { DiagnosisSelector } from "@/components/visits/diagnosis-selector"
-import { TreatmentTemplateSelector } from "@/components/visits/treatment-template-selector"
 import { Search, UserPlus, X } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
 
@@ -37,11 +34,6 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
   const [isNewPatient, setIsNewPatient] = useState(false)
   const debouncedSearch = useDebounce(searchQuery, 300)
 
-  // Visit State
-  const [complaints, setComplaints] = useState<string[]>([])
-  const [diagnoses, setDiagnoses] = useState<string[]>([])
-  const [treatmentPlans, setTreatmentPlans] = useState<string[]>([])
-
   // Search Effect
   useEffect(() => {
     if (debouncedSearch && !selectedPatient) {
@@ -59,7 +51,7 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
       toast.error(result.error || "Something went wrong")
     } else {
       toast.success("Patient Visit created successfully")
-      router.push("/waiting-room") // يروح لغرفة الانتظار مباشرة
+      router.push("/waiting-room") 
       router.refresh()
     }
   }
@@ -72,28 +64,15 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
     
     if (selectedPatient) {
       formData.set("patientId", selectedPatient.id)
-      // مسح بيانات المريض الجديد لو موجودة بالغلط
       formData.delete("fullName")
       formData.delete("phone")
       formData.delete("gender")
       formData.delete("dateOfBirth")
+      formData.delete("nationalId")
     } else if (!isNewPatient) {
       toast.error("Please select an existing patient or create a new one")
       return
     }
-
-    if (complaints.filter(c => c.trim()).length === 0) {
-      setError("At least one complaint is required")
-      return
-    }
-    if (diagnoses.filter(d => d.trim()).length === 0) {
-      setError("At least one diagnosis is required")
-      return
-    }
-
-    formData.set("complaints", JSON.stringify(complaints.filter(c => c.trim())))
-    formData.set("diagnoses", JSON.stringify(diagnoses.filter(d => d.trim())))
-    formData.set("treatmentPlans", JSON.stringify(treatmentPlans.filter(t => t.trim())))
 
     startTransition(async () => {
       const result = await createPatientVisit(formData)
@@ -105,7 +84,7 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
     <form onSubmit={handleSubmit} className="max-w-4xl space-y-8">
       {error && <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
 
-      {/* ━━━ STEP 1: PATIENT ━━━ */}
+      {/* ━━━ STEP 1: PATIENT INFO ━━━ */}
       <div className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold flex items-center gap-2"><UserPlus className="h-5 w-5 text-teal-600" /> Patient Information</h3>
         
@@ -150,49 +129,54 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 border-t pt-4">
             <Input name="fullName" placeholder="Full Name *" required />
             <Input name="phone" placeholder="Phone Number *" required />
+            <Input name="nationalId" placeholder="National ID (Optional)" />
             <select name="gender" required className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm">
               <option value="MALE">Male</option>
               <option value="FEMALE">Female</option>
             </select>
-            <Input name="dateOfBirth" type="date" />
+            <Input name="dateOfBirth" type="date" required />
             <Button type="button" variant="ghost" size="sm" onClick={() => setIsNewPatient(false)} className="text-gray-500 sm:col-span-2">Cancel Creation</Button>
           </div>
         )}
       </div>
 
-      {/* ━━━ STEP 2: VISIT ━━━ */}
+      {/* ━━━ STEP 2: VISIT INFO ━━━ */}
       {(selectedPatient || isNewPatient) && (
         <>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Attending Doctor *</Label>
-              <select name="doctorId" required className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm">
-                <option value="">Select Doctor...</option>
-                {doctors.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
-              </select>
+          <div className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold">Visit Details</h3>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Attending Doctor *</Label>
+                <select name="doctorId" required className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm">
+                  <option value="">Select Doctor...</option>
+                  {doctors.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Visit Type *</Label>
+                <select name="visitType" required className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm">
+                  <option value="EXAMINATION">Examination (كشف)</option>
+                  <option value="CONSULTATION">Consultation (استشارة)</option>
+                  <option value="FOLLOW_UP">Follow-up (متابعة)</option>
+                </select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Date & Time *</Label>
+                <Input name="visitDate" type="datetime-local" required />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Date & Time *</Label>
-              <Input name="visitDate" type="datetime-local" required />
+              <Label>Initial Notes (Optional)</Label>
+              <Textarea name="notes" rows={2} placeholder="Reason for visit or brief notes..." />
             </div>
-          </div>
-
-          <div className="rounded-xl border bg-white/30 p-6 space-y-8">
-            <ComplaintSelector complaints={complaints} setComplaints={setComplaints} />
-            <DiagnosisSelector diagnoses={diagnoses} setDiagnoses={setDiagnoses} />
-            <TreatmentTemplateSelector treatmentPlans={treatmentPlans} setTreatmentPlans={setTreatmentPlans} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Additional Notes</Label>
-            <Textarea name="notes" rows={3} placeholder="Observations..." />
           </div>
 
           <div className="flex items-center gap-3 pt-4">
-            <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md">
-              {isPending ? "Saving..." : "Save Patient Visit"}
+            <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md flex-1 h-12 text-base">
+              {isPending ? "Saving..." : "Register & Open Visit"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => router.back()} className="h-12">Cancel</Button>
           </div>
         </>
       )}

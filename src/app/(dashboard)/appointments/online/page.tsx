@@ -1,81 +1,80 @@
-// src/app/(dashboard)/appointments/online/page.tsx
-
 import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
-import { getOnlineBookings, confirmBooking, cancelBooking } from "@/lib/actions/booking"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { format } from "date-fns"
-
-export const dynamic = "force-dynamic"
+import Link from "next/link"
+import { Globe } from "lucide-react"
 
 export default async function OnlineBookingsPage() {
   const session = await auth()
-  if (!session?.user?.clinicId) redirect("/login")
-  if (session.user.role !== "ADMIN" && session.user.role !== "RECEPTIONIST") redirect("/dashboard")
+  if (!session?.user) redirect("/login")
+  
+  // السماح للأدمن والريسبشن يشوفوا الصفحة دي
+  if (!["SUPER_ADMIN", "ADMIN", "RECEPTIONIST"].includes(session.user.role)) {
+    redirect("/dashboard")
+  }
 
-  const bookings = await getOnlineBookings(session.user.clinicId)
+  const bookings = await prisma.booking.findMany({
+    where: { 
+      clinicId: session.user.clinicId,
+      source: "WEBSITE" 
+    },
+    include: {
+      patient: { select: { fullName: true, phone: true } },
+      doctor: { select: { name: true } },
+      appointment: { select: { dateTime: true, status: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Online Bookings</h1>
-        <p className="text-sm text-muted-foreground">Manage appointments booked through the website</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Globe className="h-6 w-6 text-teal-600" /> Online Bookings</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage bookings from your public booking page</p>
+        </div>
+        <Link href="/book" target="_blank" className="text-sm text-teal-600 hover:underline border px-3 py-2 rounded-lg">
+          View Public Page
+        </Link>
       </div>
 
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+      {bookings.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-2xl border">
+          <Globe className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-600">No Online Bookings Yet</h2>
+          <p className="text-sm text-gray-400 mt-1">Share your booking page link with patients.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left p-4 text-xs font-semibold text-gray-500 uppercase">Patient</th>
-                <th className="text-left p-4 text-xs font-semibold text-gray-500 uppercase">Doctor</th>
-                <th className="text-left p-4 text-xs font-semibold text-gray-500 uppercase">Date & Time</th>
-                <th className="text-left p-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left p-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                <th className="text-left p-4 font-medium">Patient</th>
+                <th className="text-left p-4 font-medium">Doctor</th>
+                <th className="text-left p-4 font-medium">Date & Time</th>
+                <th className="text-left p-4 font-medium">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {bookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-gray-50">
+              {bookings.map((b) => (
+                <tr key={b.id} className="hover:bg-gray-50">
+                  <td className="p-4 font-medium">{b.patient.fullName}</td>
+                  <td className="p-4 text-gray-600">Dr. {b.doctor.name}</td>
+                  <td className="p-4 text-gray-600">{b.appointment?.dateTime ? new Date(b.appointment.dateTime).toLocaleString() : 'N/A'}</td>
                   <td className="p-4">
-                    <p className="font-medium">{booking.patient.fullName}</p>
-                    <p className="text-xs text-gray-500">{booking.patient.phone}</p>
-                  </td>
-                  <td className="p-4 text-sm">Dr. {booking.doctor.name}</td>
-                  <td className="p-4 text-sm">
-                    {format(new Date(booking.appointment.dateTime), "MMM d, yyyy h:mm a")}
-                  </td>
-                  <td className="p-4">
-                    <Badge variant={booking.status === "PENDING" ? "secondary" : booking.status === "CONFIRMED" ? "default" : "destructive"}>
-                      {booking.status}
-                    </Badge>
-                  </td>
-                  <td className="p-4">
-                    {booking.status === "PENDING" && (
-                      <div className="flex gap-2">
-                        <form action={async () => { "use server"; await confirmBooking(booking.id) }}>
-                          <button type="submit" className="text-xs bg-teal-50 text-teal-700 px-3 py-1 rounded-md hover:bg-teal-100">
-                            Confirm
-                          </button>
-                        </form>
-                        <form action={async () => { "use server"; await cancelBooking(booking.id) }}>
-                          <button type="submit" className="text-xs bg-red-50 text-red-700 px-3 py-1 rounded-md hover:bg-red-100">
-                            Cancel
-                          </button>
-                        </form>
-                      </div>
-                    )}
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      b.status === "PENDING" ? "bg-yellow-100 text-yellow-700" : 
+                      b.status === "CONFIRMED" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                    }`}>
+                      {b.status}
+                    </span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {bookings.length === 0 && (
-            <div className="p-12 text-center text-gray-500 text-sm">No online bookings yet</div>
-          )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
