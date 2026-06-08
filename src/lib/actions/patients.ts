@@ -161,3 +161,21 @@ export async function deletePatient(patientId: string): Promise<ActionResult> {
     return { success: false, error: "Failed to delete patient" }
   }
 }
+// ... الكود القديم بتاعك (createPatient, updatePatient, deletePlayer) فضل موجود ...
+
+// ── Search Patient (For Reception) ───────────────────
+export async function searchPatients(query: string, clinicId: string) {
+  if (!query || query.length < 2) return []
+  
+  return prisma.patient.findMany({
+    where: {
+      clinicId,
+      OR: [
+        { phone: { contains: query, mode: "insensitive" } },
+        { fullName: { contains: query, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, fullName: true, phone: true, gender: true, dateOfBirth: true },
+    take: 5,
+  })
+}

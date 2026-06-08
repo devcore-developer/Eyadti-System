@@ -2,7 +2,7 @@
 
 import { useTransition, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createVisit, updateVisit } from "@/lib/actions/visits"
+import { updateVisit } from "@/lib/actions/visits"
 import type { ActionResult } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -91,8 +91,8 @@ export function VisitForm({ patientId, doctors, visit }: Props) {
         const result = await updateVisit(visit.id, formData)
         handleResult(result)
       } else {
-        const result = await createVisit(formData)
-        handleResult(result)
+        // تم نقل منطق الإنشاء إلى PatientVisitForm الموحد
+        toast.error("Please use the New Patient Visit form to create visits")
       }
     })
   }

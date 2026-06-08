@@ -15,22 +15,23 @@ import {
   CreditCard,
   FileText,
   Building2,
+  UserPlus, // ← استيراد الأيقونة الجديدة
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Patients", href: "/patients", icon: Users },
+  { name: "New Visit", href: "/reception/new", icon: UserPlus }, // ← الزرار الجديد
   { name: "Appointments", href: "/appointments", icon: CalendarDays },
-  { name: "Waiting Room", href: "/waiting-room", icon: Monitor }, // ← السطر الجديد
+  { name: "Waiting Room", href: "/waiting-room", icon: Monitor },
   { name: "Online Bookings", href: "/appointments/online", icon: Globe },
+  { name: "Patients", href: "/patients", icon: Users },
   { name: "Invoices", href: "/invoices", icon: Receipt },
 ]
 
 const adminNavigation = [
   { name: "Users & Roles", href: "/admin/users", icon: Shield },
   { name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
-  // ← شيلنا الـ Gallery من هنا
   { name: "Public Booking", href: "/book", icon: Globe },
   { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
