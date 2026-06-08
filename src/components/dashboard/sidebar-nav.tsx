@@ -22,7 +22,8 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Patients", href: "/patients", icon: Users },
   { name: "Appointments", href: "/appointments", icon: CalendarDays },
-  { name: "Online Bookings", href: "/appointments/online", icon: Monitor },
+  { name: "Waiting Room", href: "/waiting-room", icon: Monitor }, // ← السطر الجديد
+  { name: "Online Bookings", href: "/appointments/online", icon: Globe },
   { name: "Invoices", href: "/invoices", icon: Receipt },
 ]
 

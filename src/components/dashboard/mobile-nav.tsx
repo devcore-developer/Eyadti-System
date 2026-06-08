@@ -3,7 +3,8 @@
 import * as React from "react"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+// 1. أضفنا SheetHeader و SheetTitle هنا
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Menu, Stethoscope } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -41,6 +42,11 @@ export function MobileNav({
             "border-r-0 shadow-[10px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[10px_0_40px_rgba(0,0,0,0.4)]"
           )}
         >
+          {/* 2. أضفنا البلوك ده عشان نحل خطأ الـ Accessibility */}
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navigation Menu</SheetTitle>
+          </SheetHeader>
+
           <div className="flex flex-col h-full">
             {/* ── Drawer Header ── */}
             <div className="flex h-14 items-center gap-2.5 px-6 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">

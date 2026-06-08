@@ -1,4 +1,3 @@
-// src/lib/db.ts
 import { Pool } from "pg"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "@prisma/client"
@@ -9,15 +8,13 @@ const globalForPrisma = globalThis as unknown as {
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
-  throw new Error("DATABASE_URL is not defined in the environment variables");
+  throw new Error("DATABASE_URL is missing in .env file");
 }
 
-// إعداد الـ Pool مع تفعيل SSL كما يتطلب Neon
+// إعداد Pool مع تفعيل SSL ببساطة ليتوافق مع Neon
 const pool = new Pool({ 
   connectionString,
-  ssl: {
-    rejectUnauthorized: true // مطلوب لـ sslmode=verify-full في Neon
-  }
+  ssl: true // الطريقة الأضمن لتفعيل SSL مع Neon
 })
 
 const adapter = new PrismaPg(pool)
@@ -26,10 +23,7 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   })
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma

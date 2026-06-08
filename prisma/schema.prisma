@@ -15,6 +15,8 @@ enum Role {
 
 enum AppointmentStatus {
   SCHEDULED
+  ARRIVED
+  IN_PROGRESS
   COMPLETED
   CANCELLED
 }
@@ -289,6 +291,7 @@ model Appointment {
   branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
   dateTime  DateTime
   status    AppointmentStatus @default(SCHEDULED)
+  arrivedAt DateTime?
   notes     String?
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt

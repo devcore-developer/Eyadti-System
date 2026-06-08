@@ -3,7 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "sonner"
 import { Providers } from "@/components/providers"
-export const dynamic = 'force-dynamic'
+import { ThemeScript } from "@/components/theme-script" // تم الإضافة
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,26 +23,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* 
-          هذا السكريبت الصغير يمنع وميض الثيم (FOUC) عند تحميل الصفحة.
-          وضعه في الـ head داخل Server Component مسموح به في React 19 
-        */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                if (localStorage.getItem('eyadti-ui-theme') === 'dark' || ((!localStorage.getItem('eyadti-ui-theme') || localStorage.getItem('eyadti-ui-theme') === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
-              } catch (e) {}
-            `,
-          }}
-        />
-      </head>
+      <head />
       <body className={`${inter.variable} font-sans antialiased`}>
+        {/* الـ Component الجديد بدل الـ script */}
+        <ThemeScript />
         <Providers>{children}</Providers>
         
         <Toaster
