@@ -54,27 +54,26 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
 
   const { name, email, password, clinicName, signupCode } = validated.data;
 
-  // 1. التحقق من كود التسجيل (اختياري - لو المستخدم كتبه)
-  let codeRecord = null;
-  if (signupCode && signupCode.trim() !== "") {
-    codeRecord = await prisma.activationCode.findUnique({
-      where: { code: signupCode },
-    });
-
-    if (!codeRecord) {
-      return { success: false, error: "Invalid signup code. Please check and try again." };
-    }
-
-    if (codeRecord.isUsed) {
-      return { success: false, error: "This signup code has already been used." };
-    }
-
-    if (codeRecord.type !== "SIGNUP") {
-      return { success: false, error: "This is not a signup code. Please enter a valid signup code." };
-    }
+  // 1. الكود بقى إجباري تماماً
+  if (!signupCode || signupCode.trim() === "") {
+    return { success: false, error: "Signup code is required to create an account." };
   }
 
-  // 2. التأكد إن الإيميل مش مسجل
+  // 2. التحقق من الكود (سواء كان SIGNUP أو SUBSCRIPTION)
+  const codeRecord = await prisma.activationCode.findUnique({
+    where: { code: signupCode.trim() },
+    include: { plan: true } // ← عشان نعرف الباقة والمدة اللي الكود مديها
+  });
+
+  if (!codeRecord) {
+    return { success: false, error: "Invalid signup code. Please contact the administrator." };
+  }
+
+  if (codeRecord.isUsed) {
+    return { success: false, error: "This code has already been used." };
+  }
+
+  // 3. التأكد إن الإيميل مش مسجل
   const existingUser = await prisma.user.findUnique({
     where: { email },
     select: { id: true },
@@ -86,7 +85,7 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
 
   const hashedPassword = await hashPassword(password);
 
-  // 3. إنشاء الحساب وتفعيل التجربة المجانية أو الكود
+  // 4. إنشاء الحساب وتفعيل الاشتراك بناءً على الكود
   try {
     await prisma.$transaction(async (tx) => {
       const newUserId = randomUUID();
@@ -117,39 +116,37 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
         data: { id: newBranchId, clinicId: clinic.id, name: "Main Branch", code: "MAIN" },
       });
 
-      // ── نظام الاشتراكات والتجربة المجانية الجديد ──
-      
-      // 1. إنشاء أو جلب باقة الـ Starter
-      const starterPlanConfig = PLANS_CONFIG.STARTER;
-      const starterPlan = await tx.plan.upsert({
-        where: { slug: starterPlanConfig.slug },
-        update: {},
-        create: starterPlanConfig,
-      });
+      // ── تفعيل الاشتراك بناءً على بيانات الكود ──
+      const planId = codeRecord.planId;
+      const durationDays = codeRecord.durationDays;
 
-      // 2. حساب فترة التجربة (14 يوم من الآن)
+      if (!planId) {
+        throw new Error("This code is not linked to a plan. Contact admin.");
+      }
+
       const startDate = new Date();
-      const trialEnd = new Date(startDate.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+      const endDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
+      
+      // لو المدة 10 أيام أو أقل، يبقى حساب تجريبي (TRIAL)، غير كده (ACTIVE)
+      const status = durationDays <= 10 ? "TRIAL" : "ACTIVE";
 
-      // 3. إنشاء الاشتراك
       await tx.subscription.create({
         data: {
           clinicId: clinic.id,
-          planId: starterPlan.id,
-          status: "TRIAL",
-          startDate,
-          trialEndsAt: trialEnd,
-          currentPeriodEnd: trialEnd,          
+          planId: planId,
+          status: status,
+          startDate: startDate,
+          trialEndsAt: status === "TRIAL" ? endDate : null,
+          currentPeriodEnd: endDate,
+          endDate: endDate,          
         },
       });
 
-      // 4. تحديث كود التسجيل إنه اتاستخدم (لو كان المستخدم كتب كود)
-      if (codeRecord) {
-        await tx.activationCode.update({
-          where: { id: codeRecord.id },
-          data: { isUsed: true, usedByClinicId: clinic.id, usedAt: new Date() },
-        });
-      }
+      // تحديث الكود إنه اتاستخدم
+      await tx.activationCode.update({
+        where: { id: codeRecord.id },
+        data: { isUsed: true, usedByClinicId: clinic.id, usedAt: new Date() },
+      });
     });
   } catch (error) {
     console.error("Signup Error:", error);
@@ -169,7 +166,6 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
     throw error;
   }
 }
-
 // ─── Redeem Subscription Code Action (لصفحة الـ Billing مستقبلا) ──────────
 
 // ─── Redeem Subscription Code Action ──────────

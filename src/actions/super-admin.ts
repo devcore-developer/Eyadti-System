@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import crypto from "crypto"
+import { CodeType } from "@prisma/client"
 
 // ─── Get All Subscribers ────────────────────────────
 export async function getAllSubscribers() {
@@ -56,23 +57,34 @@ export async function overrideSubscription(clinicId: string, status: "ACTIVE" | 
   }
 }
 
+// ─── Get Plans For Admin Dropdown ──────────────────
+export async function getPlansForAdmin() {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") return []
+
+  return prisma.plan.findMany({
+    where: { active: true },
+    select: { id: true, name: true },
+    orderBy: { monthlyPrice: 'asc' }
+  });
+}
+
 // ─── Super Admin Generate Bulk Codes ──────────────────────
 export async function superAdminGenerateCodes(data: {
   planId: string;
   durationDays: number;
   quantity: number;
-  type: "SIGNUP" | "SUBSCRIPTION";
 }) {
   try {
     const session = await auth()
     if (!session?.user || session.user.role !== "SUPER_ADMIN") {
-      return { success: false, error: "Unauthorized" }
+      return { success: false, error: "Unauthorized", codes: [] }
     }
 
-    const { planId, durationDays, quantity, type } = data;
+    const { planId, durationDays, quantity } = data;
 
     if (!planId || !durationDays || !quantity || quantity > 100) {
-      return { success: false, error: "Invalid data. Max 100 codes at once." }
+      return { success: false, error: "Invalid data. Max 100 codes at once.", codes: [] }
     }
 
     // تحديد الـ Prefix بناءً على المدة
@@ -83,26 +95,31 @@ export async function superAdminGenerateCodes(data: {
     else if (durationDays === 365) prefix = "1Y";
 
     const codesToCreate = [];
+    const generatedCodesList = []; // ← عشان نعرضهم للسوبر أدمن
+    
     for (let i = 0; i < quantity; i++) {
       const rawCode = crypto.randomBytes(4).toString("hex").toUpperCase()
       const formattedCode = `${prefix}-${rawCode.slice(0, 4)}-${rawCode.slice(4)}`
       
       codesToCreate.push({
         code: formattedCode,
-        type: type,
+        type: CodeType.SUBSCRIPTION, // كله بقى Subscription حتى لو تجربة
         durationDays: durationDays,
-        planId: planId, // ← ربط الكود بالباقة المحددة
+        planId: planId,
       });
+      
+      generatedCodesList.push(formattedCode);
     }
 
     await prisma.activationCode.createMany({
       data: codesToCreate,
     });
 
-    return { success: true, message: `${quantity} codes generated successfully!` }
+    // ← بترجع الأكواد الفعلية عشان تتعرض على الشاشة
+    return { success: true, message: `${quantity} codes generated successfully!`, codes: generatedCodesList }
   } catch (error) {
     console.error(error)
-    return { success: false, error: "Failed to generate codes." }
+    return { success: false, error: "Failed to generate codes.", codes: [] }
   }
 }
 
@@ -114,6 +131,6 @@ export async function getActivationCodes() {
   return prisma.activationCode.findMany({
     include: { plan: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
-    take: 50, // نجلب آخر 50 كود فقط عشان الأداء
+    take: 50,
   });
 }

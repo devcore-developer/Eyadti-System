@@ -36,7 +36,6 @@ export function GenerateCodeForm({ plans }: GenerateCodeFormProps) {
       planId,
       durationDays,
       quantity,
-      type: "SUBSCRIPTION", // دايماً SUBSCRIPTION عشان الـ SIGNUP اتعملت في الـ Trial System
     });
 
     if (result?.success) {

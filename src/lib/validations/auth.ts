@@ -30,10 +30,7 @@ export const signupSchema = z
       .trim()
       .min(2, { message: "Clinic name must be at least 2 characters" })
       .max(200, { message: "Clinic name must be at most 200 characters" }),
-    signupCode: z
-      .string()
-      .trim()
-      .min(1, { message: "Signup code is required" }),
+    signupCode: z.string().min(1, "Activation code is required"),
   })
   .strict();
 
