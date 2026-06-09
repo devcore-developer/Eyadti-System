@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { overrideSubscription, superAdminGenerateCode } from "@/actions/super-admin"
+import { overrideSubscription, superAdminGenerateCodes } from "@/actions/super-admin"
 
 export function SuperAdminDashboard({ subscribers }: { subscribers: any[] }) {
   const [isPending, setIsPending] = useState<string | null>(null)
@@ -16,7 +16,12 @@ export function SuperAdminDashboard({ subscribers }: { subscribers: any[] }) {
 
   const handleGenerateCode = async (type: "SIGNUP" | "SUBSCRIPTION", days: number) => {
     setIsPending(`code-${type}-${days}`)
-    const res = await superAdminGenerateCode(type, days)
+    const res = await superAdminGenerateCodes({
+      planId: "plan_starter", // أو أي ID لباقة موجودة عندك
+      durationDays: days,
+      quantity: 1, // أو أي عدد انت عايز تولده
+      type: type,
+    })
     if (res.success) {
       setNewCode(res.message || "Code generated successfully!") 
     }
