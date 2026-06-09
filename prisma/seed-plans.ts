@@ -22,7 +22,7 @@ async function main() {
       maxBranches: 1,
       onlineBookingEnabled: false,
       analyticsEnabled: false,
-      notificationsEnabled: true,
+      whatsappEnabled: true,
       active: true,
     },
   });
@@ -42,7 +42,7 @@ async function main() {
       maxBranches: 2,
       onlineBookingEnabled: true,
       analyticsEnabled: true,
-      notificationsEnabled: true,
+      whatsappEnabled: true,
       active: true,
     },
   });
@@ -62,7 +62,7 @@ async function main() {
       maxBranches: -1,
       onlineBookingEnabled: true,
       analyticsEnabled: true,
-      notificationsEnabled: true,
+      whatsappEnabled: true,
       active: true,
     },
   });

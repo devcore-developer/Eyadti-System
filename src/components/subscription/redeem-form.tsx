@@ -1,68 +1,78 @@
 "use client"
 
-import { useState } from "react"
-import { redeemActivationCode } from "@/actions/subscription"
-import { useSession } from "next-auth/react"
+import { useState, useTransition } from "react"
+import { redeemSubscriptionCode } from "@/actions/auth"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react"
 
-export function RedeemForm() {
+interface RedeemFormProps {
+  clinicId: string
+}
+
+export function RedeemForm({ clinicId }: RedeemFormProps) {
   const [code, setCode] = useState("")
-  const [isPending, setIsPending] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  
-  const { update } = useSession()
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsPending(true)
-    setMessage(null)
+    setError(null)
+    setSuccess(false)
 
-    const result = await redeemActivationCode(code)
-
-    if (result?.success) {
-      setMessage({ type: "success", text: "Subscription activated successfully! Updating session..." })
-      
-      // ✅ تحديث الـ JWT/Session فوراً (هيروح يجيب البيانات الجديدة من الداتابيز لوحده)
-      await update()
-      
-      // ترجيعه للداشبورد بعد تحديث الـ Session بنجاح
-      setTimeout(() => {
-        window.location.href = "/dashboard"
-      }, 1500)
-    } else {
-      setMessage({ type: "error", text: result?.error || "Failed to activate" })
-      setIsPending(false) // رجع الزرار يشتغل تاني لو في خطأ
+    if (!code.trim()) {
+      setError("Please enter a valid code")
+      return
     }
+
+    startTransition(async () => {
+      const result = await redeemSubscriptionCode(clinicId, code.trim())
+      if (result.success) {
+        setSuccess(true)
+        setCode("")
+        // تحديث الصفحة لعرض بيانات الاشتراك الجديدة
+        setTimeout(() => window.location.reload(), 1500)
+      } else {
+        setError(result.error || "Failed to redeem code")
+      }
+    })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Enter Activation Code
-        </label>
-        <input
-          type="text"
+    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 items-start w-full max-w-lg">
+      <div className="w-full space-y-1">
+        <Input 
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="XXXX-XXXX"
-          required
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2 text-center text-lg tracking-widest"
+          disabled={isPending}
+          className="font-semibold tracking-widest text-center h-11 border-slate-300 dark:border-slate-600"
         />
+        {error && (
+          <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+            <AlertCircle className="h-3 w-3" /> {error}
+          </p>
+        )}
+        {success && (
+          <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
+            <CheckCircle2 className="h-3 w-3" /> Code redeemed successfully! Refreshing...
+          </p>
+        )}
       </div>
-
-      {message && (
-        <div className={`p-3 rounded-md text-sm ${message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-          {message.text}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-full inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+      <Button 
+        type="submit" 
+        disabled={isPending || success} 
+        className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white h-11 shrink-0"
       >
-        {isPending ? "Activating..." : "Activate Subscription"}
-      </button>
+        {isPending ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> Activating...
+          </>
+        ) : (
+          "Activate"
+        )}
+      </Button>
     </form>
   )
 }

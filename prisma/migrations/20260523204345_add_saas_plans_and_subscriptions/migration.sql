@@ -42,7 +42,7 @@ CREATE TABLE "plans" (
     "maxBranches" INTEGER NOT NULL DEFAULT 1,
     "onlineBookingEnabled" BOOLEAN NOT NULL DEFAULT false,
     "analyticsEnabled" BOOLEAN NOT NULL DEFAULT false,
-    "notificationsEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "whatsappEnabled" BOOLEAN NOT NULL DEFAULT true,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

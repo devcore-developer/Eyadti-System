@@ -39,9 +39,16 @@ export async function createPlan(
         maxUsers: validated.maxUsers ?? -1,
         maxPatients: validated.maxPatients ?? -1,
         maxBranches: validated.maxBranches ?? -1,
+        maxMonthlyVisits: validated.maxMonthlyVisits ?? -1, // ← جديد
         onlineBookingEnabled: validated.onlineBookingEnabled,
         analyticsEnabled: validated.analyticsEnabled,
-        notificationsEnabled: validated.notificationsEnabled,
+        whatsappEnabled: validated.whatsappEnabled, // ← جديد
+        auditLogsEnabled: validated.auditLogsEnabled, // ← جديد
+        galleryEnabled: validated.galleryEnabled, // ← جديد
+        advancedInvoicesEnabled: validated.advancedInvoicesEnabled, // ← جديد
+        doctorSchedulesEnabled: validated.doctorSchedulesEnabled, // ← جديد
+        queueManagementEnabled: validated.queueManagementEnabled, // ← جديد
+        waitingRoomDisplayEnabled: validated.waitingRoomDisplayEnabled, // ← جديد
         active: validated.active,
       },
     });
@@ -98,9 +105,16 @@ export async function updatePlan(
         maxUsers: validated.maxUsers ?? -1,
         maxPatients: validated.maxPatients ?? -1,
         maxBranches: validated.maxBranches ?? -1,
+        maxMonthlyVisits: validated.maxMonthlyVisits ?? -1, // ← جديد
         onlineBookingEnabled: validated.onlineBookingEnabled,
         analyticsEnabled: validated.analyticsEnabled,
-        notificationsEnabled: validated.notificationsEnabled,
+        whatsappEnabled: validated.whatsappEnabled, // ← جديد
+        auditLogsEnabled: validated.auditLogsEnabled, // ← جديد
+        galleryEnabled: validated.galleryEnabled, // ← جديد
+        advancedInvoicesEnabled: validated.advancedInvoicesEnabled, // ← جديد
+        doctorSchedulesEnabled: validated.doctorSchedulesEnabled, // ← جديد
+        queueManagementEnabled: validated.queueManagementEnabled, // ← جديد
+        waitingRoomDisplayEnabled: validated.waitingRoomDisplayEnabled, // ← جديد
         active: validated.active,
       },
     });

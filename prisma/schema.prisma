@@ -221,7 +221,7 @@ model User {
 model Clinic {
   id            String               @id @default(cuid())
   name          String
-  slug          String?              @unique // ← أضف السطر ده
+  slug          String              @unique // ← أضف السطر ده
   address       String?
   phone         String?
   ownerId       String?
@@ -383,27 +383,35 @@ model Payment {
   @@map("payments")
 }
 
-// ── SaaS Plans & Subscriptions ──────────────────────────
+// ── SaaS Plans & Subscriptions ────────────────────────
 
 model Plan {
-  id                   String   @id @default(cuid())
-  name                 String   @unique
-  slug                 String   @unique
-  description          String?
-  monthlyPrice         Float    @default(0)
-  yearlyPrice          Float    @default(0)
-  maxDoctors           Int      @default(1)
-  maxUsers             Int      @default(2)
-  maxPatients          Int      @default(500)
-  maxBranches          Int      @default(1)
-  onlineBookingEnabled Boolean  @default(false)
-  analyticsEnabled     Boolean  @default(false)
-  notificationsEnabled Boolean  @default(true)
-  active               Boolean  @default(true)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                           String   @id @default(cuid())
+  name                         String   @unique
+  slug                         String   @unique
+  description                  String?
+  monthlyPrice                 Float    @default(0)
+  yearlyPrice                  Float    @default(0)
+  maxDoctors                   Int      @default(1)
+  maxUsers                     Int      @default(2)
+  maxPatients                  Int      @default(500)
+  maxBranches                  Int      @default(1)
+  maxMonthlyVisits             Int      @default(100) // ← جديد
+  onlineBookingEnabled         Boolean  @default(false)
+  analyticsEnabled             Boolean  @default(false)
+  whatsappEnabled              Boolean  @default(false) // ← جديد
+  auditLogsEnabled             Boolean  @default(false) // ← جديد
+  galleryEnabled               Boolean  @default(false) // ← جديد
+  advancedInvoicesEnabled      Boolean  @default(false) // ← جديد
+  doctorSchedulesEnabled       Boolean  @default(true)  // ← جديد
+  queueManagementEnabled       Boolean  @default(false) // ← جديد
+  waitingRoomDisplayEnabled    Boolean  @default(false) // ← جديد
+  active                       Boolean  @default(true)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 
   subscriptions    Subscription[]
+  activationCodes  ActivationCode[]  
 
   @@map("plans")
 }
@@ -438,9 +446,11 @@ model ActivationCode {
   isUsed         Boolean   @default(false)
   usedByClinicId String?
   usedAt         DateTime?
+  planId         String?
   createdAt      DateTime  @default(now())
 
   usedByClinic   Clinic?   @relation(fields: [usedByClinicId], references: [id], onDelete: SetNull)
+  plan           Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)  
 
   @@index([code])
   @@index([isUsed])
@@ -719,7 +729,7 @@ model Notification {
   @@index([branchId])
   @@index([userId, isRead])
   @@index([createdAt])
-  @@map("notifications")
+  @@map("WHATSAPP_INTEGRATION")
 }
 
 model Reminder {

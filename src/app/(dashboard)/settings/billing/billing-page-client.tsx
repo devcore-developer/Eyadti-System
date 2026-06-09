@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react"; // ← أضفنا الـ useSession
+import { useSession } from "next-auth/react";
 import { BillingOverview as BillingOverviewType, PlanType, BillingCycle } from "@/types/subscription";
 import { BillingOverview } from "@/components/billing/billing-overview";
 import {
@@ -18,20 +18,29 @@ interface BillingPageClientProps {
 
 export function BillingPageClient({ overview, plans }: BillingPageClientProps) {
   const router = useRouter();
-  const { update } = useSession(); // ← استدعاء دالة التحديث
+  const { update } = useSession();
   const [loading, setLoading] = useState(false);
+
+  // ✅ حماية ضد الـ null عشان TypeScript
+  if (!overview || !overview.subscription) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        No subscription data found. Please contact support.
+      </div>
+    );
+  }
 
   async function handleSelectPlan(planId: string, billingCycle: BillingCycle) {
     setLoading(true);
     const result = await subscribeToPlan({
-      clinicId: overview.subscription.clinicId,
+      clinicId: overview.subscription!.clinicId,
       planId,
       billingCycle,
     });
 
     if (result.success) {
-      await update(); // ✅ تحديث الـ JWT/Session أولاً
-      router.refresh(); // ثم تحديث بيانات الصفحة
+      await update(); 
+      router.refresh(); 
     } else {
       alert(result.error || "Failed to change plan");
     }
@@ -45,11 +54,11 @@ export function BillingPageClient({ overview, plans }: BillingPageClientProps) {
 
     setLoading(true);
     const result = await cancelMySubscription({
-      subscriptionId: overview.subscription.id,
+      subscriptionId: overview.subscription!.id,
     });
 
     if (result.success) {
-      await update(); // ✅ تحديث الـ JWT/Session أولاً
+      await update(); 
       router.refresh();
     } else {
       alert(result.error || "Failed to cancel subscription");
@@ -70,7 +79,7 @@ export function BillingPageClient({ overview, plans }: BillingPageClientProps) {
     );
 
     if (result.success) {
-      await update(); // ✅ تحديث الـ JWT/Session أولاً
+      await update(); 
       router.refresh();
     } else {
       alert(result.error || "Failed to reactivate subscription");

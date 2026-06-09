@@ -52,7 +52,7 @@ export function PlanForm({ plan, mode }: PlanFormProps) {
         : null,
       onlineBookingEnabled: formData.get("onlineBookingEnabled") === "on",
       analyticsEnabled: formData.get("analyticsEnabled") === "on",
-      notificationsEnabled: formData.get("notificationsEnabled") === "on",
+      whatsappEnabled: formData.get("whatsappEnabled") === "on",
       active: formData.get("active") === "on",
     };
 
@@ -274,8 +274,8 @@ export function PlanForm({ plan, mode }: PlanFormProps) {
               </p>
             </div>
             <Switch
-              name="notificationsEnabled"
-              defaultChecked={plan?.notificationsEnabled ?? false}
+              name="whatsappEnabled"
+              defaultChecked={plan?.whatsappEnabled ?? false}
             />
           </div>
           <div className="flex items-center justify-between">

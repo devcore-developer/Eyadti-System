@@ -1,5 +1,3 @@
-// src/lib/validations/subscription.ts
-
 import { z } from "zod";
 
 // ─── Plan Schemas ─────────────────────────────────────────────
@@ -35,9 +33,16 @@ export const createPlanSchema = z.object({
   maxUsers: z.coerce.number().int().positive().nullable().optional(),
   maxPatients: z.coerce.number().int().positive().nullable().optional(),
   maxBranches: z.coerce.number().int().positive().nullable().optional(),
+  maxMonthlyVisits: z.coerce.number().int().positive().nullable().optional(), // ← جديد
   onlineBookingEnabled: z.boolean().default(false),
   analyticsEnabled: z.boolean().default(false),
-  notificationsEnabled: z.boolean().default(false),
+  whatsappEnabled: z.boolean().default(false), // ← بدل whatsappEnabled
+  auditLogsEnabled: z.boolean().default(false), // ← جديد
+  galleryEnabled: z.boolean().default(false), // ← جديد
+  advancedInvoicesEnabled: z.boolean().default(false), // ← جديد
+  doctorSchedulesEnabled: z.boolean().default(true), // ← جديد
+  queueManagementEnabled: z.boolean().default(false), // ← جديد
+  waitingRoomDisplayEnabled: z.boolean().default(false), // ← جديد
   active: z.boolean().default(true),
 });
 
@@ -72,7 +77,7 @@ export const cancelSubscriptionSchema = z.object({
 
 export const usageCheckSchema = z.object({
   clinicId: z.string().cuid(),
-  resource: z.enum(["DOCTORS", "USERS", "PATIENTS", "BRANCHES"]),
+  resource: z.enum(["DOCTORS", "USERS", "PATIENTS", "BRANCHES", "MONTHLY_VISITS"]), // ← أضفنا الزيارات
 });
 
 // ─── Feature Check Schema ─────────────────────────────────────
@@ -84,8 +89,13 @@ export const featureCheckSchema = z.object({
     "ADVANCED_ANALYTICS",
     "WHATSAPP_INTEGRATION",
     "MULTI_BRANCH",
-    "NOTIFICATIONS",
-  ]),
+    "AUDIT_LOGS",
+    "GALLERY",
+    "DOCTOR_SCHEDULES",
+    "ADVANCED_INVOICES",
+    "QUEUE_MANAGEMENT",
+    "WAITING_ROOM_DISPLAY",
+  ]), // ← تم تحديث الميزات لتطابق النظام الجديد
 });
 
 // ─── Inferred Types ───────────────────────────────────────────

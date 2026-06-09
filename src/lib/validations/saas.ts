@@ -12,7 +12,7 @@ export const PlanSchema = z.object({
   maxBranches: z.coerce.number().int().default(-1),
   onlineBookingEnabled: z.boolean().default(false),
   analyticsEnabled: z.boolean().default(false),
-  notificationsEnabled: z.boolean().default(true),
+  whatsappEnabled: z.boolean().default(false),
   active: z.boolean().default(true),
 });
 

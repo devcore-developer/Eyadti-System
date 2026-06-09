@@ -1,7 +1,6 @@
 // src/lib/services/usage-limits.ts
 import { prisma } from "@/lib/db";
-import { ResourceKey, UsageCheckResult, UsageStat } from "@/types/subscription";
-import { RESOURCE_CONFIG } from "@/lib/constants/features";
+import { RESOURCE_CONFIG, type ResourceKey, type UsageCheckResult, type UsageStat } from "@/lib/constants/features"; // ← التعديل هنا
 import { getSubscription } from "./subscription";
 
 async function getCurrentUsage(clinicId: string, resource: ResourceKey): Promise<number> {
@@ -13,8 +12,17 @@ async function getCurrentUsage(clinicId: string, resource: ResourceKey): Promise
     case "PATIENTS":
       return prisma.patient.count({ where: { clinicId } });
     case "BRANCHES":
-      // بناءً على الـ Schema الحالي مفيش Model مستقلة للـ Branches، فبنعتبر العيادة الواحدة هي 1
-      return 1;
+      return prisma.branch.count({ where: { clinicId } });
+    case "MONTHLY_VISITS": {
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return prisma.visit.count({
+        where: {
+          clinicId,
+          visitDate: { gte: firstDayOfMonth },
+        },
+      });
+    }
     default:
       return 0;
   }
@@ -26,9 +34,9 @@ function getPlanLimit(plan: any, resource: ResourceKey): number | null {
     USERS: plan.maxUsers,
     PATIENTS: plan.maxPatients,
     BRANCHES: plan.maxBranches,
+    MONTHLY_VISITS: plan.maxMonthlyVisits,
   };
   const val = map[resource];
-  // في الـ Schema بتاعك: -1 يعني Unlimited، فبنحوله لـ null
   if (val === -1 || val === null || val === undefined) return null; 
   return val;
 }
@@ -55,7 +63,7 @@ export async function enforceUsageLimit(clinicId: string, resource: ResourceKey)
   if (!result.allowed) {
     const config = RESOURCE_CONFIG[resource];
     const limitText = result.limit !== null ? `${result.limit} ${config.label.toLowerCase()}` : "unlimited";
-    throw new Error(`You have reached the ${limitText} limit on your current plan. Please upgrade to add more ${config.label.toLowerCase()}.`);
+    throw new Error(`You have reached the ${limitText} limit on your current plan. Please upgrade to add more ${config.singular}.`);
   }
 }
 
@@ -63,7 +71,7 @@ export async function getUsageStats(clinicId: string): Promise<UsageStat[]> {
   const subscription = await getSubscription(clinicId);
   if (!subscription) return [];
 
-  const resources: ResourceKey[] = ["DOCTORS", "USERS", "PATIENTS", "BRANCHES"];
+  const resources: ResourceKey[] = ["DOCTORS", "USERS", "PATIENTS", "BRANCHES", "MONTHLY_VISITS"];
   const stats: UsageStat[] = [];
 
   for (const resource of resources) {

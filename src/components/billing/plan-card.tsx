@@ -85,7 +85,7 @@ export function PlanCard({
     },
     {
       label: "Notifications & Reminders",
-      enabled: plan.notificationsEnabled,
+      enabled: plan.whatsappEnabled,
     },
   ];
 

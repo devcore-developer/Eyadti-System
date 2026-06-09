@@ -101,8 +101,8 @@ export function SubscriptionDetailsClient({
               enabled={plan.analyticsEnabled}
             />
             <FeatureItem
-              label="Notifications"
-              enabled={plan.notificationsEnabled}
+              label="WHATSAPP_INTEGRATION"
+              enabled={plan.whatsappEnabled}
             />
             <FeatureItem
               label="Multi-Branch"

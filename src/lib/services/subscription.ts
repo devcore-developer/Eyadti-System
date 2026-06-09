@@ -36,7 +36,7 @@ export async function createTrialSubscription(
     include: { plan: true },
   });
 
-  return subscription as SubscriptionType;
+  return subscription as any;
 }
 
 export async function getSubscription(
@@ -77,7 +77,7 @@ export async function getSubscription(
     return updated as SubscriptionType;
   }
 
-  return subscription as SubscriptionType;
+  return subscription as any;
 }
 
 export async function isSubscriptionActive(clinicId: string): Promise<boolean> {
@@ -142,7 +142,7 @@ export async function activateSubscription(
     include: { plan: true },
   });
 
-  return subscription as SubscriptionType;
+  return subscription as any;
 }
 
 export async function cancelSubscription(
@@ -157,7 +157,7 @@ export async function cancelSubscription(
     include: { plan: true },
   });
 
-  return subscription as SubscriptionType;
+  return subscription as any;
 }
 
 export async function suspendSubscription(
@@ -169,7 +169,7 @@ export async function suspendSubscription(
     include: { plan: true },
   });
 
-  return subscription as SubscriptionType;
+  return subscription as any;
 }
 
 export async function reactivateSubscription(
@@ -198,7 +198,7 @@ export async function reactivateSubscription(
     include: { plan: true },
   });
 
-  return subscription as SubscriptionType;
+  return subscription as any;
 }
 
 export async function getActivePlans() {

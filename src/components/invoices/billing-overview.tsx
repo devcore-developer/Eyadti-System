@@ -44,8 +44,8 @@ export function BillingOverview({
   const { subscription, usage, trialDaysRemaining, isTrialActive, canUpgrade } =
     data;
 
-  const isExpired =
-    subscription.status === "EXPIRED" || subscription.status === "SUSPENDED";
+  if (!subscription) return null;
+  const isExpired = subscription.status === "EXPIRED" || subscription.status === "SUSPENDED";
   const isCancelled = subscription.status === "CANCELLED";
 
   return (

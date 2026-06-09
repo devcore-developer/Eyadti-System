@@ -42,10 +42,10 @@ export function useSubscription() {
     if (feature === "ADVANCED_ANALYTICS") {
       return slug === "professional" || slug === "enterprise";
     }
-    if (feature === "NOTIFICATIONS") {
+    if (feature === "WHATSAPP_INTEGRATION") {
       return slug === "professional" || slug === "enterprise";
     }
-    if (feature === "WHATSAPP_INTEGRATION") {
+    if ((feature as string) === "WHATSAPP_INTEGRATION") {
       return slug === "professional" || slug === "enterprise";
     }
     if (feature === "MULTI_BRANCH") {

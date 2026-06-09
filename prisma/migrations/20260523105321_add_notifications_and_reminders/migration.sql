@@ -11,7 +11,7 @@ CREATE TYPE "ReminderType" AS ENUM ('TWENTY_FOUR_HOURS_BEFORE', 'TWO_HOURS_BEFOR
 CREATE TYPE "ReminderStatus" AS ENUM ('PENDING', 'SENT', 'FAILED');
 
 -- CreateTable
-CREATE TABLE "notifications" (
+CREATE TABLE "WHATSAPP_INTEGRATION" (
     "id" TEXT NOT NULL,
     "clinicId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -57,13 +57,13 @@ CREATE TABLE "notification_settings" (
 );
 
 -- CreateIndex
-CREATE INDEX "notifications_clinicId_idx" ON "notifications"("clinicId");
+CREATE INDEX "notifications_clinicId_idx" ON "WHATSAPP_INTEGRATION"("clinicId");
 
 -- CreateIndex
-CREATE INDEX "notifications_userId_isRead_idx" ON "notifications"("userId", "isRead");
+CREATE INDEX "notifications_userId_isRead_idx" ON "WHATSAPP_INTEGRATION"("userId", "isRead");
 
 -- CreateIndex
-CREATE INDEX "notifications_createdAt_idx" ON "notifications"("createdAt");
+CREATE INDEX "notifications_createdAt_idx" ON "WHATSAPP_INTEGRATION"("createdAt");
 
 -- CreateIndex
 CREATE INDEX "reminders_appointmentId_idx" ON "reminders"("appointmentId");
@@ -75,10 +75,10 @@ CREATE INDEX "reminders_status_scheduledFor_idx" ON "reminders"("status", "sched
 CREATE UNIQUE INDEX "notification_settings_userId_key" ON "notification_settings"("userId");
 
 -- AddForeignKey
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_clinicId_fkey" FOREIGN KEY ("clinicId") REFERENCES "clinics"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "WHATSAPP_INTEGRATION" ADD CONSTRAINT "notifications_clinicId_fkey" FOREIGN KEY ("clinicId") REFERENCES "clinics"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "WHATSAPP_INTEGRATION" ADD CONSTRAINT "notifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "reminders" ADD CONSTRAINT "reminders_appointmentId_fkey" FOREIGN KEY ("appointmentId") REFERENCES "appointments"("id") ON DELETE CASCADE ON UPDATE CASCADE;

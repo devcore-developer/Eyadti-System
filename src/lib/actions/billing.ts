@@ -1,16 +1,16 @@
 "use server";
 
-import { auth } from "@/lib/auth"; // ← استخدمنا الـ auth بتاعتك
+import { auth } from "@/lib/auth";
 import { getSubscription, getTrialDaysRemaining, getActivePlans } from "@/lib/services/subscription";
 import { getUsageStats } from "@/lib/services/usage-limits";
-import { getFeatureAccess } from "@/lib/services/feature-gate";
-import { BillingOverview, FeatureKey } from "@/types/subscription";
+import { type BillingOverview, type FeatureKey } from "@/types/subscription";
+import { hasFeature, getFeatureAccess } from "@/lib/services/feature-gate"; // ← استيراد مباشر بدل Dynamic
 
 /**
  * Get the full billing overview for the current user's clinic
  */
 export async function getBillingOverview(): Promise<BillingOverview | null> {
-  const session = await auth(); // ← بدل getCurrentUser
+  const session = await auth();
   if (!session?.user?.clinicId) return null;
 
   const subscription = await getSubscription(session.user.clinicId);
@@ -50,7 +50,6 @@ export async function checkFeatureAccess(feature: FeatureKey): Promise<boolean> 
   const session = await auth();
   if (!session?.user?.clinicId) return false;
 
-  const { hasFeature } = await import("@/lib/services/feature-gate");
   return hasFeature(session.user.clinicId, feature);
 }
 

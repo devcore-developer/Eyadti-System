@@ -1,3 +1,4 @@
+// app/(dashboard)/layout.tsx
 import { auth } from "@/lib/auth"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { MobileNav } from "@/components/dashboard/mobile-nav"
@@ -6,8 +7,9 @@ import { CommandPalette } from "@/components/dashboard/command-palette"
 import { UserProfileMenu } from "@/components/dashboard/user-profile-menu"
 import { prisma } from "@/lib/db"
 import { getSelectedBranch } from "@/lib/actions/branch-context"
-import { SubscriptionGuard } from "@/components/billing/subscription-guard" // ← أضفنا ده
-export const dynamic = 'force-dynamic' // ↓↓↓ ده يمنع Turbopack إنه يجيب داتابيز وقت البناء ↓↓↓
+import { SubscriptionGuard } from "@/components/billing/subscription-guard"
+
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({
   children,
@@ -16,11 +18,10 @@ export default async function DashboardLayout({
 }) {
   const session = await auth()
 
-  // جلب بيانات الاشتراك في الوقت الفعلي عشان السوبر أدمن يقدر يقفل الحساب فوراً
   const subscription = session?.user?.clinicId 
     ? await prisma.subscription.findUnique({ 
         where: { clinicId: session.user.clinicId }, 
-        select: { status: true, trialEndsAt: true, endDate: true } 
+        select: { status: true, trialEndsAt: true, endDate: true, currentPeriodEnd: true } 
       }) 
     : null
 
@@ -113,11 +114,10 @@ export default async function DashboardLayout({
         {/* ── Main Content ── */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 print:p-0 print:overflow-visible print:bg-white pb-24 md:pb-8">
           <div className="animate-fade-in-up print:animate-none">
-            {/* ← لفينا الـ children بالـ Guard عشان يحمي الصفحات */}
             <SubscriptionGuard 
               status={subscription?.status || null}
               trialEndsAt={subscription?.trialEndsAt || null}
-              endDate={subscription?.endDate || null}
+              endDate={subscription?.currentPeriodEnd || null} // استخدام currentPeriodEnd بدلاً من endDate
             >
               {children}
             </SubscriptionGuard>

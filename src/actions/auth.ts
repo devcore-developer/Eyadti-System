@@ -8,6 +8,7 @@ import type { LoginInput, SignupInput } from "@/lib/validations/auth";
 import { Prisma } from "@prisma/client";
 import { AuthError } from "next-auth";
 import { randomUUID } from "crypto";
+import { PLANS_CONFIG, TRIAL_DURATION_DAYS } from "@/lib/constants/features";
 
 interface ActionResult<T = void> {
   success: boolean;
@@ -24,17 +25,13 @@ export async function loginAction(values: LoginInput): Promise<ActionResult> {
   }
 
   try {
-    // شيلنا redirectTo من هنا
     await signIn("credentials", {
       email: validated.data.email,
       password: validated.data.password,
     });
     
-    // السطر ده مش هيوصلله أبداً لأن signIn بتعمل Redirect، بس بنكتبه عشان Typescript مزعلش
     return { success: true }; 
   } catch (error) {
-    // NextAuth v5 بتعمل throw لـ NEXT_REDIRECT عشان ت_redirect المستخدم
-    // لازم نسمح لها تكتمل مش نمسكها
     if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":
@@ -43,7 +40,6 @@ export async function loginAction(values: LoginInput): Promise<ActionResult> {
           return { success: false, error: "حدث خطأ في المصادقة" };
       }
     }
-    // لو الخطأ مش AuthError، يبقى هو التحديدة (NEXT_REDIRECT) وسيبها تكمل
     throw error; 
   }
 }
@@ -58,21 +54,24 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
 
   const { name, email, password, clinicName, signupCode } = validated.data;
 
-  // 1. التحقق من كود التسجيل (SIGNUP)
-  const codeRecord = await prisma.activationCode.findUnique({
-    where: { code: signupCode },
-  });
+  // 1. التحقق من كود التسجيل (اختياري - لو المستخدم كتبه)
+  let codeRecord = null;
+  if (signupCode && signupCode.trim() !== "") {
+    codeRecord = await prisma.activationCode.findUnique({
+      where: { code: signupCode },
+    });
 
-  if (!codeRecord) {
-    return { success: false, error: "Invalid signup code. Please contact the administrator." };
-  }
+    if (!codeRecord) {
+      return { success: false, error: "Invalid signup code. Please check and try again." };
+    }
 
-  if (codeRecord.isUsed) {
-    return { success: false, error: "This signup code has already been used." };
-  }
+    if (codeRecord.isUsed) {
+      return { success: false, error: "This signup code has already been used." };
+    }
 
-  if (codeRecord.type !== "SIGNUP") {
-    return { success: false, error: "This is not a signup code. Please enter a valid signup code." };
+    if (codeRecord.type !== "SIGNUP") {
+      return { success: false, error: "This is not a signup code. Please enter a valid signup code." };
+    }
   }
 
   // 2. التأكد إن الإيميل مش مسجل
@@ -87,7 +86,7 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
 
   const hashedPassword = await hashPassword(password);
 
-  // 3. إنشاء الحساب وتفعيل الكود
+  // 3. إنشاء الحساب وتفعيل التجربة المجانية أو الكود
   try {
     await prisma.$transaction(async (tx) => {
       const newUserId = randomUUID();
@@ -95,7 +94,7 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
       const newBranchId = randomUUID();
 
       const clinic = await tx.clinic.create({
-        data: { id: newClinicId, name: clinicName },
+        data: { id: newClinicId, name: clinicName, slug: `clinic-${newClinicId.substring(0, 8)}` },
       });
 
       const user = await tx.user.create({
@@ -118,22 +117,25 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
         data: { id: newBranchId, clinicId: clinic.id, name: "Main Branch", code: "MAIN" },
       });
 
-      // الباقة الموحدة الافتراضية
-      const defaultPlan = await tx.plan.upsert({
-        where: { slug: "default-plan" },
+      // ── نظام الاشتراكات والتجربة المجانية الجديد ──
+      
+      // 1. إنشاء أو جلب باقة الـ Starter
+      const starterPlanConfig = PLANS_CONFIG.STARTER;
+      const starterPlan = await tx.plan.upsert({
+        where: { slug: starterPlanConfig.slug },
         update: {},
-        create: { name: "Unified Plan", slug: "default-plan", monthlyPrice: 0, yearlyPrice: 0, active: true },
+        create: starterPlanConfig,
       });
 
-      // الاشتراك المجاني (3 أيام تجربة)
+      // 2. حساب فترة التجربة (14 يوم من الآن)
       const startDate = new Date();
-      const trialEnd = new Date(startDate);
-      trialEnd.setDate(trialEnd.getDate() + 3);
+      const trialEnd = new Date(startDate.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
 
+      // 3. إنشاء الاشتراك
       await tx.subscription.create({
         data: {
           clinicId: clinic.id,
-          planId: defaultPlan.id,
+          planId: starterPlan.id,
           status: "TRIAL",
           startDate,
           trialEndsAt: trialEnd,
@@ -141,11 +143,13 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
         },
       });
 
-      // تحديث كود التسجيل إنه اتاستخدم
-      await tx.activationCode.update({
-        where: { id: codeRecord.id },
-        data: { isUsed: true, usedByClinicId: clinic.id, usedAt: new Date() },
-      });
+      // 4. تحديث كود التسجيل إنه اتاستخدم (لو كان المستخدم كتب كود)
+      if (codeRecord) {
+        await tx.activationCode.update({
+          where: { id: codeRecord.id },
+          data: { isUsed: true, usedByClinicId: clinic.id, usedAt: new Date() },
+        });
+      }
     });
   } catch (error) {
     console.error("Signup Error:", error);
@@ -168,8 +172,13 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
 
 // ─── Redeem Subscription Code Action (لصفحة الـ Billing مستقبلا) ──────────
 
+// ─── Redeem Subscription Code Action ──────────
+
 export async function redeemSubscriptionCode(clinicId: string, code: string): Promise<ActionResult> {
-  const codeRecord = await prisma.activationCode.findUnique({ where: { code } });
+  const codeRecord = await prisma.activationCode.findUnique({ 
+    where: { code },
+    include: { plan: true } // نجيب بيانات الباقة المربوطة بالكود
+  });
 
   if (!codeRecord || codeRecord.type !== "SUBSCRIPTION" || codeRecord.isUsed) {
     return { success: false, error: "Invalid or already used subscription code." };
@@ -180,17 +189,23 @@ export async function redeemSubscriptionCode(clinicId: string, code: string): Pr
     if (!subscription) return { success: false, error: "No subscription found." };
 
     const now = new Date();
-    // لو الاشتراك القديم لسه شغال، هنزود عليه، لو خلاص هنبدأ من النهاردة
-    const startDate = subscription.endDate && subscription.endDate > now ? subscription.endDate : now;
+    
+    // لو الاشتراك لسه شغال، هنزود عليه، لو خلاص هنبدأ من النهاردة
+    const startDate = subscription.currentPeriodEnd && subscription.currentPeriodEnd > now ? subscription.currentPeriodEnd : now;
     const newEndDate = new Date(startDate);
     newEndDate.setDate(newEndDate.getDate() + codeRecord.durationDays);
+
+    // تحديد الباقة الجديدة: لو الكود مربوط لباقة معينة نستخدمها، لو لا نستخدم الباقة الحالية
+    const newPlanId = codeRecord.planId || subscription.planId;
 
     await prisma.$transaction([
       prisma.subscription.update({
         where: { clinicId },
         data: { 
           status: "ACTIVE", 
-          endDate: newEndDate, 
+          planId: newPlanId, // ← تحديث الباقة بناءً على الكود
+          currentPeriodEnd: newEndDate, 
+          endDate: newEndDate,
           trialEndsAt: null // بنشيل الـ trial عشان التايمر يتحول للـ endDate
         },
       }),
@@ -202,6 +217,7 @@ export async function redeemSubscriptionCode(clinicId: string, code: string): Pr
 
     return { success: true };
   } catch (error) {
+    console.error("Redeem error:", error);
     return { success: false, error: "Failed to redeem code." };
   }
 }

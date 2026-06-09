@@ -23,7 +23,7 @@ ALTER TABLE "doctor_schedules" ADD COLUMN     "branchId" TEXT;
 ALTER TABLE "invoices" ADD COLUMN     "branchId" TEXT;
 
 -- AlterTable
-ALTER TABLE "notifications" ADD COLUMN     "branchId" TEXT;
+ALTER TABLE "WHATSAPP_INTEGRATION" ADD COLUMN     "branchId" TEXT;
 
 -- AlterTable
 ALTER TABLE "patients" ADD COLUMN     "branchId" TEXT;
@@ -101,7 +101,7 @@ CREATE UNIQUE INDEX "doctor_schedules_doctorId_branchId_dayOfWeek_key" ON "docto
 CREATE INDEX "invoices_branchId_idx" ON "invoices"("branchId");
 
 -- CreateIndex
-CREATE INDEX "notifications_branchId_idx" ON "notifications"("branchId");
+CREATE INDEX "notifications_branchId_idx" ON "WHATSAPP_INTEGRATION"("branchId");
 
 -- CreateIndex
 CREATE INDEX "patients_branchId_idx" ON "patients"("branchId");
@@ -149,7 +149,7 @@ ALTER TABLE "prescriptions" ADD CONSTRAINT "prescriptions_branchId_fkey" FOREIGN
 ALTER TABLE "doctor_schedules" ADD CONSTRAINT "doctor_schedules_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "branches"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "branches"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "WHATSAPP_INTEGRATION" ADD CONSTRAINT "notifications_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "branches"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "bookings" ADD CONSTRAINT "bookings_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "branches"("id") ON DELETE SET NULL ON UPDATE CASCADE;

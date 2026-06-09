@@ -1,10 +1,10 @@
+// src/lib/auth.ts
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { SubscriptionStatus } from "@prisma/client";
-
-// ✅ شيلنا الـ declare module من هنا عشان ميتعارضش مع ملف next-auth.d.ts
+import { checkAndExpireTrials } from "./services/trial-system";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
@@ -25,7 +25,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error("البريد الإلكتروني وكلمة المرور مطلوبان");
         }
 
-        // ✅ تحويل النص لـ string عشان Prisma يقبلو (الخطأ التالت)
         const email = credentials.email as string;
         const password = credentials.password as string;
 
@@ -43,7 +42,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         }
 
-        // ✅ رجعنا البيانات الأساسية فقط اللي في الـ User interface (الخطأ التاني)
         return {
           id: user.id,
           name: user.name,
@@ -56,14 +54,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user, trigger }) {
-      // 1. لما المستخدم يسجل دخول لأول مرة
       if (user) {
         token.id = user.id!;
         token.role = user.role;
         token.clinicId = user.clinicId;
         
-        // هنا هنجيب بيانات الاشتراك أول مرة
         if (user.clinicId) {
+          // تحقق مما إذا كانت الفترة التجريبية انتهت
+          await checkAndExpireTrials(user.clinicId);
+
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: user.clinicId },
           });
@@ -86,9 +85,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      // 2. لما نطلب تحديث الـ Session من الـ Frontend (بعد تجديد الاشتراك)
       if (trigger === "update") {
         if (token.clinicId) {
+          await checkAndExpireTrials(token.clinicId as string);
           const subscription = await prisma.subscription.findUnique({
             where: { clinicId: token.clinicId as string },
           });
@@ -109,7 +108,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.clinicId = token.clinicId as string;
-        // ✅ التعديل هنا عشان يتوافق مع النوع الجديد في next-auth.d.ts (الخطأ الرابع)
         session.user.subscriptionStatus = token.subscriptionStatus as SubscriptionStatus | "SUPER_ADMIN" | "EXPIRED" | null;
         session.user.planId = token.planId as string | null;
         session.user.trialEndsAt = token.trialEndsAt as Date | null;
