@@ -33,10 +33,14 @@ export default async function PricingPage() {
     }
   }
 
-  const plans = await prisma.plan.findMany({
-    where: { active: true },
-    orderBy: { monthlyPrice: 'asc' }
+  // جلب الباقات النشطة فقط (باستثناء الـ default-plan لو لسه موجود)
+  const rawPlans = await prisma.plan.findMany({
+    where: { active: true, slug: { not: "default-plan" } }
   })
+
+  // ✅ ترتيب الباقات بالظبط زي ما انت عايز
+  const planOrder = ['starter', 'pro', 'enterprise'];
+  const plans = rawPlans.sort((a, b) => planOrder.indexOf(a.slug) - planOrder.indexOf(b.slug));
 
   const highlightPlan = "pro" // الباقة الأكثر شيوعاً
 
@@ -47,7 +51,7 @@ export default async function PricingPage() {
           Choose the Right Plan for Your Clinic
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Start your 14-day free trial today. No credit card required. Upgrade anytime as your clinic grows.
+          Start your 10-day free trial today. No credit card required. Upgrade anytime as your clinic grows.
         </p>
       </div>
 
