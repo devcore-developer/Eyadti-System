@@ -20,40 +20,40 @@ export function Navbar() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 bg-white transition-shadow duration-300 ${
         isScrolled 
-          ? "bg-background/80 backdrop-blur-xl border-b border-border shadow-sm" 
-          : "bg-transparent"
+          ? "shadow-[0_1px_3px_rgba(0,0,0,0.06)] border-b border-[#E5E7EB]/50" 
+          : "border-b border-[#E5E7EB]"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 text-foreground">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] flex items-center justify-center shadow-lg">
-              <Stethoscope className="h-5 w-5 text-white" />
+          <Link href="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-[8px] bg-[#378ADD] flex items-center justify-center">
+              <Stethoscope className="h-4 w-4 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Eyadti</span>
+            <span className="text-lg font-bold text-gray-900">Eyadti</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-            <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</a>
+            <a href="#features" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Features</a>
+            <a href="#pricing" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Pricing</a>
+            <a href="#faq" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">FAQ</a>
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2">
-              Sign in
+            <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors px-4 py-2">
+              Sign In
             </Link>
             <Link 
               href="/signup" 
-              className="text-sm font-semibold text-white px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] shadow-[0_8px_20px_rgba(107,156,255,0.25)] hover:-translate-y-0.5 transition-all"
+              className="text-sm font-medium text-white px-4 py-2 rounded-[8px] bg-[#378ADD] hover:bg-[#2e7ac7] transition-colors"
             >
               Start Free Trial
             </Link>
           </div>
 
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden text-foreground">
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden text-gray-900">
             {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
@@ -65,14 +65,14 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-background/95 backdrop-blur-xl border-b border-border"
+            className="md:hidden bg-white border-b border-[#E5E7EB]"
           >
             <div className="px-4 py-4 space-y-3">
-              <a href="#features" className="block text-sm text-muted-foreground hover:text-foreground">Features</a>
-              <a href="#pricing" className="block text-sm text-muted-foreground hover:text-foreground">Pricing</a>
-              <a href="#faq" className="block text-sm text-muted-foreground hover:text-foreground">FAQ</a>
-              <Link href="/login" className="block text-sm font-medium text-foreground">Sign in</Link>
-              <Link href="/signup" className="block text-center text-sm font-semibold text-white px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF]">
+              <a href="#features" className="block text-sm text-gray-600 hover:text-gray-900">Features</a>
+              <a href="#pricing" className="block text-sm text-gray-600 hover:text-gray-900">Pricing</a>
+              <a href="#faq" className="block text-sm text-gray-600 hover:text-gray-900">FAQ</a>
+              <Link href="/login" className="block text-sm font-medium text-gray-700 py-2">Sign In</Link>
+              <Link href="/signup" className="block text-center text-sm font-medium text-white px-4 py-2 rounded-[8px] bg-[#378ADD]">
                 Start Free Trial
               </Link>
             </div>
