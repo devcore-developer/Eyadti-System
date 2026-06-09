@@ -1,11 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { generateActivationCode } from "@/actions/admin"
+import { superAdminGenerateCodes } from "@/actions/super-admin"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Loader2 } from "lucide-react"
 
-export function GenerateCodeForm() {
-  const [codeType, setCodeType] = useState<"SIGNUP" | "SUBSCRIPTION">("SUBSCRIPTION")
-  const [duration, setDuration] = useState(30)
+interface Plan { id: string; name: string; }
+
+interface GenerateCodeFormProps {
+  plans: Plan[];
+}
+
+const DURATION_OPTIONS = [
+  { label: "10 Days (Trial)", value: 10 },
+  { label: "1 Month (30 Days)", value: 30 },
+  { label: "6 Months (180 Days)", value: 180 },
+  { label: "1 Year (365 Days)", value: 365 },
+];
+
+export function GenerateCodeForm({ plans }: GenerateCodeFormProps) {
+  const [planId, setPlanId] = useState("")
+  const [durationDays, setDurationDays] = useState(30)
+  const [quantity, setQuantity] = useState(10)
   const [isPending, setIsPending] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
@@ -14,10 +32,15 @@ export function GenerateCodeForm() {
     setIsPending(true)
     setMessage(null)
 
-    const result = await generateActivationCode(codeType, duration)
+    const result = await superAdminGenerateCodes({
+      planId,
+      durationDays,
+      quantity,
+      type: "SUBSCRIPTION", // دايماً SUBSCRIPTION عشان الـ SIGNUP اتعملت في الـ Trial System
+    });
 
     if (result?.success) {
-      setMessage({ type: "success", text: result.message || "Code generated!" })
+      setMessage({ type: "success", text: result.message || "Codes generated!" })
     } else {
       setMessage({ type: "error", text: result?.error || "Failed to generate" })
     }
@@ -25,54 +48,67 @@ export function GenerateCodeForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* ── اختيار نوع الكود ── */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Code Type
-        </label>
-        <select
-          value={codeType}
-          onChange={(e) => setCodeType(e.target.value as "SIGNUP" | "SUBSCRIPTION")}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
-        >
-          <option value="SIGNUP">Signup Code (3 Days Trial)</option>
-          <option value="SUBSCRIPTION">Subscription Code</option>
-        </select>
-      </div>
-
-      {/* ── اختيار المدة (بيظهر بس لو اختار Subscription) ── */}
-      {codeType === "SUBSCRIPTION" && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Duration (Days)
-          </label>
-          <select
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+    <form onSubmit={handleSubmit} className="space-y-4 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+      <h3 className="text-lg font-bold text-foreground">Generate Subscription Codes</h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Plan Select */}
+        <div className="space-y-2">
+          <Label htmlFor="plan">Target Plan</Label>
+          <select 
+            id="plan"
+            value={planId} 
+            onChange={(e) => setPlanId(e.target.value)}
+            required
+            className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm"
           >
-            <option value={30}>30 Days (1 Month)</option>
-            <option value={90}>90 Days (3 Months)</option>
-            <option value={180}>180 Days (6 Months)</option>
-            <option value={365}>365 Days (1 Year)</option>
+            <option value="" disabled>Select Plan</option>
+            {plans.map((plan) => (
+              <option key={plan.id} value={plan.id}>{plan.name}</option>
+            ))}
           </select>
         </div>
-      )}
+
+        {/* Duration Select */}
+        <div className="space-y-2">
+          <Label htmlFor="duration">Duration</Label>
+          <select 
+            id="duration"
+            value={durationDays} 
+            onChange={(e) => setDurationDays(Number(e.target.value))}
+            className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm"
+          >
+            {DURATION_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Quantity Input */}
+        <div className="space-y-2">
+          <Label htmlFor="quantity">Quantity (Max 100)</Label>
+          <Input 
+            id="quantity" 
+            type="number" 
+            min={1} 
+            max={100} 
+            value={quantity} 
+            onChange={(e) => setQuantity(Number(e.target.value))} 
+            required 
+          />
+        </div>
+      </div>
 
       {message && (
-        <div className={`p-3 rounded-md text-sm font-mono ${message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+        <div className={`p-3 rounded-md text-sm font-medium ${message.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
           {message.text}
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-full inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
-      >
-        {isPending ? "Generating..." : "Generate New Code"}
-      </button>
+      <Button type="submit" disabled={isPending || !planId} className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white">
+        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        Generate Codes
+      </Button>
     </form>
   )
 }

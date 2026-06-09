@@ -6,7 +6,6 @@ import { createUserSchema, updateUserSchema, updateClinicSchema } from "@/lib/va
 import type { ActionResult } from "@/types"
 import { hash } from "bcryptjs"
 import { revalidatePath } from "next/cache"
-import crypto from "crypto"
 
 function handleAuthError(error: unknown): ActionResult {
   if (error instanceof AuthenticationError) return { success: false, error: error.message }
@@ -158,31 +157,4 @@ export async function updateClinicSettings(formData: FormData): Promise<ActionRe
   revalidatePath("/admin/settings")
   revalidatePath("/dashboard")
   return { success: true }
-}
-
-// ─── Generate Activation Code ────────────────────────────
-export async function generateActivationCode(type: "SIGNUP" | "SUBSCRIPTION", durationDays: number): Promise<ActionResult> {
-  try {
-    const session = await requireRole("ADMIN")
-
-    // توليد كود عشوائي (مثلا: F4A1-B9C2)
-    const rawCode = crypto.randomBytes(4).toString("hex").toUpperCase()
-    const formattedCode = `${rawCode.slice(0, 4)}-${rawCode.slice(4)}`
-    
-    // لو الكود لتسجيل، دايماً بيدي 3 أيام تجربة. لو لتفعيل، بيستخدم الـ durationDays
-    const days = type === "SIGNUP" ? 3 : durationDays
-
-    await prisma.activationCode.create({
-      data: {
-        code: formattedCode,
-        type: type,
-        durationDays: days,
-      },
-    })
-
-    return { success: true, message: `${type === "SIGNUP" ? "Signup" : "Subscription"} code generated: ${formattedCode}` }
-  } catch (error) {
-    console.error(error)
-    return { success: false, error: "Failed to generate code." }
-  }
 }
