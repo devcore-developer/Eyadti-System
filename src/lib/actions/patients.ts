@@ -1,11 +1,14 @@
 "use server"
 
+import { allergySchema, medicalHistorySchema, surgicalHistorySchema } from "@/lib/validations/patient"
 import { Gender } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/permissions"
 import type { ActionResult } from "@/types"
 import { revalidatePath } from "next/cache"
 import { notifyPatientCreated } from "@/lib/notifications/events"
+import { auditLog } from "@/lib/services/audit"
+
 
 // ── Create Patient ───────────────────────────────────
 
@@ -178,4 +181,93 @@ export async function searchPatients(query: string, clinicId: string) {
     select: { id: true, fullName: true, phone: true, gender: true, dateOfBirth: true },
     take: 5,
   })
+}
+// ─── Add Allergy ──────────────────────────────────
+export async function addAllergy(patientId: string, formData: FormData): Promise<ActionResult> {
+  try {
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR")
+    
+    const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId } })
+    if (!patient) return { success: false, error: "Patient not found" }
+
+    const raw = {
+      allergen: formData.get("allergen") as string,
+      reaction: (formData.get("reaction") as string) || undefined,
+      severity: (formData.get("severity") as string) || undefined,
+      notes: (formData.get("notes") as string) || undefined,
+    }
+
+    const validated = allergySchema.safeParse(raw)
+    if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as any }
+
+    const allergy = await prisma.patientAllergy.create({
+      data: { ...validated.data, patientId }
+    })
+
+    await auditLog({ clinicId, userId, action: "CREATE", entityType: "ALLERGY", entityId: allergy.id, newValues: allergy })
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
+    return { success: false, error: "Failed to add allergy." }
+  }
+  revalidatePath(`/patients/${patientId}`)
+  return { success: true }
+}
+
+// ─── Add Medical History ──────────────────────────
+export async function addMedicalHistory(patientId: string, formData: FormData): Promise<ActionResult> {
+  try {
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR")
+    const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId } })
+    if (!patient) return { success: false, error: "Patient not found" }
+
+    const raw = {
+      condition: formData.get("condition") as string,
+      status: (formData.get("status") as string) || undefined,
+      diagnosedAt: (formData.get("diagnosedAt") as string) || undefined,
+      notes: (formData.get("notes") as string) || undefined,
+    }
+
+    const validated = medicalHistorySchema.safeParse(raw)
+    if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as any }
+
+    const history = await prisma.patientMedicalHistory.create({
+      data: { ...validated.data, patientId, diagnosedAt: validated.data.diagnosedAt ? new Date(validated.data.diagnosedAt) : null }
+    })
+
+    await auditLog({ clinicId, userId, action: "CREATE", entityType: "MEDICAL_HISTORY", entityId: history.id, newValues: history })
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
+    return { success: false, error: "Failed to add medical history." }
+  }
+  revalidatePath(`/patients/${patientId}`)
+  return { success: true }
+}
+
+// ─── Add Surgical History ──────────────────────────
+export async function addSurgicalHistory(patientId: string, formData: FormData): Promise<ActionResult> {
+  try {
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR")
+    const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId } })
+    if (!patient) return { success: false, error: "Patient not found" }
+
+    const raw = {
+      procedure: formData.get("procedure") as string,
+      performedAt: (formData.get("performedAt") as string) || undefined,
+      notes: (formData.get("notes") as string) || undefined,
+    }
+
+    const validated = surgicalHistorySchema.safeParse(raw)
+    if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as any }
+
+    const surgery = await prisma.patientSurgicalHistory.create({
+      data: { ...validated.data, patientId, performedAt: validated.data.performedAt ? new Date(validated.data.performedAt) : null }
+    })
+
+    await auditLog({ clinicId, userId, action: "CREATE", entityType: "SURGICAL_HISTORY", entityId: surgery.id, newValues: surgery })
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
+    return { success: false, error: "Failed to add surgical history." }
+  }
+  revalidatePath(`/patients/${patientId}`)
+  return { success: true }
 }

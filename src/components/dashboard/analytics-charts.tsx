@@ -1,3 +1,5 @@
+// src/components/dashboard/analytics-charts.tsx
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -31,7 +33,6 @@ const CustomTooltip = ({ active, payload, label, isCurrency = false }: any) => {
 }
 
 export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
-  // 1. حل مشكلة الـ Width/Height: منع الرسم إلا بعد ما الصفحة تتحمل في الـ Browser
   const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
@@ -71,7 +72,8 @@ export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
           </div>
           
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            {/* ← التعديل: إضافة minWidth={0} عشان نمنع مكتبة Recharts من تعمل خطأ لو الشارت لسه مخفية */}
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">

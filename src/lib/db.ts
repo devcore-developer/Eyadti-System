@@ -11,10 +11,9 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is missing in .env file");
 }
 
-// إعداد Pool مع تفعيل SSL ببساطة ليتوافق مع Neon
 const pool = new Pool({ 
   connectionString,
-  ssl: true // الطريقة الأضمن لتفعيل SSL مع Neon
+  ssl: true 
 })
 
 const adapter = new PrismaPg(pool)
@@ -23,7 +22,9 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    // ❌ قمنا بحذف "query" من هنا لأنها تسبب بطء وسبام في الـ Terminal
+    // سنبقي فقط على الأخطاء والتحذيرات
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   })
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma

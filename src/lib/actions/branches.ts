@@ -3,12 +3,13 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/permissions"; // ← استخدمنا الدالة الموحدة
 import { branchCreateSchema, branchUpdateSchema } from "@/lib/validations/branch";
 import { ActionResult } from "@/types";
 import { revalidatePath } from "next/cache";
 import { auditLog } from "@/lib/services/audit";
 import { enforceUsageLimit } from "@/lib/services/usage-limits";
+import { auth } from "@/lib/auth";
 
 export async function getBranches() {
   const session = await auth();
@@ -26,10 +27,8 @@ export async function getBranches() {
 
 export async function createBranch(formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return { success: false, error: "Only admins can create branches" };
-    }
+    // ← التعديل: استخدام requireRole بدل الـ Check اليدوي
+    const { clinicId, userId } = await requireRole("ADMIN");
 
     const raw = {
       name: formData.get("name") as string,
@@ -44,10 +43,10 @@ export async function createBranch(formData: FormData): Promise<ActionResult> {
     const validated = branchCreateSchema.parse(raw);
 
     // Enforce SaaS Limit
-    await enforceUsageLimit(session.user.clinicId, "BRANCHES");
+    await enforceUsageLimit(clinicId, "BRANCHES");
 
     const existingCode = await prisma.branch.findFirst({
-      where: { clinicId: session.user.clinicId, code: validated.code },
+      where: { clinicId: clinicId, code: validated.code },
     });
     if (existingCode) return { success: false, error: "Branch code already exists" };
 
@@ -60,13 +59,13 @@ export async function createBranch(formData: FormData): Promise<ActionResult> {
         phone: validated.phone || null,
         email: validated.email || null,
         managerId: validated.managerId || null,
-        clinicId: session.user.clinicId,
+        clinicId: clinicId,
       },
     });
 
     await auditLog({
-      clinicId: session.user.clinicId,
-      userId: session.user.id,
+      clinicId: clinicId,
+      userId: userId,
       action: "CREATE",
       entityType: "BRANCH",
       entityId: branch.id,
@@ -76,6 +75,9 @@ export async function createBranch(formData: FormData): Promise<ActionResult> {
     revalidatePath("/settings/branches");
     return { success: true };
   } catch (error: any) {
+    if (error.name === "AuthenticationError" || error.name === "AuthorizationError") {
+      return { success: false, error: error.message };
+    }
     if (error.name === "ZodError") {
       const messages = error.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`).join(" | ");
       console.error("🔴 Zod Validation Errors:", messages);
@@ -91,10 +93,7 @@ export async function createBranch(formData: FormData): Promise<ActionResult> {
 
 export async function updateBranch(branchId: string, formData: FormData): Promise<ActionResult> {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return { success: false, error: "Unauthorized" };
-    }
+    const { clinicId, userId } = await requireRole("ADMIN");
 
     const raw = {
       name: formData.get("name") as string,
@@ -109,7 +108,7 @@ export async function updateBranch(branchId: string, formData: FormData): Promis
     const validated = branchUpdateSchema.parse(raw);
 
     const existing = await prisma.branch.findFirst({
-      where: { id: branchId, clinicId: session.user.clinicId },
+      where: { id: branchId, clinicId: clinicId },
     });
     if (!existing) return { success: false, error: "Branch not found" };
 
@@ -127,8 +126,8 @@ export async function updateBranch(branchId: string, formData: FormData): Promis
     });
 
     await auditLog({
-      clinicId: session.user.clinicId,
-      userId: session.user.id,
+      clinicId: clinicId,
+      userId: userId,
       action: "UPDATE",
       entityType: "BRANCH",
       entityId: branchId,
@@ -139,6 +138,9 @@ export async function updateBranch(branchId: string, formData: FormData): Promis
     revalidatePath("/settings/branches");
     return { success: true };
   } catch (error: any) {
+    if (error.name === "AuthenticationError" || error.name === "AuthorizationError") {
+      return { success: false, error: error.message };
+    }
     if (error.name === "ZodError") {
       const messages = error.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`).join(" | ");
       return { success: false, error: messages };
@@ -150,13 +152,10 @@ export async function updateBranch(branchId: string, formData: FormData): Promis
 
 export async function toggleBranchStatus(branchId: string): Promise<ActionResult> {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return { success: false, error: "Unauthorized" };
-    }
+    const { clinicId, userId } = await requireRole("ADMIN");
 
     const branch = await prisma.branch.findFirst({
-      where: { id: branchId, clinicId: session.user.clinicId },
+      where: { id: branchId, clinicId: clinicId },
     });
     if (!branch) return { success: false, error: "Branch not found" };
 
@@ -166,8 +165,8 @@ export async function toggleBranchStatus(branchId: string): Promise<ActionResult
     });
 
     await auditLog({
-      clinicId: session.user.clinicId,
-      userId: session.user.id,
+      clinicId: clinicId,
+      userId: userId,
       action: updated.isActive ? "ACTIVATE" : "DEACTIVATE",
       entityType: "BRANCH",
       entityId: branchId,
@@ -177,20 +176,20 @@ export async function toggleBranchStatus(branchId: string): Promise<ActionResult
 
     revalidatePath("/settings/branches");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "AuthenticationError" || error.name === "AuthorizationError") {
+      return { success: false, error: error.message };
+    }
     return { success: false, error: "Failed to update branch status" };
   }
 }
 
 export async function deleteBranch(branchId: string): Promise<ActionResult> {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return { success: false, error: "Unauthorized" };
-    }
+    const { clinicId, userId } = await requireRole("ADMIN");
 
     const branch = await prisma.branch.findFirst({
-      where: { id: branchId, clinicId: session.user.clinicId },
+      where: { id: branchId, clinicId: clinicId },
     });
     if (!branch) return { success: false, error: "Branch not found" };
 
@@ -202,8 +201,8 @@ export async function deleteBranch(branchId: string): Promise<ActionResult> {
     await prisma.branch.delete({ where: { id: branchId } });
 
     await auditLog({
-      clinicId: session.user.clinicId,
-      userId: session.user.id,
+      clinicId: clinicId,
+      userId: userId,
       action: "DELETE",
       entityType: "BRANCH",
       entityId: branchId,
@@ -212,7 +211,10 @@ export async function deleteBranch(branchId: string): Promise<ActionResult> {
 
     revalidatePath("/settings/branches");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "AuthenticationError" || error.name === "AuthorizationError") {
+      return { success: false, error: error.message };
+    }
     return { success: false, error: "Failed to delete branch" };
   }
 }
@@ -224,44 +226,52 @@ export async function assignUserToBranches(
   branchIds: string[],
   allBranchAccess: boolean
 ): Promise<ActionResult> {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return { success: false, error: "Unauthorized" };
+  try {
+    await requireRole("ADMIN");
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: { allBranchAccess },
+      }),
+      prisma.userBranch.deleteMany({ where: { userId } }),
+      prisma.userBranch.createMany({
+        data: branchIds.map((branchId) => ({ userId, branchId })),
+        skipDuplicates: true,
+      }),
+    ]);
+
+    revalidatePath("/settings/branches");
+    return { success: true };
+  } catch (error: any) {
+    if (error.name === "AuthenticationError" || error.name === "AuthorizationError") {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "Failed to assign user to branches" };
   }
-
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: userId },
-      data: { allBranchAccess },
-    }),
-    prisma.userBranch.deleteMany({ where: { userId } }),
-    prisma.userBranch.createMany({
-      data: branchIds.map((branchId) => ({ userId, branchId })),
-      skipDuplicates: true,
-    }),
-  ]);
-
-  revalidatePath("/settings/branches");
-  return { success: true };
 }
 
 export async function assignDoctorToBranches(
   doctorId: string,
   branchIds: string[]
 ): Promise<ActionResult> {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return { success: false, error: "Unauthorized" };
+  try {
+    await requireRole("ADMIN");
+
+    await prisma.$transaction([
+      prisma.doctorBranch.deleteMany({ where: { doctorId } }),
+      prisma.doctorBranch.createMany({
+        data: branchIds.map((branchId) => ({ doctorId, branchId })),
+        skipDuplicates: true,
+      }),
+    ]);
+
+    revalidatePath("/settings/branches");
+    return { success: true };
+  } catch (error: any) {
+    if (error.name === "AuthenticationError" || error.name === "AuthorizationError") {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "Failed to assign doctor to branches" };
   }
-
-  await prisma.$transaction([
-    prisma.doctorBranch.deleteMany({ where: { doctorId } }),
-    prisma.doctorBranch.createMany({
-      data: branchIds.map((branchId) => ({ doctorId, branchId })),
-      skipDuplicates: true,
-    }),
-  ]);
-
-  revalidatePath("/settings/branches");
-  return { success: true };
 }

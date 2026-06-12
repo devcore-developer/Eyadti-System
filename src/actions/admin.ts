@@ -1,3 +1,5 @@
+// src/actions/admin.ts
+
 "use server"
 
 import { prisma } from "@/lib/db"
@@ -37,6 +39,13 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     const existingUser = await prisma.user.findUnique({ where: { email: validated.data.email } })
     if (existingUser) {
       return { success: false, error: "Email is already in use." }
+    }
+
+    // ← التعديل: فحص إن العيادة موجودة فعلاً في الداتابيز قبل الإضافة
+    // ده بيمنع خطأ الـ Foreign key لو الـ Session قديمة بعد عمل Reset
+    const clinicExists = await prisma.clinic.findUnique({ where: { id: session.clinicId } })
+    if (!clinicExists) {
+      return { success: false, error: "Clinic not found. Please log out and log in again to refresh your session." }
     }
 
     const hashedPassword = await hash(validated.data.password, 10)

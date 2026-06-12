@@ -91,7 +91,6 @@ export function VisitForm({ patientId, doctors, visit }: Props) {
         const result = await updateVisit(visit.id, formData)
         handleResult(result)
       } else {
-        // تم نقل منطق الإنشاء إلى PatientVisitForm الموحد
         toast.error("Please use the New Patient Visit form to create visits")
       }
     })

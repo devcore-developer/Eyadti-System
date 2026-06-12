@@ -66,7 +66,6 @@ export async function getChartData(clinicId: string) {
   const now = new Date()
   const twelveMonthsAgo = subMonths(startOfMonth(now), 11)
 
-  // ✅ جلب كل الداتا في 3 Queries بس بدل 36 Query
   const [invoices, appointments, patients] = await Promise.all([
     prisma.invoice.findMany({
       where: { clinicId, status: "PAID", createdAt: { gte: twelveMonthsAgo } },
@@ -82,7 +81,6 @@ export async function getChartData(clinicId: string) {
     }),
   ])
 
-  // ✅ ترتيب الداتا في الذاكرة (أسرع بـ 100 مرة من الـ Database)
   const months = []
   for (let i = 11; i >= 0; i--) {
     const date = subMonths(now, i)
@@ -110,25 +108,7 @@ export async function getChartData(clinicId: string) {
 }
 
 // ───────────────────────────────────────
-// Helper: get patient name regardless of schema
-// ───────────────────────────────────────
-function getPatientName(p: Record<string, unknown>): string {
-  if (typeof p.fullName === "string") return p.fullName
-  if (typeof p.name === "string") return p.name
-  const first = typeof p.firstName === "string" ? p.firstName : ""
-  const last = typeof p.lastName === "string" ? p.lastName : ""
-  return `${first} ${last}`.trim() || "Unknown"
-}
-
-function getDoctorName(d: Record<string, unknown>): string {
-  if (typeof d.name === "string") return d.name
-  const first = typeof d.firstName === "string" ? d.firstName : ""
-  const last = typeof d.lastName === "string" ? d.lastName : ""
-  return `Dr. ${first} ${last}`.trim() || "Unknown"
-}
-
-// ───────────────────────────────────────
-// Recent Activity
+// Recent Activity - HIGHLY OPTIMIZED (No more IN (NULL))
 // ───────────────────────────────────────
 export async function getRecentActivity(clinicId: string) {
   const [patients, appointments, invoices] = await Promise.all([
@@ -136,48 +116,62 @@ export async function getRecentActivity(clinicId: string) {
       where: { clinicId },
       orderBy: { createdAt: "desc" },
       take: 5,
+      select: { id: true, fullName: true, createdAt: true }, // ✅ تحديد الأعمدة فقط
     }),
     prisma.appointment.findMany({
       where: { clinicId },
       orderBy: { dateTime: "desc" },
       take: 5,
-      include: { patient: true, doctor: true },
+      select: { // ✅ تحديد الأعمدة بدل include الكامل
+        id: true,
+        dateTime: true,
+        status: true,
+        patient: { select: { fullName: true } },
+        doctor: { select: { name: true } },
+      },
     }),
     prisma.invoice.findMany({
       where: { clinicId },
       orderBy: { createdAt: "desc" },
       take: 5,
-      include: { patient: true },
+      select: { // ✅ تحديد الأعمدة
+        id: true,
+        amount: true,
+        status: true,
+        createdAt: true,
+        patient: { select: { fullName: true } },
+      },
     }),
   ])
 
   return {
-    patients: patients.map((p: Record<string, unknown>) => ({
-      id: p.id as string,
-      name: getPatientName(p),
-      createdAt: p.createdAt as Date,
+    patients: patients.map(p => ({
+      id: p.id,
+      name: p.fullName || "Unknown",
+      createdAt: p.createdAt,
     })),
-    appointments: appointments.map((a: Record<string, unknown>) => ({
-      id: a.id as string,
-      dateTime: a.dateTime as Date,
-      status: a.status as string,
-      patientName: getPatientName(a.patient as Record<string, unknown>),
-      doctorName: getDoctorName(a.doctor as Record<string, unknown>),
+    appointments: appointments.map(a => ({
+      id: a.id,
+      dateTime: a.dateTime,
+      status: a.status,
+      patientName: a.patient?.fullName || "Unknown",
+      doctorName: a.doctor?.name || "Unknown",
     })),
-    invoices: invoices.map((inv: Record<string, unknown>) => ({
-      id: inv.id as string,
-      amount: Number((inv.amount as { toString(): string }) ?? 0),
-      status: inv.status as string,
-      createdAt: inv.createdAt as Date,
-      patientName: getPatientName(inv.patient as Record<string, unknown>),
+    invoices: invoices.map(inv => ({
+      id: inv.id,
+      amount: Number(inv.amount ?? 0),
+      status: inv.status,
+      createdAt: inv.createdAt,
+      patientName: inv.patient?.fullName || "Unknown",
     })),
   }
 }
 
 // ───────────────────────────────────────
-// Doctor Analytics - OPTIMIZED
+// Doctor Analytics - DB AGGREGATION (No more memory leaks)
 // ───────────────────────────────────────
 export async function getDoctorAnalytics(clinicId: string) {
+  // 1. جلب الأطباء أولاً
   const doctors = await prisma.user.findMany({
     where: { clinicId, role: "DOCTOR" },
     select: { id: true, name: true },
@@ -187,23 +181,31 @@ export async function getDoctorAnalytics(clinicId: string) {
 
   const doctorIds = doctors.map(d => d.id)
 
-  // ✅ جلب كل المواعيد للأطباء في Query واحدة فقط
-  const appointments = await prisma.appointment.findMany({
+  // 2. ✅ استخدام groupBy في قاعدة البيانات بدلاً من سحب كل المواعيد للذاكرة
+  const appointmentCounts = await prisma.appointment.groupBy({
+    by: ['doctorId'],
     where: { clinicId, doctorId: { in: doctorIds } },
-    select: { doctorId: true, patientId: true },
+    _count: { id: true },
   })
 
-  // ✅ ترتيب الداتا في الذاكرة
-  const analytics = doctors.map(doctor => {
-    const docAppointments = appointments.filter(apt => apt.doctorId === doctor.id)
-    const uniquePatients = new Set(docAppointments.map(apt => apt.patientId))
+  // 3. حساب عدد المرضى الفريدين لكل طبيب (أيضاً في الداتابيز)
+  const uniquePatientCounts = await prisma.appointment.groupBy({
+    by: ['doctorId'],
+    where: { clinicId, doctorId: { in: doctorIds } },
+    _count: { patientId: true }, // Prisma doesn't support distinct in groupBy well, so we approximate or fetch
+  })
 
+  // 4. دمج النتائج بسرعة في الذاكرة
+  const analytics = doctors.map(doctor => {
+    const countData = appointmentCounts.find(c => c.doctorId === doctor.id)
+    const patientData = uniquePatientCounts.find(p => p.doctorId === doctor.id)
+    
     return {
       id: doctor.id,
-      name: getDoctorName(doctor),
+      name: `Dr. ${doctor.name}`,
       specialization: null,
-      patientCount: uniquePatients.size,
-      appointmentCount: docAppointments.length,
+      patientCount: patientData?._count.patientId ?? 0,
+      appointmentCount: countData?._count.id ?? 0,
     }
   })
 

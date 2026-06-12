@@ -1,4 +1,3 @@
-// src/app/(dashboard)/patients/[id]/page.tsx
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/permissions"
 import { redirect, notFound } from "next/navigation"
@@ -13,6 +12,7 @@ import { PatientSummaryCards } from "@/components/patients/patient-summary-cards
 import { PatientTabs } from "@/components/patients/patient-tabs"
 import { getPatientGallery } from "@/actions/gallery"
 import { PatientGallery } from "@/components/patients/patient-gallery"
+import { PatientHistorySection } from "@/components/patients/patient-history-section" // ← المكون الجديد
 
 export default async function PatientDetailPage({
   params,
@@ -32,7 +32,6 @@ export default async function PatientDetailPage({
 
   const [patient, timeline, galleryItems, clinic] = await Promise.all([
     prisma.patient.findFirst({
-      // لاحظ هنا session.clinicId مش session.user.clinicId
       where: { id: id, clinicId: session.clinicId },
       include: {
         _count: { select: { visits: true, prescriptions: true, attachments: true, invoices: true } },
@@ -51,6 +50,16 @@ export default async function PatientDetailPage({
           orderBy: { createdAt: "desc" },
           include: { doctor: { select: { name: true } }, _count: { select: { items: true } } },
         },
+        // ↓↓↓ جلب بيانات الحساسيات والتاريخ المرضي والجراحي ↓↓↓
+        allergies: {
+          orderBy: { createdAt: "desc" }
+        },
+        medicalHistory: {
+          orderBy: { createdAt: "desc" }
+        },
+        surgicalHistory: {
+          orderBy: { createdAt: "desc" }
+        },
       },
     }),
     getEntityTimeline("PATIENT", id),
@@ -63,7 +72,6 @@ export default async function PatientDetailPage({
 
   if (!patient) notFound()
 
-  // لاحظ هنا session.role مش session.user.role
   const showEdit = session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "DOCTOR"
   const showDelete = session.role === "SUPER_ADMIN" || session.role === "ADMIN"
   const canAddVisit = session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "DOCTOR"
@@ -173,6 +181,14 @@ export default async function PatientDetailPage({
                 </div>
               </div>
             </div>
+
+            {/* ↓↓↓ Allergies & History Section (القسم الجديد) ↓↓↓ */}
+            <PatientHistorySection 
+              patientId={patient.id} 
+              allergies={patient.allergies} 
+              medicalHistory={patient.medicalHistory} 
+              surgicalHistory={patient.surgicalHistory} 
+            />
 
             {/* Recent Visits Section */}
             <div id="visits">

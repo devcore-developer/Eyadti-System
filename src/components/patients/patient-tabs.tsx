@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils"
 
 const tabs = [
   { id: "overview", label: "Overview" },
-  { id: "medical", label: "Medical Records" },
+  { id: "allergies-history", label: "Allergies & History" }, // ← التاب الجديد
   { id: "visits", label: "Visits" },
   { id: "prescriptions", label: "Prescriptions" },
-  { id: "attachments", label: "Attachments" },
+  { id: "attachments", label: "Medical Files" },
   { id: "invoices", label: "Invoices" },
-  { id: "gallery", label: "Before & After" }, // ✅ التاب الجديد
+  { id: "gallery", label: "Before & After" },
   { id: "timeline", label: "Timeline" },
 ]
 

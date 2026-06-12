@@ -7,7 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Stethoscope, Loader2, AlertCircle, KeyRound, MessageCircle, ShieldCheck } from "lucide-react"
+import { Stethoscope, Loader2, AlertCircle, KeyRound, MessageCircle } from "lucide-react"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -23,19 +23,13 @@ export default function SignupPage() {
     e.preventDefault()
     setError(null)
 
-    // Validation
-    if (!formData.name || !formData.email || !formData.password || !formData.clinicName) {
-      setError("Please fill in all required fields")
-      return
-    }
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters")
+    if (!formData.name || !formData.email || !formData.password || !formData.clinicName || !signupCode) {
+      setError("Please fill in all fields including the activation code")
       return
     }
 
     startTransition(async () => {
-      // الإرسال للـ Action، الكود سيكون اختياري
-      const result = await signupAction({ ...formData, signupCode: signupCode || "" }) // ← أبعت نص فاضي بدل undefined
+      const result = await signupAction({ ...formData, signupCode })
       if (result?.error) {
         setError(result.error)
       } else {
@@ -54,10 +48,10 @@ export default function SignupPage() {
             <Stethoscope className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Start Your Free Trial
+            Create Your Clinic
           </h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            10-day free trial. No credit card required.
+            Enter your details and the activation code provided by the administrator
           </p>
         </div>
 
@@ -71,7 +65,6 @@ export default function SignupPage() {
           )}
 
           <form onSubmit={handleSignup} className="space-y-4">
-            {/* User Data */}
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input id="name" name="name" placeholder="Dr. Ahmed" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required disabled={isPending} />
@@ -92,34 +85,22 @@ export default function SignupPage() {
               <Input id="clinicName" name="clinicName" placeholder="Eyadti Medical Center" value={formData.clinicName} onChange={(e) => setFormData({...formData, clinicName: e.target.value})} required disabled={isPending} />
             </div>
 
-            {/* Divider */}
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-200 dark:border-slate-700" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-[#1A2332] px-2 text-muted-foreground">Optional</span>
-              </div>
-            </div>
-
-            {/* Activation Code (Optional) */}
+            {/* Activation Code (Required) */}
             <div className="space-y-2">
-              <Label htmlFor="signupCode" className="flex items-center gap-2 text-sm">
-                <KeyRound className="h-3.5 w-3.5 text-[#5BC0BE]" />
+              <Label htmlFor="signupCode" className="flex items-center gap-2 text-sm font-bold text-[#5BC0BE]">
+                <KeyRound className="h-4 w-4" />
                 Activation Code
               </Label>
               <Input 
                 id="signupCode" 
                 name="signupCode" 
-                placeholder="Enter code if you have one" 
+                placeholder="TRIAL-XXXX-XXXX or 1M-XXXX-XXXX" 
+                required 
                 disabled={isPending}
                 value={signupCode}
                 onChange={(e) => setSignupCode(e.target.value)}
-                className="font-semibold tracking-wider text-center"
+                className="font-semibold tracking-wider text-center border-teal-300 dark:border-teal-700 focus:ring-teal-500"
               />
-              <p className="text-[11px] text-muted-foreground text-center">
-                Leave empty to start with the 10-day Starter trial
-              </p>
             </div>
 
             {/* WhatsApp Help */}
@@ -131,7 +112,7 @@ export default function SignupPage() {
                 className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-[#25D366] hover:text-[#20bd5a] transition-colors"
               >
                 <MessageCircle className="h-4 w-4" />
-                Need a Pro code? Contact Sales via WhatsApp
+                Don't have a code? Contact Sales via WhatsApp
               </a>
             </div>
 
@@ -146,10 +127,7 @@ export default function SignupPage() {
                   Creating Account...
                 </>
               ) : (
-                <>
-                  <ShieldCheck className="h-4 w-4" />
-                  Start Free Trial
-                </>
+                "Create Account"
               )}
             </Button>
           </form>

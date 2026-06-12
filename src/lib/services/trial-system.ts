@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { PLANS_CONFIG } from "@/lib/constants/features";
 
 /**
- * Initialize a 14-day free trial for a newly registered clinic.
+ * Initialize a 10-day free trial for a newly registered clinic.
  * Should be called immediately after Clinic creation.
  */
 export async function initializeTrialSubscription(clinicId: string) {

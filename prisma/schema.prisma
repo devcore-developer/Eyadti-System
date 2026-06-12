@@ -221,7 +221,7 @@ model User {
 model Clinic {
   id            String               @id @default(cuid())
   name          String
-  slug          String              @unique // ← أضف السطر ده
+  slug          String              @unique
   address       String?
   phone         String?
   ownerId       String?
@@ -259,6 +259,9 @@ model Patient {
   gender        Gender
   dateOfBirth   DateTime
   address       String?
+  allergies       PatientAllergy[]
+  medicalHistory  PatientMedicalHistory[]
+  surgicalHistory PatientSurgicalHistory[]  
   clinicId      String
   branchId      String?
   clinic        Clinic         @relation(fields: [clinicId], references: [id], onDelete: Restrict)
@@ -396,16 +399,16 @@ model Plan {
   maxUsers                     Int      @default(2)
   maxPatients                  Int      @default(500)
   maxBranches                  Int      @default(1)
-  maxMonthlyVisits             Int      @default(100) // ← جديد
+  maxMonthlyVisits             Int      @default(100)
   onlineBookingEnabled         Boolean  @default(false)
   analyticsEnabled             Boolean  @default(false)
-  whatsappEnabled              Boolean  @default(false) // ← جديد
-  auditLogsEnabled             Boolean  @default(false) // ← جديد
-  galleryEnabled               Boolean  @default(false) // ← جديد
-  advancedInvoicesEnabled      Boolean  @default(false) // ← جديد
-  doctorSchedulesEnabled       Boolean  @default(true)  // ← جديد
-  queueManagementEnabled       Boolean  @default(false) // ← جديد
-  waitingRoomDisplayEnabled    Boolean  @default(false) // ← جديد
+  whatsappEnabled              Boolean  @default(false)
+  auditLogsEnabled             Boolean  @default(false)
+  galleryEnabled               Boolean  @default(false)
+  advancedInvoicesEnabled      Boolean  @default(false)
+  doctorSchedulesEnabled       Boolean  @default(true)
+  queueManagementEnabled       Boolean  @default(false)
+  waitingRoomDisplayEnabled    Boolean  @default(false)
   active                       Boolean  @default(true)
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
@@ -425,7 +428,7 @@ model Subscription {
   status      SubscriptionStatus @default(TRIAL)
   startDate   DateTime           @default(now())
   endDate     DateTime?
-  currentPeriodEnd DateTime?     // <-- أضف هذا السطر تحديداً هنا
+  currentPeriodEnd DateTime?
   trialEndsAt DateTime?
   cancelledAt DateTime?
   createdAt   DateTime           @default(now())
@@ -607,9 +610,9 @@ model Prescription {
   patientId String
   doctorId  String
   visitId   String?  @unique
-  complaints String?   // لتخزين الشكاوي (كـ JSON Array أو نصوص مفصولة بفاصلة)
-  diagnoses String?   // لتخزين التشخيصات
-  treatment String?   // خطة العلاج / Treatment
+  complaints String?
+  diagnoses String?
+  treatment String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -662,10 +665,7 @@ model ClinicSettings {
   timeFormat                 String   @default("24h")
   enableNotifications        Boolean  @default(true)
   enableOnlineBooking        Boolean  @default(false)
-  
-  // ↓↓↓ شيلنا ultramsg وحطينا ده ↓↓↓
-  whatsappInstanceName       String?  // اسم الـ Instance في Evolution API
-
+  whatsappInstanceName       String?
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 
@@ -861,8 +861,8 @@ model GalleryItem {
   patientId       String
   title           String?
   description     String?
-  beforeImageUrls String[] // <- اتغيرت لمصفوفة
-  afterImageUrls  String[] // <- اتغيرت لمصفوفة
+  beforeImageUrls String[]
+  afterImageUrls  String[]
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -872,4 +872,80 @@ model GalleryItem {
 
   @@index([clinicId])
   @@index([patientId])
+}
+
+model PatientAllergy {
+  id        String   @id @default(cuid())
+  patientId String
+  allergen  String
+  reaction  String?
+  severity  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("patient_allergies")
+}
+
+model PatientMedicalHistory {
+  id           String   @id @default(cuid())
+  patientId    String
+  condition    String
+  status       String?
+  diagnosedAt  DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("patient_medical_histories")
+}
+
+model PatientSurgicalHistory {
+  id          String   @id @default(cuid())
+  patientId   String
+  procedure   String
+  performedAt DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("patient_surgical_histories")
+}
+
+model AllergyDict {
+  id        String   @id @default(cuid())
+  name      String
+  category  String?
+  createdAt DateTime @default(now())
+  
+  @@index([name])
+  @@map("allergy_dictionary")
+}
+
+model SurgeryDict {
+  id        String   @id @default(cuid())
+  name      String
+  specialty String?
+  createdAt DateTime @default(now())
+  
+  @@index([name])
+  @@map("surgery_dictionary")
+}
+
+model MedicalHistoryDict {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  category String?
+
+  @@index([name])
+  @@map("medical_history_dictionary")
 }

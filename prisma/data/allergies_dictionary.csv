@@ -1,0 +1,293 @@
+name,category
+Penicillin,Drug
+Amoxicillin,Drug
+Ampicillin,Drug
+Amoxicillin-Clavulanate,Drug
+Cephalexin,Drug
+Ceftriaxone,Drug
+Cefazolin,Drug
+Cefuroxime,Drug
+Cefdinir,Drug
+Cefepime,Drug
+Azithromycin,Drug
+Erythromycin,Drug
+Clarithromycin,Drug
+Ciprofloxacin,Drug
+Levofloxacin,Drug
+Moxifloxacin,Drug
+Sulfamethoxazole-Trimethoprim,Drug
+Sulfonamides,Drug
+Doxycycline,Drug
+Minocycline,Drug
+Tetracycline,Drug
+Nitrofurantoin,Drug
+Metronidazole,Drug
+Clindamycin,Drug
+Vancomycin,Drug
+Gentamicin,Drug
+Tobramycin,Drug
+Amikacin,Drug
+Ibuprofen,Drug
+Naproxen,Drug
+Diclofenac,Drug
+Ketorolac,Drug
+Meloxicam,Drug
+Piroxicam,Drug
+Indomethacin,Drug
+Celecoxib,Drug
+Aspirin,Drug
+Acetaminophen,Drug
+Codeine,Drug
+Morphine,Drug
+Oxycodone,Drug
+Hydrocodone,Drug
+Fentanyl,Drug
+Tramadol,Drug
+Meperidine,Drug
+Lidocaine,Drug
+Bupivacaine,Drug
+Procaine,Drug
+Propofol,Drug
+Ketamine,Drug
+Midazolam,Drug
+Succinylcholine,Drug
+Rocuronium,Drug
+Vecuronium,Drug
+Iodine Contrast Media,Drug
+Gadolinium,Drug
+Barium Sulfate,Drug
+Carboplatin,Drug
+Cisplatin,Drug
+Paclitaxel,Drug
+Docetaxel,Drug
+Methotrexate,Drug
+Rituximab,Drug
+Trastuzumab,Drug
+Infliximab,Drug
+Adalimumab,Drug
+Etanercept,Drug
+Allopurinol,Drug
+Febuxostat,Drug
+Carbamazepine,Drug
+Phenytoin,Drug
+Lamotrigine,Drug
+Valproic Acid,Drug
+Phenobarbital,Drug
+Lisinopril,Drug
+Enalapril,Drug
+Captopril,Drug
+Losartan,Drug
+Valsartan,Drug
+Amlodipine,Drug
+Metoprolol,Drug
+Atenolol,Drug
+Propranolol,Drug
+Omeprazole,Drug
+Pantoprazole,Drug
+Ranitidine,Drug
+Famotidine,Drug
+Metoclopramide,Drug
+Ondansetron,Drug
+Promethazine,Drug
+Prednisone,Drug
+Methylprednisolone,Drug
+Hydrocortisone,Drug
+Dexamethasone,Drug
+Fluticasone,Drug
+Insulin Glargine,Drug
+Insulin Lispro,Drug
+Metformin,Drug
+Glimepiride,Drug
+Sitagliptin,Drug
+Empagliflozin,Drug
+Warfarin,Drug
+Heparin,Drug
+Enoxaparin,Drug
+Clopidogrel,Drug
+Alteplase,Drug
+Bacitracin,Drug
+Neomycin,Drug
+Polymyxin B,Drug
+Mupirocin,Drug
+Chlorhexidine,Drug
+Povidone-Iodine,Drug
+Benzalkonium Chloride,Drug
+Thimerosal,Drug
+Formaldehyde,Chemical
+Nickel,Chemical
+Cobalt,Chemical
+Chromium,Chemical
+Gold,Chemical
+Palladium,Chemical
+Mercury,Chemical
+Latex,Environmental
+Rubber,Environmental
+Balsam of Peru,Chemical
+Propylene Glycol,Chemical
+Parabens,Chemical
+Fragrance Mix,Chemical
+Lanolin,Chemical
+Neomycin Sulfate,Chemical
+Epoxy Resin,Chemical
+Colophony,Chemical
+Quaternium-15,Chemical
+Imidazolidinyl Urea,Chemical
+Diazolidinyl Urea,Chemical
+Isothiazolinones,Chemical
+Methylisothiazolinone,Chemical
+Cocamidopropyl Betaine,Chemical
+Ethylene Diamine,Chemical
+Para-phenylenediamine,Chemical
+Disperse Blue,Chemical
+Sunscreen Agents,Chemical
+Oxybenzone,Chemical
+Octocrylene,Chemical
+Dust Mites,Environmental
+Dermatophagoides pteronyssinus,Environmental
+Dermatophagoides farinae,Environmental
+Ragweed Pollen,Environmental
+Birch Pollen,Environmental
+Oak Pollen,Environmental
+Cedar Pollen,Environmental
+Elm Pollen,Environmental
+Maple Pollen,Environmental
+Grass Pollen,Environmental
+Timothy Grass,Environmental
+Bermuda Grass,Environmental
+Rye Grass,Environmental
+Kentucky Bluegrass,Environmental
+Mold,Environmental
+Aspergillus,Environmental
+Penicillium,Environmental
+Cladosporium,Environmental
+Alternaria,Environmental
+Cat Dander,Environmental
+Dog Dander,Environmental
+Horse Dander,Environmental
+Guinea Pig Dander,Environmental
+Rabbit Dander,Environmental
+Hamster Dander,Environmental
+Cockroach,Environmental
+Bee Venom,Environmental
+Wasp Venom,Environmental
+Hornet Venom,Environmental
+Fire Ant Venom,Environmental
+Mosquito Bites,Environmental
+Silica,Environmental
+Talc,Environmental
+Gluten,Food
+Peanut,Food
+Tree Nuts,Food
+Almond,Food
+Walnut,Food
+Cashew,Food
+Pecan,Food
+Pistachio,Food
+Hazelnut,Food
+Macadamia Nut,Food
+Brazil Nut,Food
+Pine Nut,Food
+Pecan,Food
+Milk,Food
+Casein,Food
+Whey,Food
+Lactose,Food
+Egg,Food
+Egg White,Food
+Egg Yolk,Food
+Soy,Food
+Soybean,Food
+Soy Lecithin,Food
+Wheat,Food
+Barley,Food
+Rye,Food
+Oats,Food
+Fish,Food
+Salmon,Food
+Tuna,Food
+Cod,Food
+Halibut,Food
+Shrimp,Food
+Crab,Food
+Lobster,Food
+Crustaceans,Food
+Mollusks,Food
+Oyster,Food
+Clam,Food
+Squid,Food
+Scallop,Food
+Sesame,Food
+Mustard,Food
+Celery,Food
+Lupin,Food
+Sulfites,Food
+Tartrazine,Food
+FD&C Yellow No. 5,Food
+Annatto,Food
+Carmine,Food
+Benzoates,Food
+Nitrates,Food
+Nitrites,Food
+MSG,Food
+Aspartame,Food
+Saccharin,Food
+Sorbitol,Food
+Apple,Food
+Peach,Food
+Cherry,Food
+Plum,Food
+Apricot,Food
+Pear,Food
+Kiwi,Food
+Banana,Food
+Avocado,Food
+Melon,Food
+Watermelon,Food
+Cantaloupe,Food
+Honeydew,Food
+Pineapple,Food
+Mango,Food
+Papaya,Food
+Strawberry,Food
+Blueberry,Food
+Raspberry,Food
+Grape,Food
+Citrus,Food
+Orange,Food
+Lemon,Food
+Lime,Food
+Grapefruit,Food
+Tomato,Food
+Potato,Food
+Carrot,Food
+Celery,Food
+Onion,Food
+Garlic,Food
+Corn,Food
+Rice,Food
+Coconut,Food
+Chocolate,Food
+Cocoa,Food
+Caffeine,Food
+Coffee,Food
+Tea,Food
+Honey,Food
+Yeast,Food
+Mushroom,Food
+Vinegar,Food
+Soy Sauce,Food
+Pepper,Food
+Paprika,Food
+Cinnamon,Food
+Cumin,Food
+Vanilla,Food
+Mint,Food
+Peppermint,Food
+Peanut Oil,Food
+Soybean Oil,Food
+Sunflower Seeds,Food
+Pumpkin Seeds,Food
+Flaxseed,Food
+Chia Seeds,Food
+Hemp Seeds,Food
+Poppy Seeds,Food

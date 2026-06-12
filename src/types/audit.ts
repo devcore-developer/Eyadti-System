@@ -20,7 +20,10 @@ export type EntityType =
   | "CLINIC_SETTINGS"
   | "USER"
   | "SUBSCRIPTION"
-  | "BRANCH";
+  | "BRANCH"
+  | "ALLERGY"           // ← أضف هذا
+  | "MEDICAL_HISTORY"   // ← أضف هذا
+  | "SURGICAL_HISTORY"; // ← أضف هذا  
 
 export interface AuditLogEntry {
   id: string;
@@ -77,4 +80,7 @@ export const ENTITY_LABELS: Record<EntityType, string> = {
   USER: "User",
   SUBSCRIPTION: "Subscription",
   BRANCH: "Branch",
+  ALLERGY: "Allergy",
+  MEDICAL_HISTORY: "Medical History",
+  SURGICAL_HISTORY: "Surgical History"
 };
