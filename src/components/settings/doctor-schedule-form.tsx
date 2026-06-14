@@ -98,7 +98,7 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
       <div className="p-6 space-y-6">
         <div>
           <Label className="text-sm font-semibold">Select Doctor</Label>
-          <Select value={selectedDoctor} onValueChange={(val: string) => setSelectedDoctor(val)}>
+          <Select value={selectedDoctor} onValueChange={(val) => setSelectedDoctor(val || "")}>
             <SelectTrigger className="w-full md:w-1/3 mt-2 rounded-xl h-11">
               {/* ✨ الحل: عرض اسم الدكتور صراحة بدل ما نعتمد على الـ Radix Auto-extract */}
               <SelectValue placeholder="Choose a doctor...">
