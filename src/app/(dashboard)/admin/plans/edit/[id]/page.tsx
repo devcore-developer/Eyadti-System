@@ -11,16 +11,21 @@ export const metadata = {
 export default async function EditPlanPage({
   params,
 }: {
-  params: { id: string };
+  // ✨ الحل: تغيير النوع لـ Promise زي ما Next.js 16 طلب
+  params: Promise<{ id: string }>;
 }) {
-  const plan = await getPlanById(params.id);
+  // ✨ فك الـ Promise بـ await
+  const { id } = await params;
+  
+  const plan = await getPlanById(id);
 
   if (!plan) {
     notFound();
   }
 
   return (
-    <div className="p-6">
+    // ✨ تطبيق الـ Premium Layout المتوافق مع باقي النظام
+    <div className="max-w-4xl mx-auto animate-fade-in-up pb-20 md:pb-0">
       <PlanForm plan={plan} mode="edit" />
     </div>
   );
