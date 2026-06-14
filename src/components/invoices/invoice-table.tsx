@@ -1,4 +1,6 @@
 // components/invoices/invoice-table.tsx
+"use client" // ✨ إضافة ده عشان نحل مشكلة الـ Event handlers Error
+
 import Link from "next/link"
 import { InvoiceStatusBadge } from "./invoice-status-badge"
 import { EmptyState } from "@/components/shared/empty-state"
