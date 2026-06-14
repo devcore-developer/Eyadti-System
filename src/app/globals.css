@@ -301,3 +301,19 @@
 .clip-slant-after {
   clip-path: polygon(15% 0, 100% 0, 100% 100%, 0 100%);
 }
+/* ── Native App Feel ─────── */
+body {
+  /* منع الـ Pull-to-refresh والـ Rubber band effect */
+  overscroll-behavior-y: none;
+  /* إزالة الـ Tap Highlight الأزرق على الموبايل */
+  -webkit-tap-highlight-color: transparent;
+  /* منع تحديد النصوص بالغلط (زي الـ Native Apps) */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* السماح بتحديد النصوص في الفورمز بس */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}

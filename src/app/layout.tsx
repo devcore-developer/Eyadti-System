@@ -1,9 +1,8 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { Toaster } from "sonner"
 import { Providers } from "@/components/providers"
-import { ThemeScript } from "@/components/theme-script" // تم الإضافة
+import { ThemeScript } from "@/components/theme-script"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,9 +10,21 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
+// ✨ إعدادات الـ PWA الأساسية
 export const metadata: Metadata = {
-  title: "Eyadti System",
-  description: "Premium Clinic Management System",
+  title: "Eyadti Pro",
+  description: "Premium Medical & Clinic Management System",
+  // إعدادات خاصة للأيفون عشان يتعامل مع الموقع كتطبيق Native
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent", // يخلي الـ Status Bar شفاف ومدمج مع تصميمك
+    title: "Eyadti Pro",
+  },
+}
+
+// لون الـ Status Bar في المتصفح وأثناء الـ Splash Screen
+export const viewport: Viewport = {
+  themeColor: "#5BC0BE", // اللون البريميوم بتاعك
 }
 
 export default function RootLayout({
@@ -23,25 +34,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        {/* أيقونة التطبيق على شاشة الهوم للأيفون */}
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        {/* الـ Component الجديد بدل الـ script */}
         <ThemeScript />
         <Providers>{children}</Providers>
-        
-        <Toaster
-          richColors
-          position="top-right"
-          toastOptions={{
-            style: {
-              borderRadius: "16px",
-              fontSize: "0.875rem",
-              padding: "12px 16px",
-              boxShadow: "0_15px_35px_rgba(100,116,139,0.15)",
-              border: "1px solid rgba(255,255,255,0.25)",
-            },
-          }}
-        />
       </body>
     </html>
   )

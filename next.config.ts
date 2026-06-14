@@ -1,9 +1,15 @@
 import type { NextConfig } from "next";
+import withPWAInit from "@ducanh2912/next-pwa";
+
+const withPWA = withPWAInit({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  // تم حذف skipWaiting لأن المكتبة بتتعامل معاها اتوماتيكياً
+});
 
 const nextConfig: NextConfig = {
-  // هذا الإعداد يمنع Next.js من دمج Prisma و pg داخل الـ Serverless Functions بشكل خاطئ
-  // ويجعلها تعمل كـ External Packages وهو المطلوب لقواعد بيانات Neon
   serverExternalPackages: ["@prisma/client", "prisma", "pg", "@prisma/adapter-pg"],
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
