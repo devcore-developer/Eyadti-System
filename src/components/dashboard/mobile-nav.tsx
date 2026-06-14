@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
-// 1. أضفنا SheetHeader و SheetTitle هنا
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Menu, Stethoscope } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,7 +10,7 @@ import { cn } from "@/lib/utils"
 
 export function MobileNav({ 
   clinicName,
-  children // ← استقبلنا الـ Sidebar كـ children
+  children 
 }: { 
   clinicName: string
   children: React.ReactNode
@@ -25,30 +24,28 @@ export function MobileNav({
 
   return (
     <>
-      {/* ── Hamburger Button ── */}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="px-0 text-foreground hover:bg-transparent">
+          {/* ✨ زيادة مساحة اللمس للـ Hamburger Menu */}
+          <Button variant="ghost" size="icon" className="px-0 h-10 w-10 text-foreground hover:bg-transparent active:bg-slate-100 dark:active:bg-slate-800 transition-colors">
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle Menu</span>
           </Button>
         </SheetTrigger>
         
-        {/* ── Sheet Drawer ── */}
+        {/* ✨ استخدام w-[85vw] بدلاً من 280px لتوفير مساحة أكبر للمحتوى على الموبايل */}
         <SheetContent 
           side="left" 
           className={cn(
-            "w-[280px] p-0 bg-white dark:bg-[#1B2838]",
+            "w-[85vw] max-w-[320px] p-0 bg-white dark:bg-[#1B2838]",
             "border-r-0 shadow-[10px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[10px_0_40px_rgba(0,0,0,0.4)]"
           )}
         >
-          {/* 2. أضفنا البلوك ده عشان نحل خطأ الـ Accessibility */}
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation Menu</SheetTitle>
           </SheetHeader>
 
           <div className="flex flex-col h-full">
-            {/* ── Drawer Header ── */}
             <div className="flex h-14 items-center gap-2.5 px-6 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.25)]">
                 <Stethoscope className="h-4 w-4" />
@@ -56,7 +53,6 @@ export function MobileNav({
               <span className="text-base font-bold tracking-tight">Eyadti</span>
             </div>
             
-            {/* ── Sidebar Content ── */}
             <div className="flex-1 overflow-y-auto">
               {children}
             </div>
@@ -64,8 +60,7 @@ export function MobileNav({
         </SheetContent>
       </Sheet>
 
-      {/* ── Clinic Name in the Middle ── */}
-      <div className="flex-1 text-center">
+      <div className="flex-1 text-center min-w-0">
         <h1 className="text-sm font-semibold text-foreground truncate">{clinicName}</h1>
       </div>
     </>

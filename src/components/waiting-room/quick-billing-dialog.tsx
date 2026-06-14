@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { Receipt } from "lucide-react"
 
@@ -16,6 +15,8 @@ type Props = {
   doctorId: string
   patientName: string
 }
+
+const nativeSelectClasses = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
 
 export function QuickBillingDialog({ visitId, patientId, doctorId, patientName }: Props) {
   const [isOpen, setIsOpen] = useState(false)
@@ -43,10 +44,12 @@ export function QuickBillingDialog({ visitId, patientId, doctorId, patientName }
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
-          <Receipt className="h-3 w-3" /> Collect Payment
+        {/* ✨ زر الدفع يأخذ العرض الكامل على الموبايل */}
+        <Button size="sm" className="w-full sm:w-auto gap-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white h-10 sm:h-9">
+          <Receipt className="h-4 w-4" /> Collect Payment
         </Button>
       </DialogTrigger>
+      {/* ✨ الـ Dialog سيفتح تلقائياً كـ Bottom Sheet على الموبايل بفضل تعديلات المرحلة 3 */}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -64,7 +67,8 @@ export function QuickBillingDialog({ visitId, patientId, doctorId, patientName }
             <Input name="description" defaultValue="Medical Services" required />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* ✨ عمود واحد على الموبايل، وعمودين على الـ Desktop */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Total Amount (EGP) *</Label>
               <Input 
@@ -97,18 +101,16 @@ export function QuickBillingDialog({ visitId, patientId, doctorId, patientName }
 
           <div>
             <Label>Payment Method</Label>
-            <Select name="paymentMethod" defaultValue="CASH">
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="CASH">Cash</SelectItem>
-                <SelectItem value="CARD">Card</SelectItem>
-                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                <SelectItem value="INSURANCE">Insurance</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* ✨ استخدام Native Select لضمان عمله داخل الـ Bottom Sheet على الموبايل */}
+            <select name="paymentMethod" defaultValue="CASH" className={nativeSelectClasses}>
+              <option value="CASH">Cash</option>
+              <option value="CARD">Card</option>
+              <option value="BANK_TRANSFER">Bank Transfer</option>
+              <option value="INSURANCE">Insurance</option>
+            </select>
           </div>
 
-          <Button type="submit" disabled={isPending} className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
+          <Button type="submit" disabled={isPending} className="w-full h-12 text-base bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
             {isPending ? "Processing..." : "Confirm & Complete Visit"}
           </Button>
         </form>

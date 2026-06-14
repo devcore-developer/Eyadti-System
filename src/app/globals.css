@@ -56,42 +56,28 @@
 
 @layer base {
   :root {
-    /* Background System (Bright, Airy, Premium) */
     --background: #F7FBFF;
     --foreground: #0F172A;
-    
-    /* Surfaces */
     --card: rgba(255, 255, 255, 0.96);
     --card-foreground: #0F172A;
     --popover: rgba(255, 255, 255, 0.96);
     --popover-foreground: #0F172A;
-    
-    /* Medical Brand Primary */
     --primary: #5BC0BE;
     --primary-foreground: #F5F9FF;
-    
-    /* Premium Blue (Accent) */
     --accent: #6B9CFF;
     --accent-foreground: #F5F9FF;
-    
     --secondary: #89D6D2;
     --secondary-foreground: #0F172A;
-    
     --muted: #F1F5F9;
     --muted-foreground: #64748B;
-    
     --destructive: #EF6B6B;
     --destructive-foreground: #F5F9FF;
-    
     --success: #6BCB77;
     --warning: #F4B860;
     --danger: #EF6B6B;
-    
     --border: rgba(148,163,184, 0.12);
     --input: rgba(148,163,184, 0.12);
     --ring: #6B9CFF;
-    
-    /* Sidebar Design */
     --sidebar: #FFFFFF;
     --sidebar-foreground: #0F172A;
     --sidebar-border: rgba(148,163,184, 0.12);
@@ -100,41 +86,30 @@
   }
 
   .dark {
-    /* Dark Mode - Luxurious & Comfortable */
     --background: #17212F;
     --foreground: #F8FAFC;
-    
     --card: #223247;
     --card-foreground: #F8FAFC;
     --popover: #223247;
     --popover-foreground: #F8FAFC;
-    
     --primary: #5BC0BE;
     --primary-foreground: #17212F;
-    
     --accent: #6B9CFF;
     --accent-foreground: #17212F;
-    
     --secondary: #1D2A3B;
     --secondary-foreground: #F8FAFC;
-    
     --muted: #1D2A3B;
     --muted-foreground: #CBD5E1;
-    
     --destructive: #E74C4C;
     --destructive-foreground: #F8FAFC;
-    
     --border: rgba(255, 255, 255, 0.06);
     --input: rgba(255, 255, 255, 0.06);
     --ring: #6B9CFF;
-    
-    /* Sidebar Dark */
     --sidebar: #1B2838;
     --sidebar-foreground: #F8FAFC;
     --sidebar-border: rgba(255, 255, 255, 0.06);
     --sidebar-accent: rgba(91,192,190, 0.1);
     --sidebar-accent-foreground: #6B9CFF;
-    
     --success: #6BCB77;
     --warning: #F4B860;
     --danger: #E74C4C;
@@ -144,10 +119,12 @@
 @layer base {
   * {
     border-color: var(--border);
+    /* ✨ منع الـ Horizontal Scroll نهائياً على مستوى العناصر */
+    min-width: 0; 
   }
+  
   body {
     background-color: var(--background);
-    /* Premium Layered Background Gradients */
     background-image: 
       linear-gradient(180deg, #FAFCFF 0%, #F7FBFF 50%, #F5FAFF 100%),
       radial-gradient(circle at top left, rgba(91,192,190,.06), transparent 35%),
@@ -158,6 +135,8 @@
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* ✨ ضمان عدم عمل Scroll أفقي للـ Body نفسه */
+    overflow-x: hidden;
   }
   
   .dark body {
@@ -173,7 +152,6 @@
 ::-webkit-scrollbar-thumb { background: rgba(100,116,139, 0.2); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139, 0.35); }
 
-/* ── Phase 22A: Motion System (150ms–250ms) ──────────────────────── */
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
@@ -182,15 +160,13 @@
 .animate-slide-up { animation: slide-up 250ms ease-out both; }
 .animate-scale-in { animation: scale-in 150ms ease-out both; }
 
-/* ── Typography System ────────────────────── */
-.text-page-title { @apply text-[32px] font-bold tracking-tight; }
-.text-section-title { @apply text-xl font-semibold tracking-tight; }
+.text-page-title { @apply text-2xl md:text-[32px] font-bold tracking-tight; }
+.text-section-title { @apply text-lg md:text-xl font-semibold tracking-tight; }
 .text-card-title { @apply text-[15px] font-semibold; }
-.text-primary-value { @apply text-[32px] font-bold tracking-tight; }
+.text-primary-value { @apply text-2xl md:text-[32px] font-bold tracking-tight; }
 .text-body { @apply text-sm; }
 .text-small { @apply text-xs; }
 
-/* ── Premium Card System ─────── */
 .premium-card {
   background: linear-gradient(135deg, rgba(255,255,255,.95), rgba(245,250,255,.92));
   border: 1px solid rgba(255,255,255, 0.60);
@@ -203,7 +179,7 @@
 
 .premium-card:hover {
   box-shadow: 0 20px 45px rgba(100,116,139, 0.15);
-  transform: translateY(-3px);
+  transform: translateY(-2px); /* ✨ تقليل الارتفاع على الموبايل */
 }
 
 .dark .premium-card {
@@ -217,43 +193,30 @@
   box-shadow: 0 20px 45px rgba(0,0,0, 0.3);
 }
 
-/* ── Premium Table System ─────── */
-.premium-table-header {
-  background: rgba(107,156,255, 0.05);
-}
-.premium-table-row:hover {
-  background: rgba(107,156,255, 0.04);
-}
-.dark .premium-table-header {
-  background: rgba(107,156,255, 0.08);
-}
-.dark .premium-table-row:hover {
-  background: rgba(107,156,255, 0.06);
-}
+.premium-table-header { background: rgba(107,156,255, 0.05); }
+.premium-table-row:hover { background: rgba(107,156,255, 0.04); }
+.dark .premium-table-header { background: rgba(107,156,255, 0.08); }
+.dark .premium-table-row:hover { background: rgba(107,156,255, 0.06); }
 
-/* ── Sidebar Item System ─────── */
+/* ── Sidebar Item System (Touch Friendly) ─────── */
 .sidebar-item {
   border-radius: var(--radius-sidebar-item);
   transition: background-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
-  border-left: 4px solid transparent;
+  /* ✨ زيادة الـ Padding لتكون صديقة للمس على الموبايل */
+  @apply px-4 py-2.5 md:py-2; 
 }
 
-.sidebar-item:hover {
-  background: rgba(107,156,255, 0.08);
-}
+.sidebar-item:hover { background: rgba(107,156,255, 0.08); }
 
 .sidebar-item.active {
   background: linear-gradient(135deg, rgba(91,192,190,0.18), rgba(107,156,255,0.18));
-  border-left: none; /* Remove black border */
   box-shadow: 0 8px 20px rgba(107,156,255, 0.12);
   color: #0F172A;
   font-weight: 600;
 }
 .sidebar-item.active svg { color: #6B9CFF; }
 
-.dark .sidebar-item:hover {
-  background: rgba(107,156,255, 0.1);
-}
+.dark .sidebar-item:hover { background: rgba(107,156,255, 0.1); }
 .dark .sidebar-item.active {
   background: linear-gradient(135deg, rgba(91,192,190,0.18), rgba(107,156,255,0.18));
   color: #F8FAFC;
@@ -267,27 +230,30 @@
   animation: slide-in-from-right 0.3s ease-out;
 }
 
-/* ── Phase 22E: Premium Print Experience ─────── */
-@media print {
-  body {
-    background: white !important;
-    background-image: none !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  aside, header, footer, .no-print, .fixed, .space-y-8 > :not(#printable-invoice) {
-    display: none !important;
-  }
-  #printable-invoice {
-    box-shadow: none !important;
-    border: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
+/* ── Mobile Bottom Sheet Animation ─────── */
+@keyframes slide-up-mobile {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
+.animate-slide-up-mobile {
+  animation: slide-up-mobile 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── Sticky Form Safe Area ─────── */
+.sticky-form-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media print {
+  body { background: white !important; background-image: none !important; }
+  aside, header, footer, .no-print, .fixed, .space-y-8 > :not(#printable-invoice) { display: none !important; }
+  #printable-invoice { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  * { animation: none !important; transition: none !important; }
+}
+/* ── Hide Scrollbar Utility ─────── */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

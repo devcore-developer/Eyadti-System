@@ -7,7 +7,8 @@ interface FormGridProps {
 
 export function FormGrid({ children, className }: FormGridProps) {
   return (
-    <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6", className)}>
+    // ✨ زيادة الـ gap قليلاً على الموبايل لتجنب الضغط
+    <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6", className)}>
       {children}
     </div>
   )

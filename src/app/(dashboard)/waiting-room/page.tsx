@@ -9,7 +9,6 @@ export default async function WaitingRoomPage() {
   if (!session?.user) redirect("/login")
   if (!["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) redirect("/dashboard")
 
-  // جلب الزيارات النشطة فقط (اللي لسه مخلصتش)
   const activeVisits = await prisma.visit.findMany({
     where: {
       clinicId: session.user.clinicId,
@@ -21,16 +20,16 @@ export default async function WaitingRoomPage() {
       appointment: { select: { type: true } },
     },
     orderBy: [
-      { priority: "desc" }, // الطوارئ أولاً
-      { queueNumber: "asc" }, // ثم بالدور
+      { priority: "desc" },
+      { queueNumber: "asc" },
     ],
   })
 
   const serializedVisits = activeVisits.map(v => ({
     id: v.id,
     queueNumber: v.queueNumber,
-    patientId: v.patientId,       // ✨ إضافة لتمريرها لنافذة الفوترة
-    doctorId: v.doctorId,         // ✨ إضافة لتمريرها لنافذة الفوترة
+    patientId: v.patientId,
+    doctorId: v.doctorId,
     patientName: v.patient.fullName,
     doctorName: v.doctor.name,
     appointmentType: v.appointment?.type || "WALK_IN",
@@ -43,18 +42,19 @@ export default async function WaitingRoomPage() {
   const withDoctorCount = serializedVisits.filter(v => v.status === VisitStatus.WITH_DOCTOR).length
 
   return (
-    <div className="space-y-6 animate-fade pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    // ✨ تقليل الـ spacing على الموبايل
+    <div className="space-y-4 md:space-y-6 animate-fade pb-20 md:pb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Waiting Room</h1>
-          <p className="text-muted-foreground">Patients currently inside the clinic</p>
+          <p className="text-sm text-muted-foreground">Patients currently inside the clinic</p>
         </div>
-        <div className="flex gap-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2 text-center">
+        <div className="flex gap-3">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2 text-center flex-1 sm:flex-none">
             <p className="text-2xl font-bold text-yellow-700">{waitingCount}</p>
             <p className="text-xs text-yellow-600">Waiting</p>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-center">
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-center flex-1 sm:flex-none">
             <p className="text-2xl font-bold text-green-700">{withDoctorCount}</p>
             <p className="text-xs text-green-600">With Doctor</p>
           </div>
@@ -62,19 +62,20 @@ export default async function WaitingRoomPage() {
       </div>
 
       {serializedVisits.length === 0 ? (
-        <div className="text-center py-20 text-gray-400 border-2 border-dashed rounded-2xl">
+        <div className="text-center py-16 text-gray-400 border-2 border-dashed rounded-2xl bg-white/50 dark:bg-[#223247]/50">
           No patients in the waiting room right now.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        // ✨ استخدام Grid متناسب مع الكروت الطويلة
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {serializedVisits.map(visit => (
             <QueueCard 
               key={visit.id} 
               id={visit.id}
               queueNumber={visit.queueNumber}
               patientName={visit.patientName}
-              patientId={visit.patientId}       // ✨ تمرير الـ Prop
-              doctorId={visit.doctorId}         // ✨ تمرير الـ Prop
+              patientId={visit.patientId}
+              doctorId={visit.doctorId}
               doctorName={visit.doctorName}
               appointmentType={visit.appointmentType}
               priority={visit.priority}

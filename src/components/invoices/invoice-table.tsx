@@ -78,19 +78,17 @@ export function InvoiceTable({ invoices, currentPage, totalPages, searchParams }
       </div>
 
       {/* ━━━ MOBILE CARDS ━━━ */}
-      <div className="grid grid-cols-1 gap-3 md:hidden">
+      {/* ✨ تحويل الكروت لتبدو كـ Native App List Items */}
+      <div className="grid grid-cols-1 gap-2 md:hidden">
         {invoices.map((inv) => (
           <Link key={inv.id} href={`/invoices/${inv.id}`} className="block">
-            <MobileCard>
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-semibold text-sm">{inv.patient.fullName}</h3>
+            <MobileCard className="rounded-xl p-4 active:bg-slate-50 dark:active:bg-slate-800 transition-colors">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-sm truncate mr-2">{inv.patient.fullName}</h3>
                 <InvoiceStatusBadge status={inv.status as any} />
               </div>
               <MobileCardItem label="Amount" value={<span className="font-bold text-foreground">{formatCurrency(inv.amount)}</span>} />
               <MobileCardItem label="Date" value={formatDate(inv.createdAt)} />
-              <div className="mt-2 text-right">
-                <span className="text-[10px] font-mono text-muted-foreground">ID: ...{inv.id.slice(-5)}</span>
-              </div>
             </MobileCard>
           </Link>
         ))}

@@ -1,19 +1,13 @@
-// src/components/dashboard/analytics-charts.tsx
-
 "use client"
 
 import { useState, useEffect } from "react"
 import { TrendingUp, Activity, Users } from "lucide-react"
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { formatCurrency } from "@/lib/utils/date-filters"
+import { ChartWrapper } from "@/components/ui/chart-wrapper"
 
 interface AnalyticsChartsProps {
-  data?: { 
-    name: string; 
-    revenue: number; 
-    appointments: number; 
-    patients: number; 
-  }[]
+  data?: { name: string; revenue: number; appointments: number; patients: number }[]
 }
 
 const CustomTooltip = ({ active, payload, label, isCurrency = false }: any) => {
@@ -35,15 +29,13 @@ const CustomTooltip = ({ active, payload, label, isCurrency = false }: any) => {
 export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
   const [mounted, setMounted] = useState(false)
   
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  useEffect(() => { setMounted(true) }, [])
 
   if (!mounted) {
     return (
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 gap-6 md:gap-8">
         {[1,2,3].map((i) => (
-          <div key={i} className="p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-muted/30 animate-pulse h-[400px]" />
+          <div key={i} className="p-6 md:p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-muted/30 animate-pulse h-[350px]" />
         ))}
       </div>
     )
@@ -56,39 +48,35 @@ export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-8">
+    <div className="grid grid-cols-1 gap-6 md:gap-8">
       {chartsConfig.map((chart, index) => (
         <div 
           key={index}
-          className="p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] animate-fade"
+          className="p-4 sm:p-6 md:p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] animate-fade"
         >
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl" style={{ backgroundColor: `${chart.color}15` }}>
-                <chart.icon className="h-5 w-5" style={{ color: chart.color }} />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground">{chart.title}</h3>
+          <div className="flex items-center gap-3 mb-6 md:mb-8">
+            <div className="p-2 rounded-xl" style={{ backgroundColor: `${chart.color}15` }}>
+              <chart.icon className="h-5 w-5" style={{ color: chart.color }} />
             </div>
+            <h3 className="text-base md:text-xl font-semibold text-foreground">{chart.title}</h3>
           </div>
           
-          <div className="h-[300px] w-full">
-            {/* ← التعديل: إضافة minWidth={0} عشان نمنع مكتبة Recharts من تعمل خطأ لو الشارت لسه مخفية */}
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chart.color} stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor={chart.color} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.1)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                <Tooltip content={<CustomTooltip isCurrency={chart.isCurrency} />} cursor={{ stroke: chart.color, strokeWidth: 1, strokeDasharray: '5 5' }} />
-                <Area type="monotone" dataKey={chart.dataKey} stroke={chart.color} strokeWidth={3} fill={`url(#gradient-${index})`} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {/* ✨ استخدام ChartWrapper الذكي الذي يمنع خطأ الـ -1px */}
+          <ChartWrapper height={250} className="md:h-[300px]">
+            <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={chart.color} stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor={chart.color} stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.1)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} width={40} />
+              <Tooltip content={<CustomTooltip isCurrency={chart.isCurrency} />} cursor={{ stroke: chart.color, strokeWidth: 1, strokeDasharray: '5 5' }} />
+              <Area type="monotone" dataKey={chart.dataKey} stroke={chart.color} strokeWidth={3} fill={`url(#gradient-${index})`} />
+            </AreaChart>
+          </ChartWrapper>
         </div>
       ))}
     </div>

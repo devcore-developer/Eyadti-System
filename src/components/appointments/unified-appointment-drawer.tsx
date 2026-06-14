@@ -18,36 +18,30 @@ type PatientOption = { id: string; fullName: string; phone: string }
 type Props = {
   doctors: DoctorOption[]
   clinicId: string
-  preselectedPatientId?: string // ✨ إضافة البروب الجديد
-  preselectedType?: string     // ✨ إضافة البروب الجديد
+  preselectedPatientId?: string
+  preselectedType?: string
 }
 
-// ✨ استايل موحد للـ Select العادي عشان يطابق تصميم Shadcn
 const nativeSelectClasses = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 
 export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatientId, preselectedType }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  // Patient State
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<PatientOption[]>([])
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(null)
   const [isNewPatient, setIsNewPatient] = useState(false)
   const debouncedSearch = useDebounce(searchQuery, 300)
 
-  // Search Effect
   useEffect(() => {
     if (debouncedSearch && !selectedPatient && !isNewPatient) {
-      searchPatients(debouncedSearch, clinicId).then(results => {
-        setSearchResults(results as PatientOption[])
-      })
+      searchPatients(debouncedSearch, clinicId).then(results => setSearchResults(results as PatientOption[]))
     } else {
       setSearchResults([])
     }
   }, [debouncedSearch, clinicId, selectedPatient, isNewPatient])
 
-  // ✨ Pre-select patient if passed via URL (e.g., from Patient Profile)
   useEffect(() => {
     if (isOpen && preselectedPatientId && !selectedPatient) {
       searchPatients(preselectedPatientId, clinicId).then(results => {
@@ -94,36 +88,33 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
     <Sheet open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm() }}>
       <SheetTrigger asChild>
         <Button className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md">
-          <Plus className="mr-2 h-4 w-4" /> New Appointment
+          <Plus className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">New Appointment</span> <span className="sm:hidden">New</span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="text-2xl">New Appointment</SheetTitle>
+      
+      {/* ✨ w-full على الموبايل، و max-w-lg على الـ Desktop. وتقسيم الـ layout لـ header, form, footer */}
+      <SheetContent className="w-full sm:max-w-lg h-full flex flex-col p-0">
+        <SheetHeader className="p-4 sm:p-6 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)]">
+          <SheetTitle className="text-xl">New Appointment</SheetTitle>
         </SheetHeader>
         
-        <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-28 sm:pb-6">
             
-          {/* ━━━ STEP 1: PATIENT INFO ━━━ */}
-          <div className="space-y-4 rounded-lg border p-4 bg-gray-50/50">
+          {/* STEP 1 */}
+          <div className="space-y-4 rounded-lg border p-4 bg-gray-50/50 dark:bg-slate-800/20">
             <h3 className="font-semibold flex items-center gap-2"><UserPlus className="h-4 w-4 text-teal-600" /> Patient</h3>
             
             {!selectedPatient && !isNewPatient && (
               <div className="space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input 
-                    placeholder="Search by Name or Phone..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+                  <Input placeholder="Search by Name or Phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
                 </div>
                 
                 {searchResults.length > 0 && (
                   <div className="border rounded-md divide-y max-h-40 overflow-y-auto bg-white shadow-sm">
                     {searchResults.map(p => (
-                      <button type="button" key={p.id} onClick={() => { setSelectedPatient(p); setSearchQuery("") }} className="w-full text-left px-4 py-2 hover:bg-teal-50 flex justify-between text-sm">
+                      <button type="button" key={p.id} onClick={() => { setSelectedPatient(p); setSearchQuery("") }} className="w-full text-left px-4 py-3 hover:bg-teal-50 flex justify-between text-sm">
                         <span className="font-medium">{p.fullName}</span>
                         <span className="text-gray-500">{p.phone}</span>
                       </button>
@@ -131,9 +122,7 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
                   </div>
                 )}
                 
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsNewPatient(true)} className="w-full">
-                  + Create New Patient
-                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsNewPatient(true)} className="w-full h-11">+ Create New Patient</Button>
               </div>
             )}
 
@@ -148,8 +137,8 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
             )}
 
             {isNewPatient && (
-              <div className="grid grid-cols-2 gap-3 border-t pt-3">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t pt-3">
+                <div className="sm:col-span-2">
                   <Label>Full Name *</Label>
                   <Input name="fullName" required />
                 </div>
@@ -168,19 +157,18 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
                   <Label>Date of Birth</Label>
                   <Input name="dateOfBirth" type="date" />
                 </div>
-                <Button type="button" variant="link" size="sm" onClick={() => setIsNewPatient(false)} className="text-red-500 col-span-2 justify-start p-0">Cancel new patient</Button>
+                <Button type="button" variant="link" size="sm" onClick={() => setIsNewPatient(false)} className="text-red-500 sm:col-span-2 justify-start p-0">Cancel new patient</Button>
               </div>
             )}
           </div>
 
-          {/* ━━━ STEP 2: APPOINTMENT & FLOW ━━━ */}
+          {/* STEP 2 */}
           {(selectedPatient || isNewPatient) && (
-            <div className="space-y-4 rounded-lg border p-4 bg-gray-50/50">
+            <div className="space-y-4 rounded-lg border p-4 bg-gray-50/50 dark:bg-slate-800/20">
               <h3 className="font-semibold flex items-center gap-2"><Plus className="h-4 w-4 text-blue-600" /> Appointment Details</h3>
               
               <div>
                 <Label>Appointment Type *</Label>
-                {/* ✨ استخدمنا preselectedType كقيمة افتراضية */}
                 <select name="appointmentType" required defaultValue={preselectedType || "SCHEDULED"} className={nativeSelectClasses}>
                   <option value="SCHEDULED">📅 Scheduled (Book & Wait)</option>
                   <option value="WALK_IN">🚶 Walk-In (Auto Check-in)</option>
@@ -192,9 +180,7 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
                 <Label>Doctor *</Label>
                 <select name="doctorId" required className={nativeSelectClasses}>
                   <option value="" disabled>Select Doctor...</option>
-                  {doctors.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
+                  {doctors.map(d => (<option key={d.id} value={d.id}>{d.name}</option>))}
                 </select>
               </div>
 
@@ -209,14 +195,16 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
               </div>
             </div>
           )}
+        </form>
 
-          {/* ━━━ SUBMIT ━━━ */}
-          {(selectedPatient || isNewPatient) && (
-            <Button type="submit" disabled={isPending} className="w-full h-12 text-base bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md">
+        {/* ✨ Sticky Footer على الموبايل داخل الـ Drawer */}
+        {(selectedPatient || isNewPatient) && (
+          <div className="sticky bottom-0 bg-white dark:bg-[#1B2838] border-t border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] p-4 sm:static sm:border-0 sm:px-6 sm:pb-6 sm:pt-0">
+            <Button type="submit" form="appointment-form" disabled={isPending} onClick={handleSubmit as any} className="w-full h-12 text-base bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md">
               {isPending ? "Processing..." : "Confirm & Proceed"}
             </Button>
-          )}
-        </form>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   )

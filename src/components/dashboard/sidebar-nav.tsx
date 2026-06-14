@@ -15,13 +15,13 @@ import {
   CreditCard,
   FileText,
   Building2,
-  UserPlus, // ← استيراد الأيقونة الجديدة
+  UserPlus,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "New Visit", href: "/reception/new", icon: UserPlus }, // ← الزرار الجديد
+  { name: "New Visit", href: "/reception/new", icon: UserPlus },
   { name: "Appointments", href: "/appointments", icon: CalendarDays },
   { name: "Waiting Room", href: "/waiting-room", icon: Monitor },
   { name: "Online Bookings", href: "/appointments/online", icon: Globe },
@@ -46,40 +46,41 @@ export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+    <nav className="flex-1 space-y-1 overflow-y-auto py-2 md:py-4">
       {navigation.map((item) => {
         const active = isActive(item.href)
         return (
           <Link
             key={item.name}
             href={item.href}
+            // ✨ استخدام الـ Class الموحد sidebar-item لضمان مساحة اللمس
             className={cn(
-              "group flex items-center gap-3 rounded-md px-3 py-1.5 text-[0.8125rem] font-medium transition-colors duration-150",
+              "sidebar-item group flex items-center gap-3 text-[0.8125rem] font-medium transition-colors duration-150",
               active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                ? "active"
                 : "text-sidebar-foreground/60 hover:bg-sidebar-accent/20 hover:text-sidebar-foreground"
             )}
           >
             <item.icon
               className={cn(
-                "h-4 w-4 transition-colors duration-150",
+                "h-4 w-4 shrink-0 transition-colors duration-150",
                 active
                   ? "text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
               )}
             />
-            {item.name}
+            <span className="truncate">{item.name}</span>
           </Link>
         )
       })}
 
       {isAdmin && (
         <>
-          <Separator className="my-4 bg-sidebar-border" />
-          <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+          <Separator className="my-3 bg-sidebar-border" />
+          <p className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
             Administration
           </p>
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {adminNavigation.map((item) => {
               const active = isActive(item.href)
               return (
@@ -87,21 +88,21 @@ export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "group flex items-center gap-3 rounded-md px-3 py-1.5 text-[0.8125rem] font-medium transition-colors duration-150",
+                    "sidebar-item group flex items-center gap-3 text-[0.8125rem] font-medium transition-colors duration-150",
                     active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      ? "active"
                       : "text-sidebar-foreground/60 hover:bg-sidebar-accent/20 hover:text-sidebar-foreground"
                   )}
                 >
                   <item.icon
                     className={cn(
-                      "h-4 w-4 transition-colors duration-150",
+                      "h-4 w-4 shrink-0 transition-colors duration-150",
                       active
                         ? "text-sidebar-accent-foreground"
                         : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
                     )}
                   />
-                  {item.name}
+                  <span className="truncate">{item.name}</span>
                 </Link>
               )
             })}

@@ -4,18 +4,18 @@ import { useState, useTransition } from "react"
 import { updateVisitStatus } from "@/actions/unified-appointment"
 import { VisitStatus, Priority } from "@prisma/client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { Clock, Stethoscope, AlertTriangle, ArrowRight } from "lucide-react"
-import { QuickBillingDialog } from "./quick-billing-dialog" // ✨ استيراد النافذة
+import { QuickBillingDialog } from "./quick-billing-dialog"
 
 type QueueCardProps = {
   id: string
   queueNumber: number | null
   patientName: string
-  patientId: string // ✨ جديد
-  doctorId: string  // ✨ جديد
+  patientId: string
+  doctorId: string
   doctorName: string
   appointmentType: string
   priority: Priority
@@ -36,7 +36,7 @@ const statusConfig: Record<VisitStatus, { label: string; color: string; nextStat
   WAITING: { label: "Waiting", color: "bg-yellow-100 text-yellow-800", nextStatus: VisitStatus.WITH_DOCTOR, nextLabel: "Call Patient" },
   WITH_DOCTOR: { label: "With Doctor", color: "bg-green-100 text-green-800", nextStatus: VisitStatus.PROCEDURE, nextLabel: "To Procedure" },
   PROCEDURE: { label: "Procedure", color: "bg-purple-100 text-purple-800", nextStatus: VisitStatus.BILLING, nextLabel: "To Billing" },
-  BILLING: { label: "Billing", color: "bg-orange-100 text-orange-800" }, // ✨ لا يوجد nextStatus، سيتم استخدام الـ Dialog
+  BILLING: { label: "Billing", color: "bg-orange-100 text-orange-800" },
   COMPLETED: { label: "Completed", color: "bg-gray-100 text-gray-800" },
 }
 
@@ -55,32 +55,37 @@ export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, d
   }
 
   return (
-    <Card className={`relative overflow-hidden transition-all hover:shadow-lg ${isEmergency ? "border-red-400 bg-red-50/50 shadow-red-100" : "bg-white"}`}>
-      {isEmergency && <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />}
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <div className="flex items-center gap-2">
-          {queueNumber && <span className="text-2xl font-bold text-gray-400">#{queueNumber}</span>}
-          <h3 className="font-bold text-lg">{patientName}</h3>
-        </div>
-        <Badge className={`${config.color} border-0`}>{config.label}</Badge>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <div className="flex items-center gap-1.5">
-            <Stethoscope className="h-4 w-4" /> Dr. {doctorName}
+    // ✨ تحويل الكارت ليكون صديق للمس، مع فصل منطقة النقر عن منطقة الإجراءات
+    <Card className={`relative overflow-hidden transition-all hover:shadow-md flex flex-col ${isEmergency ? "border-red-400 bg-red-50/50 shadow-red-100 border-l-4 border-l-red-500" : "bg-white"}`}>
+      <div className="p-4 flex-1">
+        {/* Header: Queue #, Name & Status */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            {queueNumber && <span className="text-2xl font-bold text-gray-300 shrink-0">#{queueNumber}</span>}
+            <h3 className="font-bold text-lg truncate">{patientName}</h3>
           </div>
-          <div className="flex items-center gap-1.5">
+          <Badge className={`${config.color} border-0 shrink-0`}>{config.label}</Badge>
+        </div>
+
+        {/* Body: Details & Badges */}
+        <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+          <div className="flex items-center gap-1.5 truncate">
+            <Stethoscope className="h-4 w-4 shrink-0" /> <span className="truncate">Dr. {doctorName}</span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
             <Clock className="h-4 w-4" /> {getWaitTime(checkedInAt)}
           </div>
         </div>
         
-        <div className="flex items-center justify-between">
-          <div className="flex gap-1.5">
-            <Badge variant="outline" className="text-xs capitalize">{appointmentType.toLowerCase()}</Badge>
-            {isEmergency && <Badge variant="destructive" className="text-xs gap-1"><AlertTriangle className="h-3 w-3" /> Urgent</Badge>}
-          </div>
-          
-          {/* ✨ المنطق الجديد: إذا كانت الحالة Billing، اعرض نافذة الدفع، غير ذلك اعرض زر التحريك */}
+        <div className="flex gap-1.5 flex-wrap">
+          <Badge variant="outline" className="text-xs capitalize">{appointmentType.toLowerCase()}</Badge>
+          {isEmergency && <Badge variant="destructive" className="text-xs gap-1"><AlertTriangle className="h-3 w-3" /> Urgent</Badge>}
+        </div>
+      </div>
+
+      {/* ✨ Footer: Actions - Full width on mobile, compact on desktop */}
+      {status !== VisitStatus.COMPLETED && (
+        <div className="p-4 pt-0 sm:pt-4 sm:px-4 border-t sm:border-t-0 mt-auto">
           {status === VisitStatus.BILLING ? (
             <QuickBillingDialog 
               visitId={id} 
@@ -89,12 +94,17 @@ export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, d
               patientName={patientName} 
             />
           ) : config.nextStatus ? (
-            <Button size="sm" onClick={handleNextStatus} disabled={isPending} className="gap-1 bg-gradient-to-r from-teal-500 to-emerald-500 text-white">
-              {config.nextLabel} <ArrowRight className="h-3 w-3" />
+            <Button 
+              size="sm" 
+              onClick={handleNextStatus} 
+              disabled={isPending} 
+              className="w-full sm:w-auto gap-1 bg-gradient-to-r from-teal-500 to-emerald-500 text-white h-10 sm:h-9"
+            >
+              {isPending ? "Processing..." : config.nextLabel} <ArrowRight className="h-4 w-4 sm:h-3 sm:w-3" />
             </Button>
           ) : null}
         </div>
-      </CardContent>
+      )}
     </Card>
   )
 }

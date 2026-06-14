@@ -11,17 +11,8 @@ import { SidebarNav } from "./sidebar-nav"
 import { BranchSwitcher } from "@/components/branch/branch-switcher"
 import { cn } from "@/lib/utils"
 
-interface Branch {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface UserData {
-  name?: string | null;
-  email?: string | null;
-  role?: string | null;
-}
+interface Branch { id: string; name: string; code: string; }
+interface UserData { name?: string | null; email?: string | null; role?: string | null; }
 
 export function Sidebar({ 
   user, 
@@ -34,14 +25,9 @@ export function Sidebar({
   selectedBranchId: string | null;
   isMobile?: boolean;
 }) {
-  // ✅ استخدام user?.role بدل session.user.role وتجنب التكرار
   const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN"
   
-  const initials = user?.name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase() || "U"
+  const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"
 
   return (
     <aside className={cn(
@@ -51,7 +37,6 @@ export function Sidebar({
         : "w-[260px] shrink-0 h-full shadow-[8px_0_30px_rgba(15,23,42,0.08)] dark:shadow-[8px_0_30px_rgba(0,0,0,0.2)] border-r border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]"
     )}>
       
-      {/* ── Logo (Desktop Only) ── */}
       {!isMobile && (
         <div className="flex h-16 items-center gap-2.5 px-6 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.25)]">
@@ -59,27 +44,24 @@ export function Sidebar({
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Eyadti</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] bg-clip-text text-transparent">
-              PRO
-            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] bg-clip-text text-transparent">PRO</span>
           </div>
         </div>
       )}
 
-      {/* ── Branch Switcher ── */}
       {isAdmin && branches.length > 0 && (
-        <div className={cn("pb-2 px-4", isMobile ? "pt-2" : "pt-4")}>
+        // ✨ تقليل الـ Padding على الموبايل
+        <div className={cn("pb-2 px-3 md:px-4", isMobile ? "pt-2" : "pt-4")}>
           <BranchSwitcher branches={branches} selectedBranchId={selectedBranchId} />
         </div>
       )}
 
-      {/* ── Navigation ── */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2">
+      {/* ✨ تقليل الـ Padding الأفقي على الموبايل */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-2 md:px-3 py-2">
         <SidebarNav isAdmin={isAdmin} />
       </div>
 
-      {/* ── Premium User Footer ── */}
-      <div className="mt-auto border-t border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)] p-4">
+      <div className="mt-auto border-t border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)] p-3 md:p-4">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 transition-all outline-none hover:bg-[rgba(107,156,255,0.06)] dark:hover:bg-[rgba(107,156,255,0.08)] focus-visible:ring-2 focus-visible:ring-ring">
             <div className="relative">

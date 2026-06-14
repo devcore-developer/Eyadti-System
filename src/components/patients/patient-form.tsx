@@ -23,7 +23,7 @@ type PatientData = {
   address?: string | null
   allergies?: string[]
   surgeries?: string[]
-  medicalHistory?: string[] // ← أضفنا الـ PMH
+  medicalHistory?: string[]
 }
 
 type Props = {
@@ -41,7 +41,6 @@ export function PatientForm({ patient }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
 
-  // State for Allergies, Surgeries & Medical History
   const [allergies, setAllergies] = useState<string[]>(patient?.allergies || [])
   const [surgeries, setSurgeries] = useState<string[]>(patient?.surgeries || [])
   const [medicalHistory, setMedicalHistory] = useState<string[]>(patient?.medicalHistory || [])
@@ -66,7 +65,6 @@ export function PatientForm({ patient }: Props) {
     setFieldErrors({})
     const formData = new FormData(e.currentTarget)
 
-    // إضافة الحساسيات والعمليات والـ PMH للـ FormData
     formData.set("allergies", JSON.stringify(allergies.filter(a => a.trim())))
     formData.set("surgeries", JSON.stringify(surgeries.filter(s => s.trim())))
     formData.set("medicalHistory", JSON.stringify(medicalHistory.filter(m => m.trim())))
@@ -86,48 +84,28 @@ export function PatientForm({ patient }: Props) {
     return fieldErrors[name]?.[0]
   }
 
-  // Handlers for Allergies
-  function handleAddAllergy(option: AutocompleteOption) {
-    if (!allergies.includes(option.label)) setAllergies([...allergies, option.label])
-  }
-  function handleAddCustomAllergy(value: string) {
-    if (!allergies.includes(value)) setAllergies([...allergies, value])
-  }
-  function handleRemoveAllergy(item: string) {
-    setAllergies(allergies.filter(a => a !== item))
-  }
+  function handleAddAllergy(option: AutocompleteOption) { if (!allergies.includes(option.label)) setAllergies([...allergies, option.label]) }
+  function handleAddCustomAllergy(value: string) { if (!allergies.includes(value)) setAllergies([...allergies, value]) }
+  function handleRemoveAllergy(item: string) { setAllergies(allergies.filter(a => a !== item)) }
 
-  // Handlers for Surgeries
-  function handleAddSurgery(option: AutocompleteOption) {
-    if (!surgeries.includes(option.label)) setSurgeries([...surgeries, option.label])
-  }
-  function handleAddCustomSurgery(value: string) {
-    if (!surgeries.includes(value)) setSurgeries([...surgeries, value])
-  }
-  function handleRemoveSurgery(item: string) {
-    setSurgeries(surgeries.filter(s => s !== item))
-  }
+  function handleAddSurgery(option: AutocompleteOption) { if (!surgeries.includes(option.label)) setSurgeries([...surgeries, option.label]) }
+  function handleAddCustomSurgery(value: string) { if (!surgeries.includes(value)) setSurgeries([...surgeries, value]) }
+  function handleRemoveSurgery(item: string) { setSurgeries(surgeries.filter(s => s !== item)) }
 
-  // Handlers for Medical History
-  function handleAddMedicalHistory(option: AutocompleteOption) {
-    if (!medicalHistory.includes(option.label)) setMedicalHistory([...medicalHistory, option.label])
-  }
-  function handleAddCustomMedicalHistory(value: string) {
-    if (!medicalHistory.includes(value)) setMedicalHistory([...medicalHistory, value])
-  }
-  function handleRemoveMedicalHistory(item: string) {
-    setMedicalHistory(medicalHistory.filter(m => m !== item))
-  }
+  function handleAddMedicalHistory(option: AutocompleteOption) { if (!medicalHistory.includes(option.label)) setMedicalHistory([...medicalHistory, option.label]) }
+  function handleAddCustomMedicalHistory(value: string) { if (!medicalHistory.includes(value)) setMedicalHistory([...medicalHistory, value]) }
+  function handleRemoveMedicalHistory(item: string) { setMedicalHistory(medicalHistory.filter(m => m !== item)) }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
+    // ✨ إضافة pb-24 على الموبايل لتوفير مساحة للـ Sticky Bottom Bar
+    <form onSubmit={handleSubmit} className="max-w-2xl space-y-6 pb-24 md:pb-0">
       {error && (
         <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
         <div className="space-y-2">
           <Label htmlFor="fullName">Full Name <span className="text-red-500">*</span></Label>
           <Input id="fullName" name="fullName" type="text" placeholder="John Doe" defaultValue={patient?.fullName ?? ""} required />
@@ -161,17 +139,16 @@ export function PatientForm({ patient }: Props) {
       </div>
 
       {/* Medical History Section */}
-      <div className="rounded-xl border border-border/50 bg-white/30 dark:bg-slate-800/20 p-6 space-y-6">
+      <div className="rounded-xl border border-border/50 bg-white/30 dark:bg-slate-800/20 p-4 sm:p-6 space-y-6">
         <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wider border-b border-border/30 pb-2">Medical History</h3>
         
-        {/* Allergies */}
         <div className="space-y-3">
           <Label>Allergies</Label>
           <AutocompleteInput searchFn={searchAllergies} onSelect={handleAddAllergy} onCustomAdd={handleAddCustomAllergy} placeholder="Search allergies (e.g., Penicillin)..." allowCustom />
           {allergies.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {allergies.map((allergy) => (
-                <span key={allergy} className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400 transition-colors hover:bg-red-200">
+                <span key={allergy} className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
                   {allergy}
                   <button type="button" onClick={() => handleRemoveAllergy(allergy)} className="rounded-full hover:bg-red-300 p-0.5"><X className="h-3 w-3" /></button>
                 </span>
@@ -180,14 +157,13 @@ export function PatientForm({ patient }: Props) {
           )}
         </div>
 
-        {/* Surgical History */}
         <div className="space-y-3">
           <Label>Surgical History</Label>
           <AutocompleteInput searchFn={searchSurgeries} onSelect={handleAddSurgery} onCustomAdd={handleAddCustomSurgery} placeholder="Search surgeries (e.g., Appendectomy)..." allowCustom />
           {surgeries.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {surgeries.map((surgery) => (
-                <span key={surgery} className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 transition-colors hover:bg-blue-200">
+                <span key={surgery} className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                   {surgery}
                   <button type="button" onClick={() => handleRemoveSurgery(surgery)} className="rounded-full hover:bg-blue-300 p-0.5"><X className="h-3 w-3" /></button>
                 </span>
@@ -196,14 +172,13 @@ export function PatientForm({ patient }: Props) {
           )}
         </div>
 
-        {/* Past Medical History */}
         <div className="space-y-3">
           <Label>Past Medical History</Label>
           <AutocompleteInput searchFn={searchMedicalHistory} onSelect={handleAddMedicalHistory} onCustomAdd={handleAddCustomMedicalHistory} placeholder="Search chronic diseases, meds, symptoms..." allowCustom />
           {medicalHistory.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {medicalHistory.map((item) => (
-                <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 transition-colors hover:bg-purple-200">
+                <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
                   {item}
                   <button type="button" onClick={() => handleRemoveMedicalHistory(item)} className="rounded-full hover:bg-purple-300 p-0.5"><X className="h-3 w-3" /></button>
                 </span>
@@ -213,9 +188,12 @@ export function PatientForm({ patient }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 pt-4">
-        <Button type="submit" disabled={isPending}>{isPending ? "Saving..." : isEdit ? "Update Patient" : "Create Patient"}</Button>
-        <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+      {/* ✨ Sticky Bottom Bar على الموبايل، عادي على الـ Desktop */}
+      <div className="sticky-form-footer bg-white/80 dark:bg-[#17212F]/80 border-t border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] p-4 -mx-4 sm:-mx-6 sm:px-6 -mb-4 sm:-mb-6 sm:mt-0 md:static md:bg-transparent md:border-0 md:p-0 flex items-center gap-3">
+        <Button type="submit" disabled={isPending} className="flex-1 md:flex-none bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white">
+          {isPending ? "Saving..." : isEdit ? "Update Patient" : "Create Patient"}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1 md:flex-none">Cancel</Button>
       </div>
     </form>
   )
