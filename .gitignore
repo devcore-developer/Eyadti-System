@@ -43,3 +43,7 @@ next-env.d.ts
 /app/generated/prisma
 # Ignore Evolution API local folder
 evolution-api
+
+# PWA Service Worker
+public/sw.js
+public/workbox-*.js
