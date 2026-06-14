@@ -5,10 +5,12 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
-  // تم حذف skipWaiting لأن المكتبة بتتعامل معاها اتوماتيكياً
 });
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  // ✨ السطر السحري: تغيير مسار الـ Build عشان نكسر أي Cache قديم
+  distDir: 'build', 
   serverExternalPackages: ["@prisma/client", "prisma", "pg", "@prisma/adapter-pg"],
 };
 
