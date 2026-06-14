@@ -8,9 +8,7 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
-  // ✨ السطر السحري: تغيير مسار الـ Build عشان نكسر أي Cache قديم
-  distDir: 'build', 
+  // شيلنا الـ distDir والـ standalone عشان الـ Vercel يلاقي الملفات في مكانها الطبيعي
   serverExternalPackages: ["@prisma/client", "prisma", "pg", "@prisma/adapter-pg"],
 };
 
