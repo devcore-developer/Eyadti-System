@@ -1,3 +1,4 @@
+// components/dashboard/sidebar.tsx
 import { LogOut, Stethoscope } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -33,7 +34,7 @@ export function Sidebar({
       "flex flex-col text-sidebar-foreground print:hidden bg-gradient-to-b from-white to-[#F7FBFF] dark:from-[#1B2838] dark:to-[#1B2838]",
       isMobile 
         ? "w-full h-full shadow-none border-none" 
-        : "w-[260px] shrink-0 h-full shadow-[8px_0_30px_rgba(15,23,42,0.08)] dark:shadow-[8px_0_30px_rgba(0,0,0,0.2)] border-r border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]"
+        : "w-[260px] shrink-0 h-full shadow-[2px_0_20px_rgba(15,23,42,0.04)] dark:shadow-[2px_0_20px_rgba(0,0,0,0.15)] border-r border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]"
     )}>
       
       {!isMobile && (
@@ -49,12 +50,11 @@ export function Sidebar({
       )}
 
       {isAdmin && branches.length > 0 && (
-        <div className={cn("pb-2 px-3", isMobile ? "pt-4" : "pt-4")}>
+        <div className="pb-2 px-3 pt-4">
           <BranchSwitcher branches={branches} selectedBranchId={selectedBranchId} />
         </div>
       )}
 
-      {/* ✨ إضافة overscroll-contain للموبايل ومنع الـ Scroll bleed */}
       <div className="flex-1 overflow-y-auto min-h-0 px-2 py-2 overscroll-contain hide-scrollbar">
         <SidebarNav isAdmin={isAdmin} />
       </div>

@@ -1,3 +1,4 @@
+// components/appointments/appointment-filters.tsx
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
@@ -19,7 +20,7 @@ const statusOptions = [
   { label: "Cancelled", value: "CANCELLED" },
 ]
 
-const nativeSelectClasses = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+const premiumSelectClasses = "flex h-10 w-full rounded-xl border border-input bg-white/90 dark:bg-[#223247]/50 backdrop-blur-sm px-3 py-2 text-sm shadow-sm ring-offset-background transition-all focus:outline-none focus:border-[#6B9CFF] focus:shadow-[0_0_0_4px_rgba(107,156,255,0.12)] hover:border-[#6B9CFF]/50 appearance-none cursor-pointer disabled:opacity-50"
 
 export function AppointmentFilters({ doctors }: AppointmentFiltersProps) {
   const router = useRouter()
@@ -41,25 +42,24 @@ export function AppointmentFilters({ doctors }: AppointmentFiltersProps) {
     params.delete("page")
     startTransition(() => {
       router.push(`/appointments?${params.toString()}`)
-      setIsSheetOpen(false) // ✨ إغلاق الـ Sheet بعد التطبيق على الموبايل
+      setIsSheetOpen(false)
     })
   }
 
-  // ✨ محتوى الفلاتر الموحد (يُستخدم في الـ Desktop والـ Mobile Sheet)
   const FilterControls = () => (
     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
       <input 
         type="date" 
         value={currentDate}
         onChange={(e) => updateFilter("date", e.target.value)}
-        className={`${nativeSelectClasses} cursor-pointer`}
+        className={`${premiumSelectClasses} cursor-pointer`}
       />
 
       <select
         value={currentDoctor}
         onChange={(e) => updateFilter("doctorId", e.target.value)}
         disabled={isPending}
-        className={nativeSelectClasses}
+        className={premiumSelectClasses}
       >
         <option value="">All Doctors</option>
         {doctors.map((doc) => (
@@ -71,7 +71,7 @@ export function AppointmentFilters({ doctors }: AppointmentFiltersProps) {
         value={currentStatus}
         onChange={(e) => updateFilter("status", e.target.value)}
         disabled={isPending}
-        className={nativeSelectClasses}
+        className={premiumSelectClasses}
       >
         {statusOptions.map((opt) => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -82,29 +82,27 @@ export function AppointmentFilters({ doctors }: AppointmentFiltersProps) {
 
   return (
     <>
-      {/* ━━━ DESKTOP: Inline Filters ━━━ */}
       <div className="hidden md:block">
         <FilterControls />
       </div>
 
-      {/* ━━━ MOBILE: Bottom Sheet Filters ━━━ */}
       <div className="md:hidden">
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 rounded-xl h-10">
+            <Button variant="outline" size="sm" className="gap-2 rounded-xl h-10 border-dashed">
               <SlidersHorizontal className="h-4 w-4" /> Filters
               {(currentDoctor || currentStatus || currentDate) && (
-                <span className="flex h-2 w-2 rounded-full bg-blue-600" />
+                <span className="flex h-2 w-2 rounded-full bg-[#6B9CFF]" />
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-[24px] max-h-[60vh]">
-            <SheetHeader className="pb-4 border-b">
+          <SheetContent side="bottom" className="rounded-t-[24px] max-h-[60vh] dark:bg-[#1B2838]">
+            <SheetHeader className="pb-4 border-b border-border">
               <SheetTitle>Filter Appointments</SheetTitle>
             </SheetHeader>
             <div className="p-4 space-y-4">
               <FilterControls />
-              <Button variant="outline" className="w-full mt-4" onClick={() => {
+              <Button variant="outline" className="w-full mt-4 rounded-xl" onClick={() => {
                 router.push('/appointments');
                 setIsSheetOpen(false);
               }}>Clear Filters</Button>

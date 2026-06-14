@@ -1,3 +1,4 @@
+// components/dashboard/stat-card.tsx
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -26,7 +27,7 @@ export function StatCard({
   trend,
   href,
   className,
-  gradient = "from-[#5BC0BE] to-[#6B9CFF]", // Premium Default Gradient
+  gradient = "from-[#5BC0BE] to-[#6B9CFF]",
   iconClassName,
 }: StatCardProps) {
   const content = (
@@ -40,7 +41,7 @@ export function StatCard({
             {value}
           </p>
           {subtitle && (
-            <p className="text-sm font-medium text-white/70 mt-1">
+            <p className="text-sm font-medium text-white/70 mt-1 truncate">
               {subtitle}
             </p>
           )}
@@ -67,15 +68,14 @@ export function StatCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-0 shadow-[0_15px_35px_rgba(100,116,139,0.15)] transition-all duration-200",
+        "relative overflow-hidden border-0 shadow-[0_8px_24px_rgba(100,116,139,0.12)] transition-all duration-300 ease-out",
         `bg-gradient-to-br ${gradient}`,
         href
-          ? "cursor-pointer hover:shadow-[0_20px_45px_rgba(107,156,255,0.25)] hover:-translate-y-[3px] hover:scale-[1.01]"
-          : "hover:shadow-[0_20px_45px_rgba(100,116,139,0.20)] hover:-translate-y-[2px]",
+          ? "cursor-pointer hover:shadow-[0_12px_32px_rgba(107,156,255,0.2)] hover:-translate-y-[3px] hover:scale-[1.01]"
+          : "hover:shadow-[0_12px_32px_rgba(100,116,139,0.15)] hover:-translate-y-[2px]",
         className
       )}
     >
-      {/* Premium Decorative Shapes */}
       <div className="absolute -top-6 -right-6 h-28 w-28 rounded-full bg-white/10 blur-xl pointer-events-none" />
       <div className="absolute -bottom-4 -left-4 h-20 w-20 rounded-full bg-black/5 blur-xl pointer-events-none" />
 

@@ -1,10 +1,17 @@
-// src/components/appointments/appointment-form.tsx
+// components/appointments/appointment-form.tsx
 "use client"
 
 import { useTransition, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createAppointment, updateAppointment } from "@/actions/appointments"
 import type { ActionResult } from "@/types"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { FormGrid, FormFullWidth } from "@/components/ui/form-grid"
+import { FormSection } from "@/components/ui/form-section"
+import { toast } from "sonner"
 
 type PatientOption = { id: string; fullName: string }
 type DoctorOption = { id: string; name: string }
@@ -50,7 +57,9 @@ export function AppointmentForm({ patients, doctors, appointment }: Props) {
     if (!result.success) {
       setError(result.error || "Something went wrong")
       setFieldErrors(result.fieldErrors || {})
+      toast.error(result.error || "Something went wrong")
     } else {
+      toast.success(isEdit ? "Appointment updated successfully" : "Appointment scheduled successfully")
       router.push("/appointments")
       router.refresh()
     }
@@ -77,101 +86,97 @@ export function AppointmentForm({ patients, doctors, appointment }: Props) {
     return fieldErrors[name]?.[0]
   }
 
+  const premiumSelectClasses = "flex h-10 w-full rounded-xl border border-input bg-white/90 dark:bg-[#223247]/50 backdrop-blur-sm px-4 py-2 text-sm shadow-sm ring-offset-background transition-all focus:outline-none focus:border-[#6B9CFF] focus:shadow-[0_0_0_4px_rgba(107,156,255,0.12)] hover:border-muted-foreground/30 appearance-none cursor-pointer disabled:opacity-50"
+
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-5">
+    <form onSubmit={handleSubmit} className="max-w-2xl space-y-8 pb-28 md:pb-0 animate-fade-in-up">
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive border border-destructive/20 flex items-start gap-3 shadow-sm">
+          <span className="font-bold">Error:</span> {error}
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <div>
-          <label htmlFor="patientId" className="block text-sm font-medium text-gray-700">
-            Patient <span className="text-red-500">*</span>
-          </label>
+      <FormSection title="Appointment Details" description="Select the patient, doctor, and preferred schedule." variant="patient">
+        <div className="space-y-2">
+          <Label htmlFor="patientId">Patient <span className="text-destructive">*</span></Label>
           <select
             id="patientId"
             name="patientId"
             defaultValue={appointment?.patientId ?? ""}
             required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className={premiumSelectClasses}
+            aria-invalid={!!fieldError("patientId")}
           >
-            <option value="">Select Patient...</option>
+            <option value="" disabled>Select Patient...</option>
             {patients.map((p) => (
               <option key={p.id} value={p.id}>{p.fullName}</option>
             ))}
           </select>
-          {fieldError("patientId") && <p className="mt-1 text-xs text-red-600">{fieldError("patientId")}</p>}
+          {fieldError("patientId") && <p className="text-xs font-medium text-destructive mt-1">{fieldError("patientId")}</p>}
         </div>
 
-        <div>
-          <label htmlFor="doctorId" className="block text-sm font-medium text-gray-700">
-            Doctor <span className="text-red-500">*</span>
-          </label>
+        <div className="space-y-2">
+          <Label htmlFor="doctorId">Doctor <span className="text-destructive">*</span></Label>
           <select
             id="doctorId"
             name="doctorId"
             defaultValue={appointment?.doctorId ?? ""}
             required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className={premiumSelectClasses}
+            aria-invalid={!!fieldError("doctorId")}
           >
-            <option value="">Select Doctor...</option>
+            <option value="" disabled>Select Doctor...</option>
             {doctors.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </select>
-          {fieldError("doctorId") && <p className="mt-1 text-xs text-red-600">{fieldError("doctorId")}</p>}
+          {fieldError("doctorId") && <p className="text-xs font-medium text-destructive mt-1">{fieldError("doctorId")}</p>}
         </div>
 
-        <div>
-          <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-            Date <span className="text-red-500">*</span>
-          </label>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="date">Date <span className="text-destructive">*</span></Label>
+          <Input
             id="date"
             name="date"
             type="date"
             defaultValue={appointment ? toLocalDateString(appointment.dateTime) : ""}
             required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-invalid={!!fieldError("date")}
           />
-          {fieldError("date") && <p className="mt-1 text-xs text-red-600">{fieldError("date")}</p>}
+          {fieldError("date") && <p className="text-xs font-medium text-destructive mt-1">{fieldError("date")}</p>}
         </div>
 
-        <div>
-          <label htmlFor="time" className="block text-sm font-medium text-gray-700">
-            Time <span className="text-red-500">*</span>
-          </label>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="time">Time <span className="text-destructive">*</span></Label>
+          <Input
             id="time"
             name="time"
             type="time"
             defaultValue={appointment ? toLocalTimeString(appointment.dateTime) : ""}
             required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-invalid={!!fieldError("time")}
           />
-          {fieldError("time") && <p className="mt-1 text-xs text-red-600">{fieldError("time")}</p>}
+          {fieldError("time") && <p className="text-xs font-medium text-destructive mt-1">{fieldError("time")}</p>}
         </div>
-      </div>
 
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Notes</label>
-        <textarea
-          id="notes"
-          name="notes"
-          rows={3}
-          defaultValue={appointment?.notes ?? ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-        {fieldError("notes") && <p className="mt-1 text-xs text-red-600">{fieldError("notes")}</p>}
-      </div>
+        <FormFullWidth className="space-y-2">
+          <Label htmlFor="notes">Notes</Label>
+          <Textarea
+            id="notes"
+            name="notes"
+            rows={3}
+            defaultValue={appointment?.notes ?? ""}
+            placeholder="Any specific details or symptoms..."
+          />
+          {fieldError("notes") && <p className="text-xs font-medium text-destructive mt-1">{fieldError("notes")}</p>}
+        </FormFullWidth>
+      </FormSection>
 
-      <div className="flex items-center gap-3 pt-2">
-        <button type="submit" disabled={isPending} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-          {isPending ? "Saving..." : isEdit ? "Update Appointment" : "Schedule Appointment"}
-        </button>
-        <button type="button" onClick={() => router.back()} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-          Cancel
-        </button>
+      <div className="sticky-form-footer bg-white/80 dark:bg-[#17212F]/80 border-t border-border p-4 -mx-4 sm:-mx-6 sm:px-6 -mb-4 sm:-mb-6 md:static md:bg-transparent md:border-0 md:p-0 flex items-center gap-3 rounded-b-[24px] md:rounded-none">
+        <Button type="submit" disabled={isPending} isLoading={isPending} className="flex-1 md:flex-none shadow-[0_4px_12px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200">
+          {isEdit ? "Update Appointment" : "Schedule Appointment"}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1 md:flex-none rounded-xl border-border bg-white dark:bg-[#223247]">Cancel</Button>
       </div>
     </form>
   )

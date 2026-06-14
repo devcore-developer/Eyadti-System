@@ -1,3 +1,4 @@
+// components/ui/form-section.tsx
 import { cn } from "@/lib/utils"
 import { ReactNode } from "react"
 
@@ -10,16 +11,16 @@ interface FormSectionProps {
 }
 
 const variantStyles = {
-  patient: "bg-[rgba(91,192,190,0.05)] dark:bg-[rgba(91,192,190,0.03)]",
-  medical: "bg-[rgba(107,156,255,0.05)] dark:bg-[rgba(107,156,255,0.03)]",
-  emergency: "bg-[rgba(137,214,210,0.05)] dark:bg-[rgba(137,214,210,0.03)]",
-  default: "bg-transparent",
+  patient: "bg-[rgba(91,192,190,0.04)] dark:bg-[rgba(91,192,190,0.02)] border-[#5BC0BE]/10 dark:border-[#5BC0BE]/5",
+  medical: "bg-[rgba(107,156,255,0.04)] dark:bg-[rgba(107,156,255,0.02)] border-[#6B9CFF]/10 dark:border-[#6B9CFF]/5",
+  emergency: "bg-[rgba(137,214,210,0.04)] dark:bg-[rgba(137,214,210,0.02)] border-[#89D6D2]/10 dark:border-[#89D6D2]/5",
+  default: "bg-transparent border-transparent",
 };
 
 export function FormSection({ title, description, children, className, variant = "default" }: FormSectionProps) {
   return (
     <div className={cn(
-        "p-6 rounded-[20px] shadow-[0_10px_25px_rgba(100,116,139,0.08)] dark:shadow-[0_10px_25px_rgba(0,0,0,0.2)] animate-fade", 
+        "p-6 rounded-[20px] border shadow-[0_2px_12px_rgba(100,116,139,0.04)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.1)] animate-fade transition-colors", 
         variantStyles[variant], 
         className
     )}>

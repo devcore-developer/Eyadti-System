@@ -1,3 +1,4 @@
+// components/patients/patient-form.tsx
 "use client"
 
 import { useTransition, useState } from "react"
@@ -12,6 +13,8 @@ import { AutocompleteInput, type AutocompleteOption } from "@/components/ui/auto
 import { searchAllergies, searchSurgeries, searchMedicalHistory } from "@/lib/actions/medical-dictionary"
 import { toast } from "sonner"
 import { X } from "lucide-react"
+import { FormGrid, FormFullWidth } from "@/components/ui/form-grid"
+import { FormSection } from "@/components/ui/form-section"
 
 type PatientData = {
   id?: string
@@ -96,104 +99,103 @@ export function PatientForm({ patient }: Props) {
   function handleAddCustomMedicalHistory(value: string) { if (!medicalHistory.includes(value)) setMedicalHistory([...medicalHistory, value]) }
   function handleRemoveMedicalHistory(item: string) { setMedicalHistory(medicalHistory.filter(m => m !== item)) }
 
+  const premiumSelectClasses = "flex h-10 w-full rounded-xl border border-input bg-white/90 dark:bg-[#223247]/50 backdrop-blur-sm px-4 py-2 text-sm shadow-sm ring-offset-background transition-all focus:outline-none focus:border-[#6B9CFF] focus:shadow-[0_0_0_4px_rgba(107,156,255,0.12)] hover:border-muted-foreground/30 appearance-none cursor-pointer disabled:opacity-50"
+
   return (
-    // ✨ إضافة pb-24 على الموبايل لتوفير مساحة للـ Sticky Bottom Bar
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-6 pb-24 md:pb-0">
+    <form onSubmit={handleSubmit} className="max-w-3xl space-y-8 pb-28 md:pb-0 animate-fade-in-up">
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
-          {error}
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive border border-destructive/20 flex items-start gap-3 shadow-sm">
+          <span className="font-bold">Error:</span> {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
+      <FormSection title="Personal Information" description="Basic patient details and contact information." variant="patient">
         <div className="space-y-2">
-          <Label htmlFor="fullName">Full Name <span className="text-red-500">*</span></Label>
-          <Input id="fullName" name="fullName" type="text" placeholder="John Doe" defaultValue={patient?.fullName ?? ""} required />
+          <Label htmlFor="fullName">Full Name <span className="text-destructive">*</span></Label>
+          <Input id="fullName" name="fullName" type="text" placeholder="John Doe" defaultValue={patient?.fullName ?? ""} required aria-invalid={!!fieldError("fullName")} />
+          {fieldError("fullName") && <p className="text-xs font-medium text-destructive mt-1">{fieldError("fullName")}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="phone">Phone <span className="text-red-500">*</span></Label>
-          <Input id="phone" name="phone" type="tel" placeholder="01xxxxxxxxx" defaultValue={patient?.phone ?? ""} required />
+          <Label htmlFor="phone">Phone <span className="text-destructive">*</span></Label>
+          <Input id="phone" name="phone" type="tel" placeholder="01xxxxxxxxx" defaultValue={patient?.phone ?? ""} required aria-invalid={!!fieldError("phone")} />
+          {fieldError("phone") && <p className="text-xs font-medium text-destructive mt-1">{fieldError("phone")}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input id="email" name="email" type="email" placeholder="john@example.com" defaultValue={patient?.email ?? ""} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="dateOfBirth">Date of Birth <span className="text-red-500">*</span></Label>
-          <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={toDateString(patient?.dateOfBirth)} required />
+          <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
+          <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={toDateString(patient?.dateOfBirth)} required aria-invalid={!!fieldError("dateOfBirth")} />
+          {fieldError("dateOfBirth") && <p className="text-xs font-medium text-destructive mt-1">{fieldError("dateOfBirth")}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
-          <select id="gender" name="gender" defaultValue={patient?.gender ?? ""} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-            <option value="">Select...</option>
+          <Label htmlFor="gender">Gender <span className="text-destructive">*</span></Label>
+          <select id="gender" name="gender" defaultValue={patient?.gender ?? ""} required className={premiumSelectClasses}>
+            <option value="" disabled>Select...</option>
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
             <option value="OTHER">Other</option>
           </select>
         </div>
-      </div>
+        <FormFullWidth className="space-y-2">
+          <Label htmlFor="address">Address</Label>
+          <Textarea id="address" name="address" rows={3} placeholder="123 Main St, City, Country" defaultValue={patient?.address ?? ""} />
+        </FormFullWidth>
+      </FormSection>
 
-      <div className="space-y-2">
-        <Label htmlFor="address">Address</Label>
-        <Textarea id="address" name="address" rows={3} placeholder="123 Main St, City, Country" defaultValue={patient?.address ?? ""} />
-      </div>
-
-      {/* Medical History Section */}
-      <div className="rounded-xl border border-border/50 bg-white/30 dark:bg-slate-800/20 p-4 sm:p-6 space-y-6">
-        <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wider border-b border-border/30 pb-2">Medical History</h3>
-        
-        <div className="space-y-3">
+      <FormSection title="Medical History" description="Allergies, past surgeries, and chronic conditions." variant="medical">
+        <FormFullWidth className="space-y-3">
           <Label>Allergies</Label>
           <AutocompleteInput searchFn={searchAllergies} onSelect={handleAddAllergy} onCustomAdd={handleAddCustomAllergy} placeholder="Search allergies (e.g., Penicillin)..." allowCustom />
           {allergies.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {allergies.map((allergy) => (
-                <span key={allergy} className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                <span key={allergy} className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 border border-destructive/20 px-3 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20">
                   {allergy}
-                  <button type="button" onClick={() => handleRemoveAllergy(allergy)} className="rounded-full hover:bg-red-300 p-0.5"><X className="h-3 w-3" /></button>
+                  <button type="button" onClick={() => handleRemoveAllergy(allergy)} className="rounded-full hover:bg-destructive/30 p-0.5 transition-colors"><X className="h-3 w-3" /></button>
                 </span>
               ))}
             </div>
           )}
-        </div>
+        </FormFullWidth>
 
-        <div className="space-y-3">
+        <FormFullWidth className="space-y-3">
           <Label>Surgical History</Label>
           <AutocompleteInput searchFn={searchSurgeries} onSelect={handleAddSurgery} onCustomAdd={handleAddCustomSurgery} placeholder="Search surgeries (e.g., Appendectomy)..." allowCustom />
           {surgeries.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {surgeries.map((surgery) => (
-                <span key={surgery} className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                <span key={surgery} className="inline-flex items-center gap-1.5 rounded-full bg-[#6B9CFF]/10 border border-[#6B9CFF]/20 px-3 py-1 text-xs font-medium text-[#6B9CFF] transition-colors hover:bg-[#6B9CFF]/20">
                   {surgery}
-                  <button type="button" onClick={() => handleRemoveSurgery(surgery)} className="rounded-full hover:bg-blue-300 p-0.5"><X className="h-3 w-3" /></button>
+                  <button type="button" onClick={() => handleRemoveSurgery(surgery)} className="rounded-full hover:bg-[#6B9CFF]/30 p-0.5 transition-colors"><X className="h-3 w-3" /></button>
                 </span>
               ))}
             </div>
           )}
-        </div>
+        </FormFullWidth>
 
-        <div className="space-y-3">
+        <FormFullWidth className="space-y-3">
           <Label>Past Medical History</Label>
           <AutocompleteInput searchFn={searchMedicalHistory} onSelect={handleAddMedicalHistory} onCustomAdd={handleAddCustomMedicalHistory} placeholder="Search chronic diseases, meds, symptoms..." allowCustom />
           {medicalHistory.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {medicalHistory.map((item) => (
-                <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 px-3 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 transition-colors hover:bg-purple-500/20">
                   {item}
-                  <button type="button" onClick={() => handleRemoveMedicalHistory(item)} className="rounded-full hover:bg-purple-300 p-0.5"><X className="h-3 w-3" /></button>
+                  <button type="button" onClick={() => handleRemoveMedicalHistory(item)} className="rounded-full hover:bg-purple-500/30 p-0.5 transition-colors"><X className="h-3 w-3" /></button>
                 </span>
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </FormFullWidth>
+      </FormSection>
 
-      {/* ✨ Sticky Bottom Bar على الموبايل، عادي على الـ Desktop */}
-      <div className="sticky-form-footer bg-white/80 dark:bg-[#17212F]/80 border-t border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] p-4 -mx-4 sm:-mx-6 sm:px-6 -mb-4 sm:-mb-6 sm:mt-0 md:static md:bg-transparent md:border-0 md:p-0 flex items-center gap-3">
-        <Button type="submit" disabled={isPending} className="flex-1 md:flex-none bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white">
-          {isPending ? "Saving..." : isEdit ? "Update Patient" : "Create Patient"}
+      <div className="sticky-form-footer bg-white/80 dark:bg-[#17212F]/80 border-t border-border p-4 -mx-4 sm:-mx-6 sm:px-6 -mb-4 sm:-mb-6 md:static md:bg-transparent md:border-0 md:p-0 flex items-center gap-3 rounded-b-[24px] md:rounded-none">
+        <Button type="submit" disabled={isPending} isLoading={isPending} className="flex-1 md:flex-none shadow-[0_4px_12px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200">
+          {isEdit ? "Update Patient" : "Create Patient"}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1 md:flex-none">Cancel</Button>
+        <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1 md:flex-none rounded-xl border-border bg-white dark:bg-[#223247]">Cancel</Button>
       </div>
     </form>
   )

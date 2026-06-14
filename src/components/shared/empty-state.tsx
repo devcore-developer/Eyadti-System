@@ -1,5 +1,6 @@
+// components/shared/empty-state.tsx
 import { cn } from "@/lib/utils"
-import { LucideIcon } from "lucide-react"
+import { type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface EmptyStateProps {
@@ -22,13 +23,13 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center py-24 px-8 text-center animate-fade",
+        "flex flex-col items-center justify-center py-20 px-8 text-center animate-fade",
         className
       )}
     >
-      {/* Premium Icon Container with Gradient & Shadow */}
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#F5F8FF] to-[#EAFBF9] dark:from-[#223247] dark:to-[#1D2A3B] mb-6 shadow-[0_10px_25px_rgba(107,156,255,0.10)]">
-        <Icon className="h-10 w-10 text-[#6B9CFF] dark:text-[#89D6D2]" />
+      {/* Premium Icon Container */}
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#F5F8FF] to-[#EAFBF9] dark:from-[#223247] dark:to-[#1D2A3B] mb-6 shadow-[0_8px_20px_rgba(107,156,255,0.08)] border border-white/50 dark:border-white/5">
+        <Icon className="h-9 w-9 text-[#6B9CFF] dark:text-[#89D6D2] stroke-[1.5px]" />
       </div>
       
       <h3 className="text-xl font-bold text-foreground mb-2 tracking-tight">
@@ -43,7 +44,7 @@ export function EmptyState({
         <div className="mt-8">
           <Button 
             onClick={onAction}
-            className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_8px_20px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 rounded-xl px-6 py-3 text-sm font-semibold"
+            className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 rounded-xl px-6 py-3 text-sm font-semibold"
           >
             {actionLabel}
           </Button>

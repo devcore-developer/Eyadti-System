@@ -1,3 +1,4 @@
+// app/(dashboard)/appointments/page.tsx
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
@@ -13,6 +14,8 @@ import { UnifiedAppointmentDrawer } from "@/components/appointments/unified-appo
 import { Button } from "@/components/ui/button"
 import { Monitor } from "lucide-react"
 import { Suspense } from "react"
+import { PageWrapper } from "@/components/ui/page-wrapper"
+import { TableSkeleton } from "@/components/ui/premium-skeletons"
 
 const PAGE_SIZE = 20
 
@@ -33,7 +36,6 @@ export default async function AppointmentsPage({
   const filterDoctorId = typeof params.doctorId === "string" ? params.doctorId : ""
   const filterStatus = typeof params.status === "string" ? params.status : ""
   
-  // ✨ استخراج الـ Pre-fill parameters
   const preselectedPatientId = typeof params.patientId === "string" ? params.patientId : ""
   const preselectedType = typeof params.type === "string" ? params.type : ""
 
@@ -130,14 +132,14 @@ export default async function AppointmentsPage({
   if (filterStatus) serializableParams.status = filterStatus
 
   return (
-    <div className="space-y-8 animate-fade pb-20">
+    <PageWrapper className="pb-20">
       <AppointmentHeader totalToday={todayCount} upcomingCount={upcomingCount} />
       <AppointmentKPIs today={todayCount} upcoming={upcomingCount} completed={completedCount} cancelled={cancelledCount} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <Suspense fallback={<div className="h-12 w-full bg-muted/50 rounded-2xl animate-pulse" />}>
+            <Suspense fallback={<div className="h-10 w-full md:w-72 bg-muted/50 rounded-xl animate-pulse" />}>
               <AppointmentFilters doctors={doctors} />
             </Suspense>
             
@@ -151,7 +153,6 @@ export default async function AppointmentsPage({
                 </Link>
               )}
               
-              {/* ✨ تمرير الـ Props الجديدة للـ Drawer */}
               {canCreate && (
                 <UnifiedAppointmentDrawer 
                   doctors={doctors} 
@@ -163,7 +164,7 @@ export default async function AppointmentsPage({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] p-6">
+          <Suspense fallback={<TableSkeleton rows={5} />}>
             <AppointmentTable
               appointments={appointments}
               role={session.user.role}
@@ -172,16 +173,16 @@ export default async function AppointmentsPage({
               totalPages={totalPages}
               searchParams={serializableParams}
             />
-          </div>
+          </Suspense>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6 md:space-y-8">
           <TodayTimeline appointments={appointments.slice(0, 5)} />
           <DoctorAvailability doctors={doctorAvailabilityData} />
         </div>
       </div>
 
       <QuickBooking />
-    </div>
+    </PageWrapper>
   ) 
 }

@@ -1,3 +1,4 @@
+// components/ui/dialog.tsx
 "use client"
 
 import * as React from "react"
@@ -17,7 +18,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-fade data-[state=closed]:animate-fade data-[state=closed]:reverse",
+      "fixed inset-0 z-50 bg-black/40 backdrop-blur-[6px] data-[state=open]:animate-fade data-[state=closed]:animate-fade data-[state=closed]:reverse",
       className
     )}
     {...props}
@@ -34,17 +35,15 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 grid w-full gap-4 bg-card border border-border shadow-lg duration-200",
-        // ✨ Mobile: Bottom Sheet (ملتصق بالأسفل، بزوايا مستديرة من الأعلى)
-        "bottom-0 left-0 right-0 max-h-[95vh] rounded-t-[24px] p-4 animate-slide-up-mobile",
-        // ✨ Desktop: Centered Modal
-        "sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:rounded-[var(--radius-dialog)] sm:p-6 sm:data-[state=open]:animate-scale-in sm:data-[state=closed]:animate-scale-in sm:data-[state=closed]:reverse",
+        "fixed z-50 grid w-full gap-4 bg-card border border-border shadow-xl duration-300",
+        "bottom-0 left-0 right-0 max-h-[95vh] rounded-t-[24px] p-6 animate-slide-up-mobile",
+        "sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:rounded-[var(--radius-dialog)] sm:data-[state=open]:animate-scale-in sm:data-[state=closed]:animate-scale-in sm:data-[state=closed]:reverse",
         className
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-1 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground bg-muted/50">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -59,7 +58,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-left sm:text-left border-b border-border/50 pb-3 mb-2 sm:border-0 sm:pb-0 sm:mb-0",
+      "flex flex-col space-y-1.5 text-left sm:text-left",
       className
     )}
     {...props}
@@ -73,7 +72,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-2",
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t border-border/50 mt-2",
       className
     )}
     {...props}
@@ -88,7 +87,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-lg sm:text-section-title leading-none tracking-tight",
+      "text-lg sm:text-section-title leading-none tracking-tight font-semibold",
       className
     )}
     {...props}
@@ -106,7 +105,7 @@ const DialogDescription = React.forwardRef<
     {...props}
   />
 ))
-DialogDescription.displayName = DialogDescription.displayName
+DialogDescription.displayName = DialogPrimitive.Description.displayName
 
 export {
   Dialog,

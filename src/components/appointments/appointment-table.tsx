@@ -1,9 +1,11 @@
+// components/appointments/appointment-table.tsx
 import Link from "next/link"
 import { AppointmentStatusBadge } from "./appointment-status-badge"
 import { AppointmentRowActions } from "./appointment-row-actions"
-import { MobileCard, MobileCardItem } from "@/components/ui/mobile-card" // ← الـ Component الجديد
+import { EmptyState } from "@/components/shared/empty-state"
+import { MobileCard, MobileCardItem } from "@/components/ui/mobile-card"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, CalendarX } from "lucide-react"
 
 type AppointmentRow = {
   id: string
@@ -49,39 +51,47 @@ export function AppointmentTable({
   searchParams,
 }: Props) {
   if (appointments.length === 0) {
-    return <div className="py-12 text-center text-gray-500">No appointments found.</div>
+    return (
+      <EmptyState 
+        icon={CalendarX} 
+        title="No appointments found" 
+        description="There are no appointments matching your criteria for this day." 
+        actionLabel="Book New"
+        onAction={() => window.location.href = "/appointments/new"}
+      />
+    )
   }
 
   return (
     <div className="space-y-4">
       
       {/* ━━━ DESKTOP TABLE ━━━ */}
-      <div className="hidden md:block rounded-xl border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white dark:bg-[#1D2A3B] overflow-hidden shadow-sm">
+      <div className="hidden md:block premium-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50/80 dark:bg-[#223247]/50 border-b border-[rgba(148,163,184,0.1)]">
-              <tr>
-                <th className="text-left p-4 font-medium text-muted-foreground">Patient</th>
-                <th className="text-left p-4 font-medium text-muted-foreground">Doctor</th>
-                <th className="text-left p-4 font-medium text-muted-foreground">Date & Time</th>
-                <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
-                <th className="text-right p-4 font-medium text-muted-foreground">Actions</th>
+            <thead className="premium-table-header">
+              <tr className="border-b border-border">
+                <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Patient</th>
+                <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Doctor</th>
+                <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Date & Time</th>
+                <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Status</th>
+                <th className="text-right px-6 py-4 font-semibold text-muted-foreground">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(148,163,184,0.05)]">
+            <tbody>
               {appointments.map((apt) => (
-                <tr key={apt.id} className="hover:bg-slate-50/50 dark:hover:bg-[#223247]/30 transition-colors">
-                  <td className="p-4 font-medium">
-                    <Link href={`/patients/${apt.patient.id}`} className="text-blue-600 hover:underline">
+                <tr key={apt.id} className="premium-table-row border-b border-border/50 last:border-0">
+                  <td className="px-6 py-4 font-medium">
+                    <Link href={`/patients/${apt.patient.id}`} className="text-[#6B9CFF] hover:underline transition-colors">
                       {apt.patient.fullName}
                     </Link>
                   </td>
-                  <td className="p-4 text-muted-foreground">{apt.doctor.name}</td>
-                  <td className="p-4 text-muted-foreground">{formatDateTime(apt.dateTime)}</td>
-                  <td className="p-4">
+                  <td className="px-6 py-4 text-muted-foreground">{apt.doctor.name}</td>
+                  <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{formatDateTime(apt.dateTime)}</td>
+                  <td className="px-6 py-4">
                     <AppointmentStatusBadge status={apt.status as any} />
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="px-6 py-4 text-right">
                     <AppointmentRowActions
                       appointmentId={apt.id}
                       status={apt.status as any}
@@ -102,14 +112,14 @@ export function AppointmentTable({
         {appointments.map((apt) => (
           <MobileCard key={apt.id}>
             <div className="flex justify-between items-start mb-2">
-              <Link href={`/patients/${apt.patient.id}`} className="font-semibold text-sm text-blue-600 hover:underline">
+              <Link href={`/patients/${apt.patient.id}`} className="font-semibold text-sm text-[#6B9CFF] hover:underline">
                 {apt.patient.fullName}
               </Link>
               <AppointmentStatusBadge status={apt.status as any} />
             </div>
             <MobileCardItem label="Doctor" value={apt.doctor.name} />
             <MobileCardItem label="Date" value={formatDateTime(apt.dateTime)} />
-            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50 flex justify-end">
+            <div className="mt-3 pt-3 border-t border-border flex justify-end">
               <AppointmentRowActions
                 appointmentId={apt.id}
                 status={apt.status as any}
@@ -124,13 +134,13 @@ export function AppointmentTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
+        <div className="flex items-center justify-center gap-4 pt-4">
           <Link href={buildPageUrl(currentPage - 1, searchParams)} className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}>
-            <Button variant="outline" size="icon" disabled={currentPage <= 1}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" disabled={currentPage <= 1} className="rounded-xl"><ChevronLeft className="h-4 w-4" /></Button>
           </Link>
-          <span className="text-sm text-muted-foreground">{currentPage} / {totalPages}</span>
+          <span className="text-sm text-muted-foreground font-medium">{currentPage} / {totalPages}</span>
           <Link href={buildPageUrl(currentPage + 1, searchParams)} className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}>
-            <Button variant="outline" size="icon" disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" disabled={currentPage >= totalPages} className="rounded-xl"><ChevronRight className="h-4 w-4" /></Button>
           </Link>
         </div>
       )}

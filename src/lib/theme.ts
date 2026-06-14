@@ -1,3 +1,4 @@
+// lib/theme.ts
 import { colors, typography, spacing, radii, zIndexes, shadows } from "./design-tokens";
 
 export const theme = {
@@ -8,11 +9,10 @@ export const theme = {
   zIndexes,
   shadows,
   
-  // Pre-configured Chart Colors (Soft & Premium as requested)
   chart: {
-    primary: colors.primaryMedical.DEFAULT,   // Patients
+    primary: colors.primaryMedical.DEFAULT,
     primaryLight: colors.primaryMedical.light,
-    premiumBlue: colors.premiumBlue.DEFAULT,  // Revenue
+    premiumBlue: colors.premiumBlue.DEFAULT,
     premiumBlueLight: colors.premiumBlue.light,
     success: colors.status.success,
     warning: colors.status.warning,

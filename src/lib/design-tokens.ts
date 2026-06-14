@@ -1,3 +1,4 @@
+// lib/design-tokens.ts
 export const colors = {
   primaryMedical: {
     DEFAULT: "#5BC0BE",
@@ -50,9 +51,13 @@ export const typography = {
     medium: "500",
     regular: "400",
   },
+  lineHeight: {
+    tight: "1.2",
+    normal: "1.5",
+    relaxed: "1.75",
+  }
 };
 
-// أضفنا الـ spacing والـ zIndexes عشان الـ theme.ts يقدر يقرأهم
 export const spacing = {
   0.5: "0.125rem",
   1: "0.25rem",
@@ -65,6 +70,7 @@ export const spacing = {
   6: "1.5rem",
   8: "2rem",
   10: "2.5rem",
+  12: "3rem",
 };
 
 export const zIndexes = {
@@ -78,16 +84,16 @@ export const zIndexes = {
 
 export const radii = {
   card: "20px",
-  input: "14px",
-  button: "14px",
-  sidebarItem: "14px",
+  input: "12px",
+  button: "12px",
+  sidebarItem: "12px",
 };
 
 export const shadows = {
-  card: "0 10px 30px rgba(100,116,139,.12)",
-  cardHover: "0 18px 40px rgba(100,116,139,.15)",
-  sidebar: "0 8px 30px rgba(15,23,42,.08)",
-  inputFocus: "0 0 0 4px rgba(107,156,255,.12)",
-  buttonPrimary: "0 8px 20px rgba(107,156,255,.20)",
-  activeSidebarItem: "0 8px 20px rgba(107,156,255,.15)",
+  card: "0 1px 3px rgba(100,116,139, 0.04), 0 8px 24px rgba(100,116,139, 0.08)",
+  cardHover: "0 2px 4px rgba(100,116,139, 0.04), 0 12px 32px rgba(100,116,139, 0.12)",
+  sidebar: "0 1px 3px rgba(15,23,42, 0.04), 0 8px 24px rgba(15,23,42, 0.06)",
+  inputFocus: "0 0 0 4px rgba(107,156,255, 0.15)",
+  buttonPrimary: "0 4px 12px rgba(107,156,255, 0.2)",
+  activeSidebarItem: "0 4px 12px rgba(107,156,255, 0.1)",
 };

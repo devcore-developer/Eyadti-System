@@ -1,3 +1,4 @@
+// components/providers.tsx
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
@@ -85,7 +86,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           richColors 
           closeButton 
           toastOptions={{
-            className: "shadow-lg rounded-xl border backdrop-blur-md",
+            className: "shadow-lg rounded-xl border backdrop-blur-md font-sans",
           }}
         />
       </ThemeProvider>

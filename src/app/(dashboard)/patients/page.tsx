@@ -1,3 +1,4 @@
+// app/(dashboard)/patients/page.tsx
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
@@ -9,7 +10,9 @@ import { PatientKPIs } from "@/components/patients/patient-kpi"
 import { PatientFilters } from "@/components/patients/patient-filters"
 import { UserPlus } from "lucide-react"
 import { Suspense } from "react"
-import { PageWrapper } from "@/components/ui/page-wrapper" // ← الـ Wrapper الجديد
+import { PageWrapper } from "@/components/ui/page-wrapper"
+import { TableSkeleton } from "@/components/ui/premium-skeletons"
+import { Button } from "@/components/ui/button"
 
 const PAGE_SIZE = 20
 
@@ -77,19 +80,17 @@ export default async function PatientsPage({
       <PatientHeader totalPatients={total} />
       <PatientKPIs totalPatients={total} />
 
-      {/* ✅ Mobile-First Search, Filters & Actions Layout */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
-          <Suspense fallback={<div className="h-12 w-full bg-muted/50 rounded-xl animate-pulse" />}>
+          <Suspense fallback={<div className="h-10 w-full bg-muted/50 rounded-xl animate-pulse" />}>
             <PatientSearch />
           </Suspense>
           {showCreate && (
-            <Link
-              href="/patients/new"
-              className="flex items-center justify-center gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_8px_20px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 rounded-xl px-4 py-2.5 text-sm font-semibold h-10 w-10 md:w-auto md:px-5 md:py-3"
-            >
-              <UserPlus className="h-4 w-4" /> 
-              <span className="hidden md:inline">Add Patient</span>
+            <Link href="/patients/new" className="shrink-0">
+              <Button className="gap-2 rounded-xl h-10 shadow-[0_4px_12px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200">
+                <UserPlus className="h-4 w-4" /> 
+                <span className="hidden md:inline">Add Patient</span>
+              </Button>
             </Link>
           )}
         </div>
@@ -98,13 +99,15 @@ export default async function PatientsPage({
         </div>
       </div>
 
-      <PatientTable
-        patients={patients}
-        role={session.user.role}
-        currentPage={page}
-        totalPages={totalPages}
-        searchParams={serializableParams}
-      />
+      <Suspense fallback={<TableSkeleton rows={5} />}>
+        <PatientTable
+          patients={patients}
+          role={session.user.role}
+          currentPage={page}
+          totalPages={totalPages}
+          searchParams={serializableParams}
+        />
+      </Suspense>
     </PageWrapper>
   )
 }

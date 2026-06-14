@@ -1,3 +1,4 @@
+// components/dashboard/revenue-chart.tsx
 "use client"
 
 import {
@@ -36,26 +37,27 @@ export function RevenueChart({ data }: RevenueChartProps) {
               dataKey="name"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
             />
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "rgba(255, 255, 255, 0.96)",
-                border: "1px solid rgba(255, 255, 255, 0.25)",
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
                 backdropFilter: "blur(10px)",
                 borderRadius: "16px",
                 boxShadow: "0 15px 35px rgba(100,116,139,0.15)",
                 padding: "12px 16px",
+                color: "hsl(var(--foreground))"
               }}
               labelStyle={{
                 fontWeight: 600,
-                color: "#0F172A",
+                color: "hsl(var(--foreground))",
                 marginBottom: "4px",
                 fontSize: "13px"
               }}
@@ -78,7 +80,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
               fillOpacity={1}
               fill="url(#colorRevenue)"
               dot={false}
-              activeDot={{ r: 6, fill: "#6B9CFF", stroke: "#fff", strokeWidth: 3, filter: 'drop-shadow(0px 2px 4px rgba(107,156,255,0.4))' }}
+              activeDot={{ r: 6, fill: "#6B9CFF", stroke: "hsl(var(--card))", strokeWidth: 3, filter: 'drop-shadow(0px 2px 4px rgba(107,156,255,0.4))' }}
             />
           </AreaChart>
         </ResponsiveContainer>

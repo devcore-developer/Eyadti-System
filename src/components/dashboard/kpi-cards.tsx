@@ -1,3 +1,4 @@
+// components/dashboard/kpi-cards.tsx
 import Link from "next/link"
 import { Users, CalendarCheck, DollarSign, Clock, Bell } from "lucide-react"
 
@@ -46,10 +47,9 @@ const kpiData = [
     iconBg: "bg-[#F4B860]/10",
     href: "/invoices"
   },
-  // ✨ إضافة كارت الإشعارات الجديدة اللي بتفتح صفحة الإشعارات
   {
     title: "New Notifications",
-    value: "3", // ده ممكن يتعمل dynamic بعدين
+    value: "3",
     growth: "Action required",
     trend: "up",
     description: "Click to view details",
@@ -62,7 +62,6 @@ const kpiData = [
 
 export function KPICards() {
   return (
-    // ✨ تعديل الـ Grid عشان يبقى متناسق على الموبايل والتابلت
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
       {kpiData.map((kpi, index) => {
         const Icon = kpi.icon
@@ -70,16 +69,16 @@ export function KPICards() {
           <Link 
             key={index}
             href={kpi.href}
-            className={`group relative overflow-hidden p-5 md:p-6 rounded-[24px] border border-[rgba(255,255,255,0.60)] dark:border-[rgba(255,255,255,0.06)] backdrop-blur-[12px] bg-gradient-to-br from-[rgba(255,255,255,0.95)] to-[rgba(245,250,255,0.92)] dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] dark:shadow-[0_15px_35px_rgba(0,0,0,0.2)] transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_20px_45px_rgba(100,116,139,0.15)] animate-scale-in cursor-pointer`}
-            style={{ animationDelay: `${index * 50}ms` }}
+            className="premium-card group relative overflow-hidden p-5 md:p-6 animate-fade-in-up cursor-pointer"
+            style={{ animationDelay: `${index * 75}ms` }}
           >
             <div className="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-white/40 dark:bg-white/5 blur-2xl pointer-events-none" />
             
             <div className="relative z-10 flex items-center justify-between mb-4">
               <div className={`p-3 rounded-xl backdrop-blur-md border border-white/50 dark:border-white/10 shadow-sm ${kpi.iconBg}`}>
-                <Icon className={`h-6 w-6 ${kpi.accent}`} />
+                <Icon className={`h-5 w-5 ${kpi.accent}`} />
               </div>
-              <span className={`text-xs md:text-sm font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg backdrop-blur-md ${kpi.trend === 'up' ? 'text-[#6BCB77] bg-[#6BCB77]/10' : 'text-[#EF6B6B] bg-[#EF6B6B]/10'}`}>
+              <span className={`text-xs font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg backdrop-blur-md ${kpi.trend === 'up' ? 'text-[#6BCB77] bg-[#6BCB77]/10' : 'text-[#EF6B6B] bg-[#EF6B6B]/10'}`}>
                 {kpi.growth} <span>{kpi.trend === 'up' ? '↑' : '↓'}</span>
               </span>
             </div>

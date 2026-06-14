@@ -1,3 +1,4 @@
+// components/shared/confirm-delete.tsx
 "use client"
 
 import { useState, useTransition } from "react"
@@ -35,7 +36,7 @@ export function ConfirmDelete({ title, description, onConfirm, children }: Props
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       
-      <DialogContent className="max-w-md border-red-200/50 dark:border-red-900/30 bg-white dark:bg-[#1A2332] shadow-[0_25px_50px_rgba(0,0,0,0.25)] rounded-2xl p-0 overflow-hidden">
+      <DialogContent className="max-w-md border-red-200/50 dark:border-red-900/30 bg-white dark:bg-[#1A2332] shadow-[0_25px_50px_rgba(0,0,0,0.25)] p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-0">
           <div className="flex items-center gap-4 mb-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/40 dark:to-red-800/20 text-red-600 dark:text-red-400 shadow-sm">
@@ -50,12 +51,12 @@ export function ConfirmDelete({ title, description, onConfirm, children }: Props
           </DialogDescription>
         </DialogHeader>
         
-        <DialogFooter className="p-6 pt-8 bg-slate-50/50 dark:bg-[#131B27] gap-3">
+        <DialogFooter className="p-6 pt-6 bg-slate-50/50 dark:bg-[#131B27] gap-3 border-t border-border/50 mt-4">
           <Button 
             variant="outline" 
             onClick={() => setIsOpen(false)} 
             disabled={isPending}
-            className="rounded-xl border-0 bg-white dark:bg-[#223247] hover:bg-slate-100 dark:hover:bg-[#2A3B4E] px-5 py-2.5 font-semibold transition-colors shadow-sm"
+            className="rounded-xl bg-white dark:bg-[#223247] hover:bg-slate-100 dark:hover:bg-[#2A3B4E] px-5 py-2.5 font-semibold transition-colors shadow-sm border-border"
           >
             Cancel
           </Button>
@@ -63,9 +64,10 @@ export function ConfirmDelete({ title, description, onConfirm, children }: Props
             variant="destructive" 
             onClick={handleDelete} 
             disabled={isPending}
-            className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl px-5 py-2.5 shadow-[0_8px_20px_rgba(239,68,68,0.25)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-60"
+            isLoading={isPending}
+            className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl px-5 py-2.5 shadow-[0_8px_20px_rgba(239,68,68,0.25)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 font-semibold"
           >
-            {isPending ? "Deleting..." : "Yes, Delete"}
+            Yes, Delete
           </Button>
         </DialogFooter>
       </DialogContent>

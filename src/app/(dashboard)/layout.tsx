@@ -1,3 +1,4 @@
+// app/(dashboard)/layout.tsx
 import { auth } from "@/lib/auth"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { MobileNav } from "@/components/dashboard/mobile-nav"
@@ -71,7 +72,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </header>
 
         {/* ── Desktop Header ── */}
-        <header className="hidden lg:flex print:hidden h-16 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white/70 dark:bg-[#17212F]/70 backdrop-blur-xl px-6 items-center justify-between shadow-[0_2px_20px_rgba(100,116,139,0.05)] z-10">
+        <header className="hidden lg:flex print:hidden h-16 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white/70 dark:bg-[#17212F]/70 backdrop-blur-xl px-6 items-center justify-between shadow-[0_2px_20px_rgba(100,116,139,0.04)] z-10">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xs font-bold uppercase tracking-[0.2em] bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] bg-clip-text text-transparent truncate">
               {clinic?.name || "Eyadti Clinic"}
@@ -98,8 +99,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </header>
         
         {/* ── Main Content ── */}
-        {/* ✨ تعديل الـ Padding ليكون مريح للموبايل ومراعاة الـ Bottom Safe Area */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-5 lg:p-8 print:p-0 print:overflow-visible print:bg-white pb-24 lg:pb-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 print:p-0 print:overflow-visible print:bg-white pb-20 lg:pb-8">
           <div className="animate-fade-in-up print:animate-none max-w-[1400px] mx-auto">
             <SubscriptionGuard 
               status={subscription?.status || null}
