@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { Loader2, Save, CalendarClock, Clock, Users } from "lucide-react"
+import { showSuccess, showError } from "@/components/shared/feedback-toast"
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
@@ -29,9 +31,11 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   
-  // الحقول الجديدة
   const [duration, setDuration] = useState<number>(30)
   const [maxAppointments, setMaxAppointments] = useState<number>(20)
+
+  // ✨ استخراج بيانات الدكتور المختار عشان نعرض اسمه بشكل صحيح في الـ Trigger
+  const selectedDoctorData = doctors.find(d => d.id === selectedDoctor)
 
   useEffect(() => {
     if (selectedDoctor) {
@@ -41,7 +45,6 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
         setIsLoading(false)
       })
       
-      // تحديث الحقول الجديدة بناءً على الدكتور المختار
       const doc = doctors.find(d => d.id === selectedDoctor)
       setDuration(doc?.appointmentDuration || 30)
       setMaxAppointments(doc?.maxDailyAppointments || 20)
@@ -61,19 +64,16 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
   const onSubmit = async () => {
     setIsSubmitting(true)
     try {
-      // 1. حفظ جدول المواعيد (الأيام والساعات)
       const scheduleResult = await updateDoctorSchedules(selectedDoctor, schedules)
-      
-      // 2. حفظ الحد الأقصى والمدة (الـ Action الجديد)
       const capacityResult = await updateDoctorCapacity(selectedDoctor, duration, maxAppointments)
 
       if (scheduleResult.success && capacityResult.success) {
-        alert("Schedule and capacity saved successfully!")
+        showSuccess("Schedule Updated", "Doctor schedule and capacity saved successfully.")
       } else {
-        alert(scheduleResult.error || capacityResult.error || "Failed to save")
+        showError("Failed to save", scheduleResult.error || capacityResult.error || "An unexpected error occurred.")
       }
     } catch (error) {
-      alert("Something went wrong")
+      showError("Something went wrong", "An unexpected error occurred.")
     } finally {
       setIsSubmitting(false)
     }
@@ -82,27 +82,32 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
   if (doctors.length === 0) return null
 
   return (
-    <div className="rounded-[24px] bg-gradient-to-br from-white to-[#F8FBFF] dark:from-[#223247] dark:to-[#1D2A3B] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] shadow-[0_15px_35px_rgba(100,116,139,0.10)] overflow-hidden">
-      <div className="p-6 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)]">
-        <div className="flex items-center gap-2">
-          <CalendarClock className="h-5 w-5 text-[#6B9CFF]" />
+    <div className="premium-card overflow-hidden">
+      <div className="p-6 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[rgba(107,156,255,0.1)]">
+            <CalendarClock className="h-5 w-5 text-[#6B9CFF]" />
+          </div>
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Doctor Schedules</h2>
-            <p className="text-sm text-muted-foreground">Manage individual doctor availability.</p>
+            <h2 className="text-card-title text-foreground">Doctor Schedules</h2>
+            <p className="text-body text-muted-foreground">Manage individual doctor availability.</p>
           </div>
         </div>
       </div>
       
       <div className="p-6 space-y-6">
         <div>
-          <Label>Select Doctor</Label>
-          <Select value={selectedDoctor} onValueChange={(val: string | null) => { if (val) setSelectedDoctor(val) }}>
-            <SelectTrigger className="w-full md:w-1/3 mt-1.5 rounded-xl">
-              <SelectValue placeholder="Choose a doctor..." />
+          <Label className="text-sm font-semibold">Select Doctor</Label>
+          <Select value={selectedDoctor} onValueChange={(val: string) => setSelectedDoctor(val)}>
+            <SelectTrigger className="w-full md:w-1/3 mt-2 rounded-xl h-11">
+              {/* ✨ الحل: عرض اسم الدكتور صراحة بدل ما نعتمد على الـ Radix Auto-extract */}
+              <SelectValue placeholder="Choose a doctor...">
+                {selectedDoctorData ? `Dr. ${selectedDoctorData.name}` : "Choose a doctor..."}
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl">
               {doctors.map((doc) => (
-                <SelectItem key={doc.id} value={doc.id}>
+                <SelectItem key={doc.id} value={doc.id} className="rounded-lg cursor-pointer">
                   Dr. {doc.name}
                 </SelectItem>
               ))}
@@ -112,10 +117,10 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
 
         {/* Premium KPIs for Schedule Settings */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-[16px] bg-[#F5FFFF] dark:bg-[#1D2A3B] border border-[rgba(91,192,190,0.1)]">
+          <div className="p-4 rounded-2xl bg-[#F5FFFF] dark:bg-[#1D2A3B]/50 border border-[rgba(91,192,190,0.1)] transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-4 w-4 text-[#5BC0BE]" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Duration</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Duration</span>
             </div>
             <div className="flex items-center gap-2">
               <Input 
@@ -123,68 +128,69 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
                 disabled={isReadOnly}
-                className="text-lg font-bold border-none bg-transparent p-0 h-auto focus-visible:ring-0"
+                className="text-lg font-bold border-none bg-transparent p-0 h-auto focus-visible:ring-0 shadow-none"
               />
-              <span className="text-sm text-muted-foreground">min</span>
+              <span className="text-sm text-muted-foreground font-medium">min</span>
             </div>
           </div>
           
-          <div className="p-4 rounded-[16px] bg-[#F5F8FF] dark:bg-[#1D2A3B] border border-[rgba(107,156,255,0.1)]">
+          <div className="p-4 rounded-2xl bg-[#F5F8FF] dark:bg-[#1D2A3B]/50 border border-[rgba(107,156,255,0.1)] transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <Users className="h-4 w-4 text-[#6B9CFF]" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Max Daily</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Max Daily</span>
             </div>
             <Input 
               type="number" 
               value={maxAppointments}
               onChange={(e) => setMaxAppointments(Number(e.target.value))}
               disabled={isReadOnly}
-              className="text-lg font-bold border-none bg-transparent p-0 h-auto focus-visible:ring-0"
+              className="text-lg font-bold border-none bg-transparent p-0 h-auto focus-visible:ring-0 shadow-none"
             />
           </div>
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-[#6B9CFF]" /></div>
         ) : (
           <div className="space-y-3">
             {schedules.map((day, index) => (
-              <div key={day.dayOfWeek} className="flex items-center gap-4 p-3 rounded-xl bg-white dark:bg-[#223247] border border-[rgba(148,163,184,0.05)] hover:shadow-sm transition-all">
-                <div className="w-24">
+              <div key={day.dayOfWeek} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-white dark:bg-[#223247]/50 border border-[rgba(148,163,184,0.05)] hover:shadow-sm transition-all">
+                <div className="w-24 shrink-0">
                   <Label className="font-semibold text-sm">{DAYS[day.dayOfWeek]}</Label>
                 </div>
                 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Day Off?</span>
-                  <input
-                    type="checkbox"
+                {/* ✨ استبدال الـ Checkbox بـ Premium Switch */}
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id={`dayoff-${day.dayOfWeek}`}
                     checked={!day.isAvailable}
-                    onChange={(e) => handleChange(index, "isAvailable", !e.target.checked)}
+                    onCheckedChange={(checked) => handleChange(index, "isAvailable", !checked)}
                     disabled={isReadOnly}
-                    className="h-4 w-4 rounded border-gray-300 text-[#EF6B6B] focus:ring-[#EF6B6B]"
+                    className="data-[state=checked]:bg-[#EF6B6B]"
                   />
+                  <Label htmlFor={`dayoff-${day.dayOfWeek}`} className="text-xs text-muted-foreground cursor-pointer">Day Off</Label>
                 </div>
 
                 {day.isAvailable ? (
-                  <div className="flex items-center gap-2 ml-auto">
+                  <div className="flex items-center gap-2 sm:ml-auto">
                     <Input
                       type="time"
                       value={day.startTime}
                       onChange={(e) => handleChange(index, "startTime", e.target.value)}
                       disabled={isReadOnly}
-                      className="w-32 rounded-xl"
+                      className="w-32 rounded-xl h-10"
                     />
-                    <span className="text-muted-foreground">to</span>
+                    <span className="text-muted-foreground text-xs font-medium">to</span>
                     <Input
                       type="time"
                       value={day.endTime}
                       onChange={(e) => handleChange(index, "endTime", e.target.value)}
                       disabled={isReadOnly}
-                      className="w-32 rounded-xl"
+                      className="w-32 rounded-xl h-10"
                     />
                   </div>
                 ) : (
-                  <p className="ml-auto text-xs text-[#EF6B6B] font-medium">Day Off</p>
+                  <p className="sm:ml-auto text-xs text-[#EF6B6B] font-semibold bg-[#EF6B6B]/10 px-3 py-1 rounded-full">Day Off</p>
                 )}
               </div>
             ))}
@@ -193,8 +199,13 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
 
         {!isReadOnly && selectedDoctor && (
           <div className="flex justify-end pt-2">
-            <Button onClick={onSubmit} disabled={isSubmitting} className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white rounded-xl shadow-md">
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            <Button 
+              onClick={onSubmit} 
+              disabled={isSubmitting} 
+              isLoading={isSubmitting}
+              className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white rounded-xl shadow-[0_4px_12px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 px-6"
+            >
+              <Save className="h-4 w-4" />
               Save Schedule
             </Button>
           </div>
