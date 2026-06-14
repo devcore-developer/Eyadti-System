@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation"
 
-export default async function NewVisitPage({
+export default async function NewVisitRedirectPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { id: patientId } = await params
+  const { id } = await params
   
-  // تحويل للرابط الموحد وبعت الـ patientId كـ Query Parameter
-  redirect(`/reception/new?patientId=${patientId}`)
+  // ✨ تحويل المستخدم لصفحة المواعيد لإنشاء Walk-in بدلاً من زيارة حرة
+  // هذا يضمن المرور بغرفة الانتظار والـ Queue System
+  redirect(`/appointments?patientId=${id}&type=WALK_IN`)
 }

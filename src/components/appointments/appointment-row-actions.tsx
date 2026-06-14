@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { changeAppointmentStatus, deleteAppointment } from "@/actions/appointments"
+import { deleteAppointment } from "@/actions/appointments"
+import { checkInAppointment } from "@/actions/unified-appointment" // ✨ الـ Action الجديد
 import { AppointmentStatus } from "@prisma/client"
 import Link from "next/link"
 
@@ -22,21 +23,20 @@ export function AppointmentRowActions({ appointmentId, status, doctorId, role, u
   const isDoctorOwner = role === "DOCTOR" && doctorId === userId
   const canEdit = (role === "SUPER_ADMIN" || role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
   
-  // ← الزرار ده اللي بيخلي المريض يدخل غرفة الانتظار
+  // ✨ شروط الأزرار الجديدة بناءً على الـ Workflow الجديد
   const canCheckIn = (role === "SUPER_ADMIN" || role === "ADMIN" || role === "RECEPTIONIST") && status === AppointmentStatus.SCHEDULED
-  
-  // ← الزرار ده عشان الدكتور يقول المريض دخل عندي
-  const canStartConsultation = (role === "SUPER_ADMIN" || role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.ARRIVED
-  
-  const canComplete = (role === "SUPER_ADMIN" || role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.IN_PROGRESS
-  const canCancel = (role === "SUPER_ADMIN" || role === "ADMIN") && status !== AppointmentStatus.CANCELLED
+  const canCancel = (role === "SUPER_ADMIN" || role === "ADMIN") && status !== AppointmentStatus.CANCELLED && status !== AppointmentStatus.COMPLETED
 
-  function handleStatusChange(newStatus: AppointmentStatus) {
+  // ✨ دالة الـ Check-in الجديدة
+  function handleCheckIn() {
     setError(null)
     startTransition(async () => {
-      const result = await changeAppointmentStatus(appointmentId, newStatus)
-      if (!result.success) setError(result.error ?? null)
-      else router.refresh()
+      const result = await checkInAppointment(appointmentId)
+      if (!result.success) {
+        setError(result.error ?? "Check-in failed")
+      } else {
+        router.refresh()
+      }
     })
   }
 
@@ -53,20 +53,20 @@ export function AppointmentRowActions({ appointmentId, status, doctorId, role, u
     <div className="flex items-center justify-end gap-2">
       {error && <span className="text-xs text-red-600">{error}</span>}
       
-      <Link href={`/appointments/${appointmentId}`} className="text-gray-600 hover:text-gray-900">
+      <Link href={`/appointments/${appointmentId}`} className="text-gray-600 hover:text-gray-900 text-xs">
         View
       </Link>
 
       {canEdit && (
-        <Link href={`/appointments/edit/${appointmentId}`} className="text-blue-600 hover:text-blue-800">
+        <Link href={`/appointments/edit/${appointmentId}`} className="text-blue-600 hover:text-blue-800 text-xs">
           Edit
         </Link>
       )}
 
-      {/* ↓↓↓ الزرار الجديد ↓↓↓ */}
+      {/* ✨ زر الـ Check-in الجديد */}
       {canCheckIn && (
         <button
-          onClick={() => handleStatusChange(AppointmentStatus.ARRIVED)}
+          onClick={handleCheckIn}
           disabled={isPending}
           className="rounded-md bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-200 disabled:opacity-50"
         >
@@ -74,25 +74,7 @@ export function AppointmentRowActions({ appointmentId, status, doctorId, role, u
         </button>
       )}
 
-      {canStartConsultation && (
-        <button
-          onClick={() => handleStatusChange(AppointmentStatus.IN_PROGRESS)}
-          disabled={isPending}
-          className="rounded-md bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-800 hover:bg-indigo-200 disabled:opacity-50"
-        >
-          {isPending ? "..." : "▶ Start Consult."}
-        </button>
-      )}
-
-      {canComplete && (
-        <button
-          onClick={() => handleStatusChange(AppointmentStatus.COMPLETED)}
-          disabled={isPending}
-          className="rounded-md bg-green-100 px-2 py-1 text-xs font-semibold text-green-800 hover:bg-green-200 disabled:opacity-50"
-        >
-          {isPending ? "..." : "✓ Complete"}
-        </button>
-      )}
+      {/* لا نحتاج أزرار Start Consultation أو Complete هنا، لأن هذا يتم من الـ Waiting Room الآن */}
 
       {canCancel && (
         <button

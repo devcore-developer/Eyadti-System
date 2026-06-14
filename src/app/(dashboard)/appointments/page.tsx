@@ -9,8 +9,9 @@ import { AppointmentKPIs } from "@/components/appointments/appointment-kpis"
 import { TodayTimeline } from "@/components/appointments/today-timeline"
 import { DoctorAvailability } from "@/components/appointments/doctor-availability"
 import { QuickBooking } from "@/components/appointments/quick-booking"
+import { UnifiedAppointmentDrawer } from "@/components/appointments/unified-appointment-drawer"
 import { Button } from "@/components/ui/button"
-import { Monitor, Plus } from "lucide-react"
+import { Monitor } from "lucide-react"
 import { Suspense } from "react"
 
 const PAGE_SIZE = 20
@@ -31,6 +32,10 @@ export default async function AppointmentsPage({
   const filterDate = typeof params.date === "string" ? params.date : ""
   const filterDoctorId = typeof params.doctorId === "string" ? params.doctorId : ""
   const filterStatus = typeof params.status === "string" ? params.status : ""
+  
+  // ✨ استخراج الـ Pre-fill parameters
+  const preselectedPatientId = typeof params.patientId === "string" ? params.patientId : ""
+  const preselectedType = typeof params.type === "string" ? params.type : ""
 
   const where: any = {
     clinicId: session.user.clinicId,
@@ -116,7 +121,6 @@ export default async function AppointmentsPage({
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
   
-  // تم تنظيف السطور دي من الأخطاء بتاعة الـ Replace
   const canCreate = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
   const isAdmin = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN"
   
@@ -146,13 +150,15 @@ export default async function AppointmentsPage({
                   </Button>
                 </Link>
               )}
+              
+              {/* ✨ تمرير الـ Props الجديدة للـ Drawer */}
               {canCreate && (
-                <Link href="/appointments/new">
-                  <Button size="sm" className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_8px_20px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 transition-all duration-200 rounded-xl">
-                    <Plus className="h-4 w-4" />
-                    Schedule
-                  </Button>
-                </Link>
+                <UnifiedAppointmentDrawer 
+                  doctors={doctors} 
+                  clinicId={session.user.clinicId} 
+                  preselectedPatientId={preselectedPatientId}
+                  preselectedType={preselectedType}
+                />
               )}
             </div>
           </div>

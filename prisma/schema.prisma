@@ -13,13 +13,6 @@ enum Role {
   RECEPTIONIST
 }
 
-enum AppointmentStatus {
-  SCHEDULED
-  ARRIVED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
 
 enum InvoiceStatus {
   PAID
@@ -283,35 +276,6 @@ model Patient {
   @@map("patients")
 }
 
-model Appointment {
-  id        String            @id @default(cuid())
-  patientId String
-  patient   Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  doctorId  String
-  doctor    User              @relation(fields: [doctorId], references: [id], onDelete: Restrict)
-  clinicId  String
-  branchId  String?
-  clinic    Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  dateTime  DateTime
-  status    AppointmentStatus @default(SCHEDULED)
-  arrivedAt DateTime?
-  notes     String?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-
-  reminders Reminder[]
-  booking   Booking?
-
-  @@index([patientId])
-  @@index([doctorId])
-  @@index([clinicId])
-  @@index([branchId])
-  @@index([dateTime])
-  @@index([status])
-  @@map("appointments")
-}
-
 // ── Invoice Items ────────────────────────────────────
 
 model InvoiceItem {
@@ -504,35 +468,6 @@ model VerificationToken {
   expires DateTime
 
   @@unique([identifier, token])
-}
-
-// ── Medical Records ──────────────────────────────────
-
-model Visit {
-  id        String   @id @default(cuid())
-  clinicId  String
-  branchId  String?
-  patientId String
-  doctorId  String
-  visitDate DateTime
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  clinic         Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  branch         Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  patient        Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctor         User                 @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  complaints     VisitComplaint[]
-  diagnoses      VisitDiagnosis[]
-  treatmentPlans VisitTreatmentPlan[]
-  prescription   Prescription?
-
-  @@index([clinicId])
-  @@index([branchId])
-  @@index([patientId])
-  @@index([doctorId])
-  @@map("visits")
 }
 
 model VisitComplaint {
@@ -948,4 +883,103 @@ model MedicalHistoryDict {
 
   @@index([name])
   @@map("medical_history_dictionary")
+}
+
+// ── Modify existing Appointment Model ────────────────
+
+model Appointment {
+  id        String            @id @default(cuid())
+  patientId String
+  patient   Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctorId  String
+  doctor    User              @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  clinicId  String
+  branchId  String?
+  clinic    Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  dateTime  DateTime
+  notes     String?
+  
+  // New Fields
+  type      AppointmentType   @default(SCHEDULED)
+  status    AppointmentStatus @default(SCHEDULED)
+
+  arrivedAt DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  visit     Visit?            // One-to-One relation
+  reminders Reminder[]
+  booking   Booking?
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([clinicId])
+  @@index([branchId])
+  @@index([dateTime])
+  @@index([status])
+  @@map("appointments")
+}
+
+// ── Modify existing Visit Model ──────────────────────
+
+model Visit {
+  id        String   @id @default(cuid())
+  clinicId  String
+  branchId  String?
+  patientId String
+  doctorId  String
+  visitDate DateTime
+  notes     String?
+  
+  // New Fields for Workflow
+  appointmentId String?   @unique
+  status        VisitStatus @default(WAITING)
+  queueNumber   Int?
+  priority      Priority    @default(MEDIUM)
+  checkedInAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic         Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  branch         Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  patient        Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor         User                 @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  appointment    Appointment?         @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  complaints     VisitComplaint[]
+  diagnoses      VisitDiagnosis[]
+  treatmentPlans VisitTreatmentPlan[]
+  prescription   Prescription?
+
+  @@index([clinicId])
+  @@index([branchId])
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@map("visits")
+}
+
+// ── IMPORTANT: Update AppointmentStatus Enum ──────────
+// Replace your existing AppointmentStatus with this:
+enum AppointmentStatus {
+  SCHEDULED   // Booked but not arrived
+  CONFIRMED   // Arrived / Checked-in
+  COMPLETED   // Visit finished
+  CANCELLED
+  NO_SHOW
+}
+enum AppointmentType {
+  SCHEDULED
+  WALK_IN
+  EMERGENCY
+}
+
+enum VisitStatus {
+  CHECKED_IN
+  WAITING
+  WITH_DOCTOR
+  PROCEDURE
+  BILLING
+  COMPLETED
 }

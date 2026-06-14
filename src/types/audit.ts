@@ -5,11 +5,13 @@ export type AuditAction =
   | "UPDATE"
   | "DELETE"
   | "CANCEL"
+  | "CHECK_IN"
+  | "STATUS_CHANGE"
   | "PAID"
   | "UPGRADE"
   | "DOWNGRADE"
-  | "ACTIVATE"     // ← تمت الإضافة
-  | "DEACTIVATE";  // ← تمت الإضافة
+  | "ACTIVATE"
+  | "DEACTIVATE";
 
 export type EntityType =
   | "PATIENT"
@@ -21,9 +23,9 @@ export type EntityType =
   | "USER"
   | "SUBSCRIPTION"
   | "BRANCH"
-  | "ALLERGY"           // ← أضف هذا
-  | "MEDICAL_HISTORY"   // ← أضف هذا
-  | "SURGICAL_HISTORY"; // ← أضف هذا  
+  | "ALLERGY"
+  | "MEDICAL_HISTORY"
+  | "SURGICAL_HISTORY";  
 
 export interface AuditLogEntry {
   id: string;
@@ -63,11 +65,13 @@ export const ACTION_COLORS: Record<AuditAction, string> = {
   UPDATE: "bg-blue-100 text-blue-800",
   DELETE: "bg-red-100 text-red-800",
   CANCEL: "bg-orange-100 text-orange-800",
+  CHECK_IN: "bg-teal-100 text-teal-800",           // ✨ تمت الإضافة
+  STATUS_CHANGE: "bg-indigo-100 text-indigo-800",   // ✨ تمت الإضافة
   PAID: "bg-teal-100 text-teal-800",
   UPGRADE: "bg-purple-100 text-purple-800",
   DOWNGRADE: "bg-gray-100 text-gray-800",
-  ACTIVATE: "bg-green-100 text-green-800",       // ← تمت الإضافة
-  DEACTIVATE: "bg-yellow-100 text-yellow-800",   // ← تمت الإضافة
+  ACTIVATE: "bg-green-100 text-green-800",
+  DEACTIVATE: "bg-yellow-100 text-yellow-800",
 };
 
 export const ENTITY_LABELS: Record<EntityType, string> = {

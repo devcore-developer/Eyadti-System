@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
-import { canEditPatient } from "@/lib/permissions/patients"
+import { hasPermission } from "@/lib/permissions/patients"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { PatientForm } from "@/components/patients/patient-form"
@@ -12,7 +12,7 @@ export default async function EditPatientPage({
 }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if (!canEditPatient(session.user.role)) redirect("/patients")
+  if (!hasPermission(session.user.role, "patient:edit")) redirect("/patients")
 
   const { patientId } = await params
 

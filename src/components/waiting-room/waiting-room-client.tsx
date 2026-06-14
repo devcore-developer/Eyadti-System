@@ -49,7 +49,7 @@ export function WaitingRoomClient({ appointments }: { appointments: WaitingAppoi
         <div 
           key={apt.id} 
           className={`bg-white rounded-2xl border-2 p-5 shadow-sm transition-all ${
-            apt.status === AppointmentStatus.IN_PROGRESS ? "border-indigo-400 bg-indigo-50/30" : "border-gray-100"
+            apt.status === AppointmentStatus.CONFIRMED ? "border-indigo-400 bg-indigo-50/30" : "border-gray-100"
           }`}
         >
           <div className="flex justify-between items-start mb-4">
@@ -60,9 +60,9 @@ export function WaitingRoomClient({ appointments }: { appointments: WaitingAppoi
               </p>
             </div>
             <span className={`px-2 py-1 text-xs font-bold rounded-lg ${
-              apt.status === AppointmentStatus.ARRIVED ? "bg-teal-100 text-teal-700" : "bg-indigo-100 text-indigo-700"
+              apt.status === AppointmentStatus.CONFIRMED ? "bg-teal-100 text-teal-700" : "bg-indigo-100 text-indigo-700"
             }`}>
-              {apt.status === AppointmentStatus.ARRIVED ? "WAITING" : "IN ROOM"}
+              {apt.status === AppointmentStatus.CONFIRMED ? "WAITING" : "IN ROOM"}
             </span>
           </div>
 
@@ -72,16 +72,16 @@ export function WaitingRoomClient({ appointments }: { appointments: WaitingAppoi
           </div>
 
           <div className="flex gap-2">
-            {apt.status === AppointmentStatus.ARRIVED && (
+            {apt.status === AppointmentStatus.CONFIRMED && (
               <button 
-                onClick={() => handleAction(apt.id, AppointmentStatus.IN_PROGRESS)}
+                onClick={() => handleAction(apt.id, AppointmentStatus.CONFIRMED)}
                 className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
               >
                 <Play className="h-4 w-4" /> Start Consult.
               </button>
             )}
             
-            {apt.status === AppointmentStatus.IN_PROGRESS && (
+            {apt.status === AppointmentStatus.CONFIRMED && (
               <button 
                 onClick={() => handleAction(apt.id, AppointmentStatus.COMPLETED)}
                 className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
