@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { SessionProvider } from "next-auth/react"
+import { Toaster } from "sonner"
 
 type Theme = "dark" | "light" | "system"
 
@@ -77,9 +78,16 @@ export const useTheme = () => {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      {/* تم إزالة attribute و enableSystem لأننا لا نستخدم next-themes anymore */}
       <ThemeProvider defaultTheme="system">
         {children}
+        <Toaster 
+          position="bottom-right" 
+          richColors 
+          closeButton 
+          toastOptions={{
+            className: "shadow-lg rounded-xl border backdrop-blur-md",
+          }}
+        />
       </ThemeProvider>
     </SessionProvider>
   )

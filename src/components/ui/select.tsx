@@ -16,7 +16,7 @@ const SelectTrigger = React.forwardRef<
   <BaseSelect.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between rounded-[14px] border border-input bg-[rgba(255,255,255,0.9)] dark:bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:border-[#6B9CFF] focus:shadow-[0_0_0_4px_rgba(107,156,255,0.12)] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 backdrop-blur-sm",
+      "flex h-10 w-full items-center justify-between rounded-[14px] border border-input bg-[rgba(255,255,255,0.9)] dark:bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm text-foreground shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:border-[#6B9CFF] focus:shadow-[0_0_0_4px_rgba(107,156,255,0.12)] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 backdrop-blur-sm",
       className
     )}
     {...props}

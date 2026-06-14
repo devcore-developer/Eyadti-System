@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
-import Link from "next/link" // ← أضفنا الـ Link
+import Link from "next/link"
 import {
   getDashboardStats,
   getChartData,
@@ -31,14 +31,14 @@ export const dynamic = "force-dynamic"
 
 function DashboardLoading() {
   return (
-    <div className="space-y-8 animate-pulse p-6">
-      <div className="h-[280px] bg-muted/50 rounded-[28px]" />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-6 md:space-y-8 animate-pulse p-4 md:p-6">
+      <div className="h-[240px] md:h-[280px] bg-muted/50 rounded-[24px]" />
+      <div className="grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-[180px] bg-muted/50 rounded-[24px]" />
+          <div key={i} className="h-[150px] md:h-[180px] bg-muted/50 rounded-[24px]" />
         ))}
       </div>
-      <div className="grid gap-8 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 h-[400px] bg-muted/50 rounded-[24px]" />
         <div className="h-[400px] bg-muted/50 rounded-[24px]" />
       </div>
@@ -46,20 +46,19 @@ function DashboardLoading() {
   )
 }
 
-// ← Updated Premium KPI Card for Mobile-First
 function PremiumKPICard({ title, value, subtitle, icon: Icon, accentColor, iconBg, lightBg, shadow, href }: any) {
   const content = (
     <div 
-      className={`group relative overflow-hidden p-4 md:p-6 rounded-xl md:rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br ${lightBg} dark:from-[#223247] dark:to-[#1D2A3B] ${shadow} dark:shadow-[0_15px_35px_rgba(0,0,0,0.2)] transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_20px_45px_rgba(100,116,139,0.18)] animate-scale-in cursor-pointer h-full`}
+      className={`group relative overflow-hidden p-4 md:p-6 rounded-2xl md:rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br ${lightBg} dark:from-[#223247] dark:to-[#1D2A3B] ${shadow} dark:shadow-[0_15px_35px_rgba(0,0,0,0.2)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(100,116,139,0.18)] animate-scale-in cursor-pointer h-full`}
     >
       <div className="flex items-center justify-between mb-3 md:mb-4">
-        <div className={`p-2 md:p-3 rounded-lg md:rounded-xl ${iconBg}`}>
-          <Icon className={`h-4 w-4 md:h-6 md:w-6 ${accentColor}`} />
+        <div className={`p-2 md:p-3 rounded-xl ${iconBg}`}>
+          <Icon className={`h-4 w-4 md:h-5 md:w-5 ${accentColor}`} />
         </div>
       </div>
-      <h3 className="text-xl md:text-[32px] font-bold text-foreground tracking-tight">{value}</h3>
-      <p className="text-xs md:text-sm font-medium text-muted-foreground mt-1">{title}</p>
-      <p className="text-[10px] md:text-xs text-muted-foreground mt-1.5 hidden md:block">{subtitle}</p>
+      <h3 className="text-xl md:text-[28px] font-bold text-foreground tracking-tight truncate">{value}</h3>
+      <p className="text-xs md:text-sm font-medium text-muted-foreground mt-1 truncate">{title}</p>
+      <p className="text-[10px] md:text-xs text-muted-foreground/70 mt-1 hidden md:block truncate">{subtitle}</p>
     </div>
   )
 
@@ -84,24 +83,25 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
   const doctorName = session.user.name || "Doctor"
 
   return (
-    <div className="space-y-6 md:space-y-8 animate-fade">
+    <div className="space-y-5 md:space-y-8 animate-fade">
       <SubscriptionBanner />
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 md:gap-4">
         <HeroWelcome 
           doctorName={doctorName} 
           appointmentsCount={stats.todayAppointments} 
           pendingInvoices={stats.unpaidInvoicesCount} 
         />
-        <div className="flex justify-end -mt-4 mr-2 z-10 relative">
+        {/* ✨ إصلاح الـ Alignment: إزالة الـ Negative Margin وتوسيط الفلتر */}
+        <div className="flex justify-center sm:justify-end z-10 relative">
           <Suspense fallback={null}>
             <DateFilter />
           </Suspense>
         </div>
       </div>
 
-      {/* ✅ KPI Grid: 2 columns on mobile, 2 on tablet, 4 on desktop */}
-      <div className="grid grid-cols-2 gap-3 md:gap-6 xl:grid-cols-4">
+      {/* ✨ KPI Grid: 2 columns on mobile with tight gap, expanding on desktop */}
+      <div className="grid grid-cols-2 gap-3 md:gap-6 lg:gap-8 xl:grid-cols-4">
         <PremiumKPICard 
           title="Patients"
           value={stats.totalPatients.toLocaleString()}
@@ -148,18 +148,17 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
         />
       </div>
 
-      {/* ✅ Charts & Activity: Stack on mobile, side-by-side on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        <div className="lg:col-span-2 space-y-6 md:space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-8">
+        <div className="lg:col-span-2 space-y-5 md:space-y-8">
           <AnalyticsCharts data={chartData} />
         </div>
-        <div className="space-y-6 md:space-y-8">
+        <div className="space-y-5 md:space-y-8">
           <UpcomingAppointments appointments={recentActivity.appointments.slice(0, 3)} />
           <TopDoctors doctors={doctorAnalytics} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-8">
         <div className="lg:col-span-2">
           <RecentActivity
             patients={recentActivity.patients}

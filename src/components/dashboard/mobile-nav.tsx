@@ -26,19 +26,20 @@ export function MobileNav({
     <>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          {/* ✨ زيادة مساحة اللمس للـ Hamburger Menu */}
           <Button variant="ghost" size="icon" className="px-0 h-10 w-10 text-foreground hover:bg-transparent active:bg-slate-100 dark:active:bg-slate-800 transition-colors">
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle Menu</span>
           </Button>
         </SheetTrigger>
         
-        {/* ✨ استخدام w-[85vw] بدلاً من 280px لتوفير مساحة أكبر للمحتوى على الموبايل */}
+        {/* ✨ تحسينات الـ Sheet للموبايل */}
         <SheetContent 
           side="left" 
           className={cn(
             "w-[85vw] max-w-[320px] p-0 bg-white dark:bg-[#1B2838]",
-            "border-r-0 shadow-[10px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[10px_0_40px_rgba(0,0,0,0.4)]"
+            "border-r-0 shadow-[10px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[10px_0_40px_rgba(0,0,0,0.4)]",
+            // منع الـ Scroll للخلفية
+            "data-[state=open]:animate-slide-in-from-left"
           )}
         >
           <SheetHeader className="sr-only">
@@ -53,14 +54,15 @@ export function MobileNav({
               <span className="text-base font-bold tracking-tight">Eyadti</span>
             </div>
             
-            <div className="flex-1 overflow-y-auto">
+            {/* ✨ إضافة overscroll-contain لمنع سحب الصفحة الخلفية على iOS */}
+            <div className="flex-1 overflow-y-auto overscroll-contain hide-scrollbar">
               {children}
             </div>
           </div>
         </SheetContent>
       </Sheet>
 
-      <div className="flex-1 text-center min-w-0">
+      <div className="flex-1 text-center min-w-0 px-2">
         <h1 className="text-sm font-semibold text-foreground truncate">{clinicName}</h1>
       </div>
     </>

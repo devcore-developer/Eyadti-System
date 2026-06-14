@@ -26,7 +26,6 @@ export function Sidebar({
   isMobile?: boolean;
 }) {
   const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN"
-  
   const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"
 
   return (
@@ -50,20 +49,19 @@ export function Sidebar({
       )}
 
       {isAdmin && branches.length > 0 && (
-        // ✨ تقليل الـ Padding على الموبايل
-        <div className={cn("pb-2 px-3 md:px-4", isMobile ? "pt-2" : "pt-4")}>
+        <div className={cn("pb-2 px-3", isMobile ? "pt-4" : "pt-4")}>
           <BranchSwitcher branches={branches} selectedBranchId={selectedBranchId} />
         </div>
       )}
 
-      {/* ✨ تقليل الـ Padding الأفقي على الموبايل */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-2 md:px-3 py-2">
+      {/* ✨ إضافة overscroll-contain للموبايل ومنع الـ Scroll bleed */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-2 py-2 overscroll-contain hide-scrollbar">
         <SidebarNav isAdmin={isAdmin} />
       </div>
 
       <div className="mt-auto border-t border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)] p-3 md:p-4">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 transition-all outline-none hover:bg-[rgba(107,156,255,0.06)] dark:hover:bg-[rgba(107,156,255,0.08)] focus-visible:ring-2 focus-visible:ring-ring">
+          <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 transition-all outline-none hover:bg-[rgba(107,156,255,0.06)] dark:hover:bg-[rgba(107,156,255,0.08)] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]">
             <div className="relative">
               <div className="rounded-full p-[2px] bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF]">
                 <Avatar className="h-9 w-9 border-2 border-white dark:border-[#1B2838]">

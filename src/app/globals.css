@@ -144,6 +144,18 @@
       radial-gradient(circle at top right, rgba(91,192,190,.04), transparent 40%),
       radial-gradient(circle at bottom left, rgba(107,156,255,.04), transparent 40%);
   }
+
+  /* ── إصلاح الـ Autofill للـ Inputs ─────── */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:focus,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: var(--foreground);
+    -webkit-box-shadow: 0 0 0px 1000px var(--card) inset;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
 
 /* ── Premium Scrollbar ──────────── */
@@ -179,7 +191,7 @@
 
 .premium-card:hover {
   box-shadow: 0 20px 45px rgba(100,116,139, 0.15);
-  transform: translateY(-2px); /* ✨ تقليل الارتفاع على الموبايل */
+  transform: translateY(-2px);
 }
 
 .dark .premium-card {
@@ -202,7 +214,6 @@
 .sidebar-item {
   border-radius: var(--radius-sidebar-item);
   transition: background-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
-  /* ✨ زيادة الـ Padding لتكون صديقة للمس على الموبايل */
   @apply px-4 py-2.5 md:py-2; 
 }
 
@@ -246,6 +257,18 @@
   z-index: 30;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Sonner Toast Responsive Positioning ─────── */
+@media (max-width: 640px) {
+  [data-sonner-toaster] {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+  }
+  [data-sonner-toaster] > li {
+    width: calc(100vw - 2rem) !important;
+  }
 }
 
 @media print {
