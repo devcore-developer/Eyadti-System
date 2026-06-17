@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { TrendingUp, Activity, Users } from "lucide-react"
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts'
 import { formatCurrency } from "@/lib/utils/date-filters"
 import { ChartWrapper } from "@/components/ui/chart-wrapper"
 
@@ -34,7 +42,7 @@ export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
   if (!mounted) {
     return (
       <div className="grid grid-cols-1 gap-6 md:gap-8">
-        {[1,2,3].map((i) => (
+        {[1, 2, 3].map((i) => (
           <div key={i} className="p-6 md:p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-muted/30 animate-pulse h-[350px]" />
         ))}
       </div>
@@ -61,22 +69,40 @@ export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
             <h3 className="text-base md:text-xl font-semibold text-foreground">{chart.title}</h3>
           </div>
           
-          {/* ✨ استخدام ChartWrapper الذكي الذي يمنع خطأ الـ -1px */}
-          <ChartWrapper height={250} className="md:h-[300px]">
-            <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={chart.color} stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor={chart.color} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.1)" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} width={40} />
-              <Tooltip content={<CustomTooltip isCurrency={chart.isCurrency} />} cursor={{ stroke: chart.color, strokeWidth: 1, strokeDasharray: '5 5' }} />
-              <Area type="monotone" dataKey={chart.dataKey} stroke={chart.color} strokeWidth={3} fill={`url(#gradient-${index})`} />
-            </AreaChart>
-          </ChartWrapper>
+          {/* Chart Container with Fixed Height */}
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={chart.color} stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor={chart.color} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.1)" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: '#64748B' }} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: '#64748B' }} 
+                  width={40} 
+                />
+                <Tooltip content={<CustomTooltip isCurrency={chart.isCurrency} />} cursor={{ stroke: chart.color, strokeWidth: 1, strokeDasharray: '5 5' }} />
+                <Area 
+                  type="monotone" 
+                  dataKey={chart.dataKey} 
+                  stroke={chart.color} 
+                  strokeWidth={3} 
+                  fill={`url(#gradient-${index})`} 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       ))}
     </div>
