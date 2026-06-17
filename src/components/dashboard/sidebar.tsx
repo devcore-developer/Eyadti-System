@@ -1,5 +1,4 @@
-import Image from "next/image" // ✅ 1. أضف هذا الاستيراد
-import { LogOut, Stethoscope } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -11,6 +10,7 @@ import {
 import { SidebarNav } from "./sidebar-nav"
 import { BranchSwitcher } from "@/components/branch/branch-switcher"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 interface Branch { id: string; name: string; code: string; }
 interface UserData { name?: string | null; email?: string | null; role?: string | null; }
@@ -38,16 +38,14 @@ export function Sidebar({
     )}>
       
       {!isMobile && (
-        <div className="flex h-16 items-center gap-2.5 px-6 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">
-          {/* ✅ 2. استبدلنا الأيقونة والنص بالصورة التالية */}
-          <Image 
-            src="/dashboard-logo.png" 
-            alt="Dashboard Logo" 
-            width={150} 
-            height={40} 
-            className="object-contain"
-            priority
-          />
+        <div className="flex h-20 items-center justify-center px-6 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">
+          <Link href="/dashboard">
+            <img 
+              src="/dashboard-logo.png" 
+              alt="Dashboard Logo" 
+              className="h-24 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity" 
+            />
+          </Link>
         </div>
       )}
 
