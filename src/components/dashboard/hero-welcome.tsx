@@ -14,7 +14,7 @@ interface HeroWelcomeProps {
 
 export function HeroWelcome({ 
   doctorName = "Doctor", 
-  clinicName = "Eyadti Clinic",
+  clinicName = "Nexora Clinic",
   branchName = "Main Branch",
   appointmentsCount = 0, 
   pendingInvoices = 0 

@@ -32,7 +32,7 @@ export function Navbar() {
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] flex items-center justify-center shadow-lg">
               <Stethoscope className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Eyadti</span>
+            <span className="text-xl font-bold tracking-tight">Nexora</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">

@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.clinicare.app',
-  appName: 'CliniCare',
+  appId: 'com.Nexora.app',
+  appName: 'Nexora',
   webDir: 'public',
   server: {
     // ✨✨ حط الرابط بتاعك على الـ Vercel هنا مكاني ✨✨

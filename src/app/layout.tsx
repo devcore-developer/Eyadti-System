@@ -12,13 +12,13 @@ const inter = Inter({
 
 // ✨ إعدادات الـ PWA الأساسية
 export const metadata: Metadata = {
-  title: "Eyadti Pro",
+  title: "Nexora Pro",
   description: "Premium Medical & Clinic Management System",
   // إعدادات خاصة للأيفون عشان يتعامل مع الموقع كتطبيق Native
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent", // يخلي الـ Status Bar شفاف ومدمج مع تصميمك
-    title: "Eyadti Pro",
+    title: "Nexora Pro",
   },
 }
 

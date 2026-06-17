@@ -81,7 +81,7 @@ export default function LoginPage() {
 
         {/* Bottom */}
         <div className="relative z-10 px-12 pb-12">
-          <p className="text-sm text-white/40">© 2025 Eyadti System. All rights reserved.</p>
+          <p className="text-sm text-white/40">© 2026 Nexora All rights reserved.</p>
         </div>
       </div>
 

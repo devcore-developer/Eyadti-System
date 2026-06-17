@@ -68,7 +68,7 @@ export function Hero() {
               {/* الصورة الحقيقية هنا */}
               <img 
                 src="/dashboard-preview.png" 
-                alt="Eyadti Dashboard Preview" 
+                alt="Nexora Dashboard Preview" 
                 className="w-full h-auto object-cover"
               />
             </div>

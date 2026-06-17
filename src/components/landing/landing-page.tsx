@@ -82,7 +82,7 @@ export function LandingPage() {
             <span className="font-bold">Eyadti</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Eyadti. All rights reserved.
+            © {new Date().getFullYear()} Nexora. All rights reserved.
           </p>
           <div className="flex gap-6">
             <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</a>

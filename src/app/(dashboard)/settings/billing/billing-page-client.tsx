@@ -105,7 +105,7 @@ export function BillingPageClient({ overview, plans }: BillingPageClientProps) {
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
             <p className="text-sm font-semibold text-red-800">
               Your subscription has expired. Please upgrade to continue using
-              Eyadti.
+              Nexora.
             </p>
           </div>
         )}

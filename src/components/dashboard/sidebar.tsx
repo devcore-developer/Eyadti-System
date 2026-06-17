@@ -1,4 +1,4 @@
-// components/dashboard/sidebar.tsx
+import Image from "next/image" // ✅ 1. أضف هذا الاستيراد
 import { LogOut, Stethoscope } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -39,13 +39,15 @@ export function Sidebar({
       
       {!isMobile && (
         <div className="flex h-16 items-center gap-2.5 px-6 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.25)]">
-            <Stethoscope className="h-4 w-4" />
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Eyadti</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] bg-clip-text text-transparent">PRO</span>
-          </div>
+          {/* ✅ 2. استبدلنا الأيقونة والنص بالصورة التالية */}
+          <Image 
+            src="/dashboard-logo.png" 
+            alt="Dashboard Logo" 
+            width={150} 
+            height={40} 
+            className="object-contain"
+            priority
+          />
         </div>
       )}
 

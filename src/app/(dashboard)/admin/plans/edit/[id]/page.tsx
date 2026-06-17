@@ -5,7 +5,7 @@ import { PlanForm } from "@/components/admin/plan-form";
 import { notFound } from "next/navigation";
 
 export const metadata = {
-  title: "Edit Plan | Eyadti Admin",
+  title: "Edit Plan | Nexora Admin",
 };
 
 export default async function EditPlanPage({

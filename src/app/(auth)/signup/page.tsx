@@ -17,7 +17,7 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({ name: "", email: "", password: "", clinicName: "" })
   const [signupCode, setSignupCode] = useState("")
 
-  const whatsappLink = "https://wa.me/201275976195?text=مرحباً، أريد الاشتراك في نظام عيادتي والحصول على كود التسجيل، أرجو تزويدي بالتفاصيل."
+  const whatsappLink = "https://wa.me/201275976195?text=مرحباً، أريد الاشتراك في نظام نيكسورا والحصول على كود التسجيل، أرجو تزويدي بالتفاصيل."
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +82,7 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <Label htmlFor="clinicName">Clinic Name</Label>
-              <Input id="clinicName" name="clinicName" placeholder="Eyadti Medical Center" value={formData.clinicName} onChange={(e) => setFormData({...formData, clinicName: e.target.value})} required disabled={isPending} />
+              <Input id="clinicName" name="clinicName" placeholder="Nexora Medical Center" value={formData.clinicName} onChange={(e) => setFormData({...formData, clinicName: e.target.value})} required disabled={isPending} />
             </div>
 
             {/* Activation Code (Required) */}

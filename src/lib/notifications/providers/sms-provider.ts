@@ -26,7 +26,7 @@ export class SMSProvider implements NotificationChannel {
         body: JSON.stringify({
           to: payload.patientPhone,
           message: payload.message,
-          sender: process.env.SMS_SENDER_ID || "Eyadti" // اسم المرسل المعتمد
+          sender: process.env.SMS_SENDER_ID || "Nexora" // اسم المرسل المعتمد
         }),
       })
 

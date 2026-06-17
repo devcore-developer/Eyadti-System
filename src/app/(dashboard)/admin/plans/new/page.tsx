@@ -3,7 +3,7 @@
 import { PlanForm } from "@/components/admin/plan-form";
 
 export const metadata = {
-  title: "Create Plan | Eyadti Admin",
+  title: "Create Plan | Nexora Admin",
 };
 
 export default function NewPlanPage() {

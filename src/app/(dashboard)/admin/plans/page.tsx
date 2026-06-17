@@ -7,7 +7,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Plan Management | Eyadti Admin",
+  title: "Plan Management | Nexora Admin",
 };
 
 export default async function AdminPlansPage() {

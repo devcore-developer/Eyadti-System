@@ -4,7 +4,7 @@ import { getAuditLogs, getAuditUsers } from "@/lib/actions/audit";
 import { AuditLogsClient } from "./audit-logs-client";
 
 export const metadata = {
-  title: "Audit Logs | Eyadti Admin",
+  title: "Audit Logs | Nexora Admin",
 };
 
 export default async function AdminAuditLogsPage({

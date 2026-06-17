@@ -7,7 +7,7 @@ import { getUsageStats } from "@/lib/services/usage-limits";
 import { SubscriptionDetailsClient } from "./subscriptions-client";
 
 export const metadata = {
-  title: "Subscription Details | Eyadti",
+  title: "Subscription Details | Nexora",
 };
 
 export default async function SubscriptionsPage() {

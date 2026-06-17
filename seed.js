@@ -23,7 +23,7 @@ async function main() {
 
   // 2. إنشاء العيادة من غير Owner
   console.log('🏢 Creating clinic...');
-  await prisma.$executeRawUnsafe(`INSERT INTO "clinics" ("id", "name", "ownerId", "createdAt", "updatedAt") VALUES ('c1', 'Eyadti Clinic', NULL, NOW(), NOW());`);
+  await prisma.$executeRawUnsafe(`INSERT INTO "clinics" ("id", "name", "ownerId", "createdAt", "updatedAt") VALUES ('c1', 'Nexora Clinic', NULL, NOW(), NOW());`);
 
   // 3. تشفير الباسورد وإنشاء الأدمن والدكتور
   console.log('🔑 Hashing passwords...');

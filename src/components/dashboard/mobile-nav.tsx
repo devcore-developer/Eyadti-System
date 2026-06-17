@@ -51,7 +51,7 @@ export function MobileNav({
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.25)]">
                 <Stethoscope className="h-4 w-4" />
               </div>
-              <span className="text-base font-bold tracking-tight">Eyadti</span>
+              <span className="text-base font-bold tracking-tight">Nexora</span>
             </div>
             
             {/* ✨ إضافة overscroll-contain لمنع سحب الصفحة الخلفية على iOS */}

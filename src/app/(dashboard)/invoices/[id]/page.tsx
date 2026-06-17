@@ -77,7 +77,7 @@ export default async function InvoiceDetailPage({
           <div id="printable-invoice" className="premium-card p-8 space-y-8">
             <div className="flex justify-between border-b border-[rgba(148,163,184,0.1)] pb-6">
               <div>
-                <h2 className="text-xl font-bold text-foreground">Eyadti Clinic</h2>
+                <h2 className="text-xl font-bold text-foreground">Nexora Clinic</h2>
                 <p className="text-sm text-muted-foreground">Medical Services</p>
               </div>
               <div className="text-right">

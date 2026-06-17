@@ -2,8 +2,8 @@ import { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Eyadti Clinic Pro",
-    short_name: "Eyadti",
+    name: "Nexora Clinic Pro",
+    short_name: "Nexora Pro",
     description: "Premium Medical & Clinic Management System",
     // مهم جداً: بيخفي شريط المتصفح ويخليه يشتغل زي Native App
     display: "standalone", 

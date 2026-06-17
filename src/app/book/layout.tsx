@@ -25,7 +25,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
 
       {/* Footer */}
       <footer className="py-6 text-center text-xs text-gray-400 border-t bg-white">
-        Powered by <span className="font-semibold text-teal-600">EyadTi System</span> &copy; {new Date().getFullYear()}
+        Powered by <span className="font-semibold text-teal-600">Nexora</span> &copy; {new Date().getFullYear()}
       </footer>
     </div>
   )

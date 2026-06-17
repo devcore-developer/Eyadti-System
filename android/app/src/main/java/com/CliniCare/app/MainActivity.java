@@ -1,4 +1,4 @@
-package com.CliniCare.app;
+package com.Nexora.app;
 
 import com.getcapacitor.BridgeActivity;
 
