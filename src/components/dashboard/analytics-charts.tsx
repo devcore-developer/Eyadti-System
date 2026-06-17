@@ -12,7 +12,6 @@ import {
   ResponsiveContainer 
 } from 'recharts'
 import { formatCurrency } from "@/lib/utils/date-filters"
-import { ChartWrapper } from "@/components/ui/chart-wrapper"
 
 interface AnalyticsChartsProps {
   data?: { name: string; revenue: number; appointments: number; patients: number }[]
