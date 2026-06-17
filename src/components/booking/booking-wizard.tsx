@@ -4,11 +4,21 @@ import { useState, useEffect } from "react"
 import { getAvailableTimeSlots, createBooking, getBranches, getDoctorsByBranch } from "@/lib/actions/booking"
 import { AvailableSlots } from "./available-slots"
 import { PatientInfoForm } from "./patient-info-form"
-import { Loader2, Calendar, Clock, User, CheckCircle, Building2, ChevronRight, ArrowLeft } from "lucide-react"
+import { Loader2, Calendar, Clock, User, CheckCircle2, MapPin, Phone, ArrowRight, ChevronLeft, Building2, Sparkles, Stethoscope, Award } from "lucide-react"
 
-type Doctor = { id: string; name: string; workingDays: string[]; allBranchAccess?: boolean }
+// Updated Type to include new fields
+type Doctor = { 
+  id: string; 
+  name: string; 
+  image?: string | null; 
+  specialty?: string | null; 
+  degree?: string | null;
+  workingDays: string[]; 
+  allBranchAccess?: boolean 
+}
+
 type Branch = { id: string; name: string; code: string; city: string | null }
-type Clinic = { name: string; logoUrl?: string | null; phone?: string | null; address?: string | null }
+type Clinic = { name: string; logoUrl?: string | null; phone?: string | null; address?: string | null; email?: string | null }
 
 interface Props {
   clinic: Clinic
@@ -38,6 +48,9 @@ export function BookingWizard({ clinic, clinicId }: Props) {
       try {
         const data = await getBranches(clinicId)
         setBranches(data || [])
+        if (data && data.length === 1) {
+          handleBranchSelect(data[0])
+        }
       } catch (err) {
         setError("Failed to load branches")
       } finally {
@@ -52,11 +65,10 @@ export function BookingWizard({ clinic, clinicId }: Props) {
     setLoading(true)
     setError("")
     try {
-      // ✅ تمرير الـ clinicId والـ branch.id الصحيحين
       const data = await getDoctorsByBranch(clinicId, branch.id)
       setDoctors(data || [])
       if (!data || data.length === 0) setError("No doctors available at this branch")
-      setStep(2)
+      else setStep(2)
     } catch (err) {
       console.error(err)
       setError("Failed to load doctors")
@@ -80,12 +92,17 @@ export function BookingWizard({ clinic, clinicId }: Props) {
       const available = await getAvailableTimeSlots(selectedDoctor.id, clinicId, selectedDate)
       setSlots(available)
       if (available.length === 0) setError("No available slots for this date")
-      setStep(4)
+      else setStep(4)
     } catch (err) {
       setError("Failed to load slots")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleTimeSelect = (selectedTime: string) => {
+    setTime(selectedTime)
+    setStep(5)
   }
 
   const handleSubmit = async (formData: any) => {
@@ -101,7 +118,7 @@ export function BookingWizard({ clinic, clinicId }: Props) {
       })
       if (result.success && result.appointmentId) {
         setAppointmentId(result.appointmentId)
-        setStep(5)
+        setStep(6)
       } else {
         setError(result.error || "Booking failed")
       }
@@ -112,171 +129,250 @@ export function BookingWizard({ clinic, clinicId }: Props) {
     }
   }
 
-  const stepLabels = ["Branch", "Doctor", "Date", "Time", "Details"]
-
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-      {/* Clinic Header Card */}
-      <div className="bg-teal-600 p-6 text-white text-center rounded-t-2xl">
-        <h1 className="text-2xl font-bold">{clinic.name}</h1>
-        {clinic.address && <p className="text-teal-100 text-sm mt-1">{clinic.address}</p>}
-      </div>
-
-      {/* Progress Bar */}
-      <div className="px-6 pt-6">
-        <div className="flex items-center justify-between mb-2">
-          {stepLabels.map((label, i) => (
-            <div key={i} className="flex flex-col items-center flex-1">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                step > i + 1 ? "bg-teal-600 text-white" : step === i + 1 ? "bg-teal-100 text-teal-700 ring-2 ring-teal-600" : "bg-gray-100 text-gray-400"
-              }`}>
-                {step > i + 1 ? "✓" : i + 1}
-              </div>
-              <span className="text-[10px] mt-1 text-gray-500 hidden sm:block">{label}</span>
+    <div className="w-full bg-white/80 backdrop-blur-xl border border-white/20 shadow-2xl rounded-3xl overflow-hidden min-h-[600px] flex flex-col relative transition-all duration-500">
+      <div className="bg-gradient-to-r from-teal-600 to-emerald-600 p-6 pb-12 rounded-b-[2.5rem] shadow-lg text-white relative z-10">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+            {clinic.logoUrl ? (
+              <img src={clinic.logoUrl} alt={clinic.name} className="w-8 h-8 rounded-full object-cover" />
+            ) : (
+              <Sparkles className="w-6 h-6 text-white" />
+            )}
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">{clinic.name}</h1>
+            <div className="flex items-center gap-1 text-teal-100 text-xs mt-0.5">
+              <MapPin className="w-3 h-3" />
+              <span className="truncate max-w-[200px]">{clinic.address || "Online Clinic"}</span>
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
-      <div className="p-6">
-        {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4 border border-red-100">{error}</div>}
+      <div className="px-6 -mt-8 flex-1 flex flex-col relative z-20 pb-6">
+        <div className="flex justify-between mb-6 px-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className={`h-1.5 flex-1 rounded-full mx-1 transition-all duration-300 ${
+              step > i ? "bg-teal-500" : step === i ? "bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.5)]" : "bg-gray-200"
+            }`} />
+          ))}
+        </div>
 
-        {loading ? (
-          <div className="flex flex-col justify-center items-center py-16 text-gray-400">
-            <Loader2 className="h-10 w-10 animate-spin text-teal-500 mb-3" />
-            <p className="text-sm">Loading...</p>
+        {error && (
+          <div className="bg-red-50/90 backdrop-blur text-red-600 text-sm p-3 rounded-xl mb-4 border border-red-100 animate-pulse flex items-center gap-2">
+            <span className="font-medium">⚠️ {error}</span>
           </div>
-        ) : (
-          <>
-            {/* Step 1: Select Branch */}
-            {step === 1 && (
-              <div className="space-y-4">
-                <h2 className="font-semibold text-lg text-gray-900">Select Branch</h2>
-                <div className="space-y-3">
-                  {branches.map((branch) => (
-                    <div
-                      key={branch.id}
-                      onClick={() => handleBranchSelect(branch)}
-                      className="flex items-center justify-between p-4 border-2 rounded-xl hover:border-teal-400 hover:bg-teal-50/50 cursor-pointer transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Building2 className="h-6 w-6 text-teal-600" />
-                        <div>
-                          <p className="font-semibold text-gray-900">{branch.name}</p>
-                          <p className="text-xs text-gray-500">{branch.city}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-teal-600 transition-colors" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        )}
 
-            {/* Step 2: Select Doctor */}
-            {step === 2 && (
-              <div className="space-y-4">
-                <h2 className="font-semibold text-lg text-gray-900">Select Doctor at {selectedBranch?.name}</h2>
-                <div className="space-y-3">
-                  {doctors.map((doctor) => (
-                    <div
-                      key={doctor.id}
-                      onClick={() => handleDoctorSelect(doctor)}
-                      className="flex items-center justify-between p-4 border-2 rounded-xl hover:border-teal-400 hover:bg-teal-50/50 cursor-pointer transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <User className="h-6 w-6 text-teal-600" />
-                        <div>
-                          <p className="font-semibold text-gray-900">Dr. {doctor.name}</p>
-                          <p className="text-xs text-gray-500">
-                            Available: {doctor.workingDays.join(", ")}
-                            {doctor.allBranchAccess && <span className="ml-2 text-blue-500">(All Branches)</span>}
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-teal-600 transition-colors" />
+        {loading && step !== 1 && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col justify-center items-center rounded-3xl">
+            <Loader2 className="h-10 w-10 animate-spin text-teal-600 mb-2" />
+            <p className="text-sm font-medium text-gray-600 animate-pulse">Finding availability...</p>
+          </div>
+        )}
+
+        {/* Step 1: Branch Selection */}
+        {step === 1 && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 className="w-5 h-5 text-teal-700" />
+              <h2 className="font-bold text-gray-800 text-lg">Select Branch</h2>
+            </div>
+            <div className="space-y-3">
+              {branches.map((branch) => (
+                <button
+                  key={branch.id}
+                  onClick={() => handleBranchSelect(branch)}
+                  className="w-full group flex items-center justify-between p-4 bg-white border-2 border-gray-100 hover:border-teal-400 hover:shadow-lg hover:shadow-teal-500/10 rounded-2xl transition-all duration-200 text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-teal-50 group-hover:bg-teal-100 flex items-center justify-center text-teal-700 transition-colors">
+                      <Building2 className="w-5 h-5" />
                     </div>
-                  ))}
-                </div>
-                <button onClick={() => setStep(1)} className="text-sm text-gray-500 hover:underline flex items-center gap-1 mt-4">
-                  <ArrowLeft className="h-3 w-3" /> Choose another branch
+                    <div>
+                      <p className="font-semibold text-gray-900">{branch.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{branch.city}</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-teal-500 group-hover:translate-x-1 transition-all" />
                 </button>
-              </div>
-            )}
+              ))}
+            </div>
+          </div>
+        )}
 
-            {/* Step 3: Select Date */}
-            {step === 3 && (
-              <div className="space-y-4">
-                <h2 className="font-semibold text-lg text-gray-900">Select Date for Dr. {selectedDoctor?.name}</h2>
-                <input
+        {/* Step 2: Doctor Selection (UPDATED) */}
+        {step === 2 && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4">
+             <button onClick={() => setStep(1)} className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-teal-700 transition-colors">
+              <ChevronLeft className="w-4 h-4" /> Change Branch
+            </button>
+            
+            <div className="flex items-center gap-2 mb-4">
+              <Stethoscope className="w-5 h-5 text-teal-700" />
+              <h2 className="font-bold text-gray-800 text-xl">Our Specialists</h2>
+            </div>
+
+            <div className="space-y-4">
+              {doctors.map((doctor) => (
+                <button
+                  key={doctor.id}
+                  onClick={() => handleDoctorSelect(doctor)}
+                  className="w-full group flex items-center gap-4 p-4 bg-white border border-gray-100 hover:border-teal-400 hover:shadow-xl hover:shadow-teal-500/10 rounded-2xl transition-all duration-300 text-left relative overflow-hidden"
+                >
+                  <div className="relative shrink-0">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-400 overflow-hidden border-2 border-white shadow-md">
+                      {doctor.image ? (
+                        <img src={doctor.image} alt={doctor.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-8 h-8" />
+                      )}
+                    </div>
+                    <div className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" title="Available" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-900 text-lg leading-tight group-hover:text-teal-700 transition-colors">
+                      Dr. {doctor.name}
+                    </h3>
+                    
+                    <div className="mt-1.5 space-y-1">
+                      {doctor.specialty && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold bg-teal-100 text-teal-800 tracking-wide">
+                          {doctor.specialty}
+                        </span>
+                      )}
+                      
+                      {doctor.degree && (
+                        <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                          <Award className="w-3 h-3" />
+                          {doctor.degree}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {doctor.workingDays.slice(0, 3).map((day) => (
+                        <span key={day} className="text-[10px] font-semibold px-2 py-0.5 bg-gray-50 text-gray-500 rounded-md border border-gray-200">
+                          {day}
+                        </span>
+                      ))}
+                      {doctor.workingDays.length > 3 && <span className="text-[10px] text-gray-400">+{doctor.workingDays.length - 3}</span>}
+                    </div>
+                  </div>
+
+                  <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-teal-500 group-hover:translate-x-1 transition-all shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Date Selection */}
+        {step === 3 && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4">
+             <button onClick={() => setStep(2)} className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-teal-700 transition-colors">
+              <ChevronLeft className="w-4 h-4" /> Back to Doctors
+            </button>
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="w-5 h-5 text-teal-700" />
+              <h2 className="font-bold text-gray-800 text-lg">Select Date</h2>
+            </div>
+            
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-center">
+               <label className="block text-sm font-medium text-gray-700 mb-2">When would you like to visit?</label>
+               <input
                   type="date"
-                  className="w-full border-2 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 focus:outline-none focus:border-teal-500"
+                  className="w-full text-lg font-semibold text-center p-3 border-none bg-gray-50 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-teal-900"
                   min={new Date().toISOString().split("T")[0]}
                   onChange={(e) => handleDateSelect(e.target.value)}
                 />
-                <button onClick={() => setStep(2)} className="text-sm text-gray-500 hover:underline flex items-center gap-1 mt-4">
-                  <ArrowLeft className="h-3 w-3" /> Choose another doctor
-                </button>
-              </div>
-            )}
-
-            {/* Step 4: Select Time */}
-            {step === 4 && (
-              <div className="space-y-4">
-                <h2 className="font-semibold text-lg text-gray-900">Select Time - {date}</h2>
-                <AvailableSlots 
-                  slots={slots} 
-                  selectedTime={time} 
-                  onSelect={(t: string) => setTime(t)} 
-                />
-                <div className="flex gap-3 pt-4">
-                  <button onClick={() => setStep(3)} className="text-sm text-gray-500 hover:underline flex items-center gap-1">
-                    <ArrowLeft className="h-3 w-3" /> Change Date
-                  </button>
-                  {time && (
-                    <button 
-                      onClick={() => setStep(5)} 
-                      className="ml-auto px-6 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                    >
-                      Continue
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Patient Info */}
-            {step === 5 && !appointmentId && (
-              <PatientInfoForm
-                onSubmit={handleSubmit}
-                submitting={submitting}
-                onBack={() => setStep(4)}
-              />
-            )}
-          </>
+            </div>
+          </div>
         )}
 
-        {/* Confirmation Screen */}
-        {appointmentId && (
-          <div className="text-center py-8 space-y-5">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
-              <CheckCircle className="h-10 w-10 text-green-600" />
+        {/* Step 4: Time Selection */}
+        {step === 4 && (
+           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4 h-full flex flex-col">
+             <button onClick={() => setStep(3)} className="mb-2 flex items-center gap-1 text-sm text-gray-500 hover:text-teal-700 transition-colors">
+              <ChevronLeft className="w-4 h-4" /> Change Date
+            </button>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-teal-700" />
+                <h2 className="font-bold text-gray-800 text-lg">Available Times</h2>
+              </div>
+              <span className="text-xs font-medium text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">{date}</span>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">Booking Confirmed!</h2>
-            <p className="text-gray-500 text-sm">Your appointment has been booked successfully.</p>
             
-            <div className="bg-gray-50 p-5 rounded-xl text-sm text-left space-y-3 mt-6 border">
-              <div className="flex justify-between"><span className="text-gray-500">Branch:</span> <span className="font-medium">{selectedBranch?.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Doctor:</span> <span className="font-medium">Dr. {selectedDoctor?.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Date:</span> <span className="font-medium">{date}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Time:</span> <span className="font-medium">{time}</span></div>
+            <div className="flex-1 overflow-y-auto -mx-2 px-2 pb-4 custom-scrollbar">
+              <AvailableSlots 
+                slots={slots} 
+                selectedTime={time} 
+                onSelect={handleTimeSelect} 
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Patient Details */}
+        {step === 5 && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <button onClick={() => setStep(4)} className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-teal-700 transition-colors">
+              <ChevronLeft className="w-4 h-4" /> Back to Times
+            </button>
+            <PatientInfoForm
+              onSubmit={handleSubmit}
+              submitting={submitting}
+            />
+          </div>
+        )}
+
+        {/* Step 6: Success */}
+        {step === 6 && appointmentId && (
+          <div className="flex flex-col items-center justify-center py-10 animate-in zoom-in-95 duration-500 text-center space-y-6 h-full">
+            <div className="relative">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-14 h-14 text-green-600 stroke-[2]" />
+              </div>
+              <div className="absolute inset-0 rounded-full border-4 border-green-200 animate-ping opacity-75" />
+            </div>
+            
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">Booking Confirmed!</h2>
+              <p className="text-gray-500">We have sent a confirmation to your phone.</p>
             </div>
 
-            <a href={`/book/confirmation/${appointmentId}`} className="text-teal-600 text-sm hover:underline block mt-6 font-medium">
-              View Full Details →
+            <div className="w-full bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-2xl border border-gray-200 text-left space-y-3">
+              <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Clinic</span>
+                <span className="font-medium text-gray-900">{clinic.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Doctor</span>
+                <span className="font-semibold text-gray-900">Dr. {selectedDoctor?.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Date</span>
+                <span className="font-semibold text-gray-900">{date}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Time</span>
+                <span className="font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">{time}</span>
+              </div>
+            </div>
+
+            <a 
+              href={`/book/confirmation/${appointmentId}`} 
+              className="w-full py-3.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium shadow-lg shadow-gray-200/50 flex items-center justify-center gap-2 group"
+            >
+              View Appointment Details
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </a>
           </div>
         )}
+
       </div>
     </div>
   )

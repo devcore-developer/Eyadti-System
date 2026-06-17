@@ -11,9 +11,10 @@ interface AvailableSlotsProps {
 export function AvailableSlots({ slots, selectedTime, onSelect }: AvailableSlotsProps) {
   if (slots.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Clock className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-        <p>No available slots for this date</p>
+      <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+        <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+        <p className="text-gray-500 font-medium">No slots available</p>
+        <p className="text-xs text-gray-400 mt-1">Try selecting a different date</p>
       </div>
     )
   }
@@ -28,20 +29,22 @@ export function AvailableSlots({ slots, selectedTime, onSelect }: AvailableSlots
     return `${hour}:${m.toString().padStart(2, "0")} ${ampm}`
   }
 
-  const SlotSection = ({ title, sectionSlots }: { title: string; sectionSlots: string[] }) => (
+  const SlotSection = ({ title, sectionSlots, icon }: { title: string; sectionSlots: string[]; icon: string }) => (
     sectionSlots.length > 0 ? (
-      <div className="mb-4">
-        <p className="text-sm font-medium text-gray-500 mb-2">{title}</p>
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+      <div className="mb-6 last:mb-0">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1 flex items-center gap-2">
+          <span>{icon}</span> {title}
+        </p>
+        <div className="grid grid-cols-3 gap-3">
           {sectionSlots.map((slot) => (
             <button
               key={slot}
               type="button"
               onClick={() => onSelect(slot)}
-              className={`py-2 px-3 text-sm rounded-lg border transition-all ${
+              className={`py-3 px-2 text-sm font-semibold rounded-xl border transition-all duration-200 relative overflow-hidden group ${
                 selectedTime === slot
-                  ? "bg-teal-600 text-white border-teal-600 shadow-md scale-95"
-                  : "bg-white hover:border-teal-400 hover:bg-teal-50 text-gray-700"
+                  ? "bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-500/30 scale-95"
+                  : "bg-white border-gray-200 text-gray-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 hover:shadow-sm"
               }`}
             >
               {formatTime(slot)}
@@ -53,9 +56,9 @@ export function AvailableSlots({ slots, selectedTime, onSelect }: AvailableSlots
   )
 
   return (
-    <div className="max-h-[300px] overflow-y-auto p-1">
-      <SlotSection title="🌅 Morning" sectionSlots={morningSlots} />
-      <SlotSection title="🌙 Afternoon / Evening" sectionSlots={afternoonSlots} />
+    <div className="pb-4">
+      <SlotSection title="Morning" sectionSlots={morningSlots} icon="🌅" />
+      <SlotSection title="Afternoon / Evening" sectionSlots={afternoonSlots} icon="🌙" />
     </div>
   )
 }

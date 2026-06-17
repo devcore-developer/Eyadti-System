@@ -44,6 +44,8 @@ export async function getAvailableDoctors(clinicId: string) {
       id: true,
       name: true,
       image: true,
+      specialty: true, // ✅ NEW
+      degree: true,    // ✅ NEW
       schedules: {
         where: { isAvailable: true },
         orderBy: { dayOfWeek: "asc" },
@@ -253,7 +255,7 @@ export async function getBookingConfirmation(appointmentId: string) {
     where: { id: appointmentId },
     include: {
       patient: { select: { fullName: true, phone: true } },
-      doctor: { select: { id: true, name: true, image: true } },
+      doctor: { select: { id: true, name: true, image: true, specialty: true, degree: true } },
       clinic: { select: { name: true, address: true, phone: true } },
     },
   })
@@ -278,7 +280,7 @@ export async function getOnlineBookings(clinicId: string) {
     where: { clinicId, source: "WEBSITE" },
     include: {
       patient: { select: { fullName: true, phone: true } },
-      doctor: { select: { name: true } },
+      doctor: { select: { name: true, specialty: true } },
       appointment: { select: { dateTime: true, status: true, notes: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -327,8 +329,6 @@ export async function getBranches(clinicId: string) {
 }
 
 export async function getDoctorsByBranch(clinicId: string, branchId: string) {
-  // ✅ الحل الجذري: إذا كان الـ branchId يبدأ بـ "branch_for_" فهو فرع افتراضي وليس حقيقياً في قاعدة البيانات
-  // في هذه الحالة نجلب كل الدكاترة في العيادة بدون فلترة الفرع
   const isFallbackBranch = branchId.startsWith("branch_for_");
 
   const doctors = await prisma.user.findMany({
@@ -336,9 +336,8 @@ export async function getDoctorsByBranch(clinicId: string, branchId: string) {
       clinicId, 
       role: "DOCTOR",
       ...(isFallbackBranch 
-        ? {} // لا توجد فلترة للفرع، اجلب الكل
+        ? {} 
         : {
-            // فلترة عادية: الدكاترة اللي في الفرع ده، أو اللي ليهم صلاحية كل الفروع
             OR: [
               { allBranchAccess: true },
               { doctorBranches: { some: { branchId: branchId } } }
@@ -350,6 +349,9 @@ export async function getDoctorsByBranch(clinicId: string, branchId: string) {
       id: true, 
       name: true,
       allBranchAccess: true,
+      image: true,         // ✅ NEW
+      specialty: true,     // ✅ NEW
+      degree: true,        // ✅ NEW
       schedules: {
         where: { isAvailable: true },
         orderBy: { dayOfWeek: "asc" },

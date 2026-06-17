@@ -9,11 +9,15 @@ import { Building2, Check } from "lucide-react"
 
 type Branch = { id: string; name: string; code: string }
 
+// Updated UserData interface to include new fields
 type UserData = {
   id?: string
   name: string
   email: string
   role: Role
+  image?: string | null
+  specialty?: string | null
+  degree?: string | null
 }
 
 type Props = {
@@ -56,7 +60,7 @@ export function UserForm({ user, branches = [], userBranchIds = [] }: Props) {
     const formData = new FormData(e.currentTarget)
     
     // إضافة الفروع المحددة إلى FormData
-    formData.delete('branchIds') // تنظيف أي قيم سابقة
+    formData.delete('branchIds')
     selectedBranches.forEach(id => formData.append('branchIds', id))
 
     startTransition(async () => {
@@ -153,6 +157,55 @@ export function UserForm({ user, branches = [], userBranchIds = [] }: Props) {
             <option value={Role.RECEPTIONIST}>Receptionist</option>
           </select>
           {fieldError("role") && <p className="mt-1 text-xs text-red-600">{fieldError("role")}</p>}
+        </div>
+      </div>
+
+      {/* ✅ New Section: Profile Details (Image, Specialty, Degree) */}
+      <div className="border-t border-gray-200 pt-5">
+        <h3 className="text-sm font-medium text-gray-900 mb-3">Profile Details</h3>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label htmlFor="image" className="block text-sm font-medium text-gray-700">
+              Profile Image URL
+            </label>
+            <input
+              id="image"
+              name="image"
+              type="url"
+              defaultValue={user?.image ?? ""}
+              placeholder="https://example.com/doctor-photo.jpg"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">Paste a direct link to the doctor's photo.</p>
+          </div>
+
+          <div>
+            <label htmlFor="specialty" className="block text-sm font-medium text-gray-700">
+              Specialty
+            </label>
+            <input
+              id="specialty"
+              name="specialty"
+              type="text"
+              defaultValue={user?.specialty ?? ""}
+              placeholder="e.g. Cardiology, Dentistry"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="degree" className="block text-sm font-medium text-gray-700">
+              Academic Degree
+            </label>
+            <input
+              id="degree"
+              name="degree"
+              type="text"
+              defaultValue={user?.degree ?? ""}
+              placeholder="e.g. MBBS, MD, PhD"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
         </div>
       </div>
 

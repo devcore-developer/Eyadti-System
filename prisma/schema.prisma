@@ -172,6 +172,8 @@ model User {
   id              String  @id @default(cuid())
   name            String
   email           String  @unique
+  specialty       String?   // التخصص (مثلاً: Cardiologist)
+  degree          String?   // الدرجة العلمية (مثلاً: MBBS, MD, PhD)  
   password        String?
   role            Role    @default(RECEPTIONIST)
   allBranchAccess Boolean @default(false)
@@ -217,6 +219,7 @@ model Clinic {
   slug          String              @unique
   address       String?
   phone         String?
+  logoUrl       String?  
   ownerId       String?
   owner         User?                @relation("ClinicOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   users         User[]

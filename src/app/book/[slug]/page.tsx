@@ -12,6 +12,7 @@ export default async function BookClinicPage({ params }: { params: Promise<{ slu
 
   const clinic = await prisma.clinic.findUnique({
     where: { slug },
+    select: { id: true, name: true, logoUrl: true }
   })
 
   if (!clinic) notFound()
