@@ -35,7 +35,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* أيقونة التطبيق على شاشة الهوم للأيفون */}
+        {/* إضافة ?v=2 عشان نخلي المتصفح يهمل الكاش */}
+        <link rel="icon" href="/favicon.ico?v=2" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
