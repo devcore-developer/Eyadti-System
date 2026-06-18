@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-// import { Stethoscope, Menu, X } from "lucide-react" // Stethoscope no longer needed
 import { Menu, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -30,12 +29,14 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2 text-foreground">
-            {/* ✅ تم استبدال الأيقونة بالصورة */}
+            {/* ✅ اللوجو */}
             <img 
-              src="/icon.png" 
+              src="/dashboard-logo.png" 
               alt="Nexora Logo" 
               className="h-9 w-auto object-contain" 
             />
+            {/* ✅ اسم السيستم */}
+            <span className="text-xl font-bold tracking-tight">Nexora</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
