@@ -1,4 +1,3 @@
-// app/(dashboard)/layout.tsx
 import { auth } from "@/lib/auth"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { MobileNav } from "@/components/dashboard/mobile-nav"
@@ -14,7 +13,11 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
 
-  const subscription = session?.user?.clinicId 
+  // ✅ إضافة التحقق من دور السوبر أدمن
+  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+
+  // ✅ السوبر أدمن لا يحتاج للاشتراك
+  const subscription = !isSuperAdmin && session?.user?.clinicId 
     ? await prisma.subscription.findUnique({ 
         where: { clinicId: session.user.clinicId }, 
         select: { status: true, trialEndsAt: true, endDate: true, currentPeriodEnd: true } 
@@ -75,7 +78,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <header className="hidden lg:flex print:hidden h-16 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white/70 dark:bg-[#17212F]/70 backdrop-blur-xl px-6 items-center justify-between shadow-[0_2px_20px_rgba(100,116,139,0.04)] z-10">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xs font-bold uppercase tracking-[0.2em] bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] bg-clip-text text-transparent truncate">
-              {clinic?.name || "Eyadti Clinic"}
+              {clinic?.name || "Nexora Clinic"}
             </span>
           </div>
           <div className="flex items-center gap-4 shrink-0">
@@ -101,17 +104,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {/* ── Main Content ── */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 print:p-0 print:overflow-visible print:bg-white pb-20 lg:pb-8">
           <div className="animate-fade-in-up print:animate-none max-w-[1400px] mx-auto">
-            <SubscriptionGuard 
-              status={subscription?.status || null}
-              trialEndsAt={subscription?.trialEndsAt || null}
-              endDate={subscription?.currentPeriodEnd || null}
-            >
-              {children}
-            </SubscriptionGuard>
+            {/* ✅ استثناء السوبر أدمن من حارس الاشتراك */}
+            {!isSuperAdmin ? (
+              <SubscriptionGuard 
+                status={subscription?.status || null}
+                trialEndsAt={subscription?.trialEndsAt || null}
+                endDate={subscription?.currentPeriodEnd || null}
+              >
+                {children}
+              </SubscriptionGuard>
+            ) : (
+              children
+            )}
           </div>
         </main>
       </div>
 
+      {/* ✅ CommandPalette - لو وجدت مشاكل في النقر، يمكنك تعليق هذا السطر مؤقتاً */}
       <CommandPalette />
     </div>
   )
