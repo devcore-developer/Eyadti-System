@@ -1,201 +1,292 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { overrideSubscription, superAdminGenerateCodes, getPlansForAdmin } from "@/actions/super-admin"
-import { Loader2, Copy, Check } from "lucide-react"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Users, 
+  Building2, 
+  DollarSign, 
+  Activity, 
+  AlertTriangle,
+  MoreHorizontal,
+  Eye,
+  ShieldCheck,
+  Settings,
+  Layers
+} from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 
-interface Plan { id: string; name: string }
+interface PlatformStats {
+  totalClinics: number
+  activeClinics: number
+  totalUsers: number
+  totalDoctors: number
+  totalPatients: number
+  appointmentsToday: number
+  mrr: number
+  activeTrials: number
+  expiringSubs: number
+  failedPayments: number
+}
 
-const DURATION_OPTIONS = [
-  { label: "10 Days (Trial)", value: 10 },
-  { label: "1 Month (30 Days)", value: 30 },
-  { label: "6 Months (180 Days)", value: 180 },
-  { label: "1 Year (365 Days)", value: 365 },
-];
+interface Clinic {
+  id: string
+  name: string
+  subscription: { status: string; endDate: Date | null } | null
+  _count: { users: number; branches: number }
+  createdAt: Date
+}
 
-export function SuperAdminDashboard({ subscribers }: { subscribers: any[] }) {
-  const [plans, setPlans] = useState<Plan[]>([])
+export function SuperAdminDashboard({ 
+  initialStats, 
+  initialClinics 
+}: { 
+  initialStats: PlatformStats | null, 
+  initialClinics: Clinic[] 
+}) {
+  const [stats] = useState(initialStats)
+  const [clinics] = useState(initialClinics)
   
-  // Code Gen State
-  const [planId, setPlanId] = useState("")
-  const [durationDays, setDurationDays] = useState(30)
-  const [quantity, setQuantity] = useState(1)
-  const [generatedCodes, setGeneratedCodes] = useState<string[]>([])
-  const [isPending, setIsPending] = useState<string | null>(null)
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
-
-  useEffect(() => {
-    async function loadPlans() {
-      const plansData = await getPlansForAdmin();
-      setPlans(plansData || []);
-      if (plansData && plansData.length > 0) setPlanId(plansData[0].id);
-    }
-    loadPlans();
-  }, []);
-
-  const handleAction = async (clinicId: string, action: "ACTIVE" | "EXPIRED" | "SUSPENDED", days?: number) => {
-    setIsPending(clinicId)
-    await overrideSubscription(clinicId, action, days)
-    setIsPending(null)
-    window.location.reload()
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
   }
 
-  const handleGenerate = async () => {
-    setIsPending("generating")
-    setGeneratedCodes([])
-    const result = await superAdminGenerateCodes({ planId, durationDays, quantity })
-    if (result.success && result.codes) {
-      setGeneratedCodes(result.codes)
-    } else {
-      alert(result.error || "Failed to generate codes")
-    }
-    setIsPending(null)
-  }
-
-  const handleCopy = (code: string, index: number) => {
-    navigator.clipboard.writeText(code)
-    setCopiedIndex(index)
-    setTimeout(() => setCopiedIndex(null), 2000)
-  }
+  const KPICard = ({ 
+    title, 
+    value, 
+    icon: Icon, 
+    trend, 
+    trendUp, 
+    suffix = "", 
+    className 
+  }: any) => (
+    <Card className={cn("overflow-hidden transition-all hover:shadow-lg border-border/50", className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <div className="p-2 bg-primary/10 rounded-lg">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">
+          {value?.toLocaleString()} {suffix}
+        </div>
+        {trend !== undefined && (
+          <p className={cn("text-xs flex items-center gap-1 mt-1", trendUp ? "text-emerald-500" : "text-rose-500")}>
+            {trendUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            <span className="font-medium">{trend}%</span>
+            <span className="text-muted-foreground font-normal">from last month</span>
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
 
   return (
-    <div className="p-6 space-y-8">
-      <h1 className="text-3xl font-bold">Super Admin Panel - Platform Control</h1>
-
-      {/* ── منطقة توليد الأكواد ── */}
-      <div className="bg-white dark:bg-[#1E293B] p-6 rounded-xl shadow border border-slate-200 dark:border-slate-700/50">
-        <h2 className="text-xl font-bold mb-4">Generate Activation Codes</h2>
-        <p className="text-sm text-muted-foreground mb-4">Select Plan, Duration, and Quantity. The generated code will dictate what the client gets upon signup.</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Plan Select */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Plan (Bundle)</label>
-            <select 
-              value={planId} 
-              onChange={(e) => setPlanId(e.target.value)}
-              className="w-full h-10 rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm"
-            >
-              {plans.map((plan) => (
-                <option key={plan.id} value={plan.id}>{plan.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Duration Select */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Duration</label>
-            <select 
-              value={durationDays} 
-              onChange={(e) => setDurationDays(Number(e.target.value))}
-              className="w-full h-10 rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm"
-            >
-              {DURATION_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Quantity */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Quantity (Max 100)</label>
-            <input 
-              type="number" 
-              min={1} 
-              max={100} 
-              value={quantity} 
-              onChange={(e) => setQuantity(Number(e.target.value))} 
-              className="w-full h-10 rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div className="flex items-end">
-            <button 
-              onClick={handleGenerate} 
-              disabled={isPending === "generating" || !planId} 
-              className="w-full gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:-translate-y-0.5 transition-all disabled:opacity-50 flex justify-center items-center"
-            >
-              {isPending === "generating" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Generate Codes
-            </button>
-          </div>
+    <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Platform Overview</h1>
+          <p className="text-muted-foreground mt-1">Real-time analytics and system health monitoring.</p>
         </div>
-
-        {/* ── عرض الأكواد اللي اتولدت ── */}
-        {generatedCodes.length > 0 && (
-          <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl">
-            <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-3">
-              ✅ Generated Codes (Send these to the client):
-            </h3>
-            <div className="space-y-2">
-              {generatedCodes.map((code, index) => (
-                <div key={index} className="flex items-center justify-between bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                  <span className="font-mono font-bold tracking-widest text-foreground text-md">{code}</span>
-                  <button 
-                    onClick={() => handleCopy(code, index)}
-                    className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded hover:bg-slate-200 transition flex items-center gap-1.5 font-semibold"
-                  >
-                    {copiedIndex === index ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copiedIndex === index ? "Copied!" : "Copy"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm">
+            <Activity className="mr-2 h-4 w-4 text-emerald-500" /> System Healthy
+          </Button>
+          <Button size="sm" className="bg-primary hover:bg-primary/90">
+            Generate Report
+          </Button>
+        </div>
       </div>
 
-      {/* ── جدول المشتركين ── */}
-      <div className="bg-white dark:bg-[#1E293B] rounded-xl shadow border border-slate-200 dark:border-slate-700/50 overflow-hidden">
-        <h2 className="text-xl font-bold p-4 border-b border-slate-200 dark:border-slate-700">Subscribers ({subscribers.length})</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50">
-                <th className="p-3 border-b text-xs text-muted-foreground">Clinic Name</th>
-                <th className="p-3 border-b text-xs text-muted-foreground">Admin Email</th>
-                <th className="p-3 border-b text-xs text-muted-foreground">Status</th>
-                <th className="p-3 border-b text-xs text-muted-foreground">Ends At</th>
-                <th className="p-3 border-b text-xs text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {subscribers.map((clinic: any) => (
-                <tr key={clinic.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800">
-                  <td className="p-3 font-medium">{clinic.name}</td>
-                  <td className="p-3 text-gray-600 dark:text-gray-400 text-sm">{clinic.users[0]?.email || "N/A"}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                      clinic.subscription?.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : 
-                      clinic.subscription?.status === "TRIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : 
-                      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                    }`}>
-                      {clinic.subscription?.status || "NO SUB"}
-                    </span>
-                  </td>
-                  <td className="p-3 text-sm text-gray-500 dark:text-gray-400">
-                    {clinic.subscription?.endDate ? new Date(clinic.subscription.endDate).toLocaleDateString() : "N/A"}
-                  </td>
-                  <td className="p-3 space-x-2">
-                    <button 
-                      onClick={() => handleAction(clinic.id, "ACTIVE", 30)} 
-                      disabled={isPending === clinic.id}
-                      className="bg-emerald-600 text-white px-3 py-1.5 rounded text-xs hover:bg-emerald-700 disabled:opacity-50 font-medium"
-                    >
-                      Activate +30d
-                    </button>
-                    <button 
-                      onClick={() => handleAction(clinic.id, "SUSPENDED")} 
-                      disabled={isPending === clinic.id}
-                      className="bg-red-600 text-white px-3 py-1.5 rounded text-xs hover:bg-red-700 disabled:opacity-50 font-medium"
-                    >
-                      Suspend
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {stats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <KPICard 
+            title="Total Revenue (MRR)" 
+            value={stats.mrr} 
+            icon={DollarSign} 
+            formatFn={formatCurrency}
+            trend={12.5} 
+            trendUp={true} 
+          />
+          <KPICard 
+            title="Active Clinics" 
+            value={stats.activeClinics} 
+            icon={Building2} 
+            suffix={`/${stats.totalClinics}`}
+            trend={8.2} 
+            trendUp={true} 
+          />
+          <KPICard 
+            title="Total Patients" 
+            value={stats.totalPatients} 
+            icon={Users} 
+            trend={5.4} 
+            trendUp={true} 
+          />
+          <KPICard 
+            title="Appointments Today" 
+            value={stats.appointmentsToday} 
+            icon={Activity} 
+            trend={-2.1} 
+            trendUp={false} 
+          />
+          
+          <KPICard title="Total Doctors" value={stats.totalDoctors} icon={ShieldCheck} className="md:col-span-1" />
+          <KPICard title="Active Trials" value={stats.activeTrials} icon={Layers} className="md:col-span-1" />
+          
+          <Card className="col-span-1 md:col-span-2 border-amber-500/20 bg-amber-500/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">Action Required</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+            </CardHeader>
+            <CardContent className="flex gap-6">
+              <div className="flex-1">
+                <div className="text-2xl font-bold text-amber-900 dark:text-amber-100">{stats.expiringSubs}</div>
+                <p className="text-xs text-amber-800/70 dark:text-amber-200/70">Expiring Soon</p>
+              </div>
+              <div className="w-px bg-amber-500/20 h-10" />
+              <div className="flex-1">
+                <div className="text-2xl font-bold text-rose-900 dark:text-rose-100">{stats.failedPayments}</div>
+                <p className="text-xs text-rose-800/70 dark:text-rose-200/70">Failed Payments</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2 border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Recent Clinics</CardTitle>
+            <Button variant="ghost" size="sm" className="text-primary">View All</Button>
+          </CardHeader>
+          <CardContent>
+            <div className="relative w-full overflow-auto">
+              <table className="w-full caption-bottom text-sm">
+                <thead className="[&_tr]:border-b">
+                  <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Clinic</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Plan</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Users</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+                    <th className="h-10 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clinics.slice(0, 5).map((clinic) => (
+                    <tr key={clinic.id} className="border-b transition-colors hover:bg-muted/50/50">
+                      <td className="p-4 align-middle font-medium">
+                        <div className="flex flex-col">
+                          <span>{clinic.name}</span>
+                          <span className="text-xs text-muted-foreground">Joined {new Date(clinic.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle">Pro Plan</td>
+                      <td className="p-4 align-middle text-muted-foreground">
+                        {clinic._count.users}
+                      </td>
+                      <td className="p-4 align-middle">
+                        <Badge 
+                          variant={clinic.subscription?.status === 'ACTIVE' ? 'default' : 'secondary'}
+                          className={cn(
+                            "capitalize",
+                            clinic.subscription?.status === 'ACTIVE' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                          )}
+                        >
+                          {clinic.subscription?.status || 'INACTIVE'}
+                        </Badge>
+                      </td>
+                      <td className="p-4 align-middle text-right">
+                        <DropdownMenu>
+                          {/* ✅ تمت إزالة asChild */}
+                          <DropdownMenuTrigger>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem className="text-primary cursor-pointer">
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-amber-600 cursor-pointer">
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              Support Mode
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Settings className="mr-2 h-4 w-4" />
+                              Settings
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">System Health</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">API Server</span>
+                <span className="flex items-center gap-2 text-xs font-medium text-emerald-600">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  Operational (24ms)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Database</span>
+                <span className="flex items-center gap-2 text-xs font-medium text-emerald-600">
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  Healthy
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Storage</span>
+                <span className="text-xs font-medium text-amber-600">75% Used</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">Admin Tools</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">Generate activation codes for new trials or extensions.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" className="w-full">
+                  Generate Code
+                </Button>
+                <Button variant="outline" size="sm" className="w-full">
+                  Audit Logs
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
         </div>
       </div>
     </div>

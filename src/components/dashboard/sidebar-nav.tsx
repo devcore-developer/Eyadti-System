@@ -16,6 +16,9 @@ import {
   FileText,
   Building2,
   UserPlus,
+  BarChart3,
+  Activity,
+  Zap,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
@@ -38,7 +41,16 @@ const adminNavigation = [
   { name: "Branches", href: "/settings/branches", icon: Building2 },
 ]
 
-export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
+// 🚀 Super Admin Navigation (Platform Level)
+const superAdminNavigation = [
+  { name: "Platform Overview", href: "/super-admin", icon: BarChart3 },
+  { name: "All Clinics", href: "/super-admin/clinics", icon: Building2 },
+  { name: "Platform Billing", href: "/super-admin/billing", icon: CreditCard },
+  { name: "System Health", href: "/super-admin/system-health", icon: Activity },
+  { name: "Feature Flags", href: "/super-admin/features", icon: Zap },
+]
+
+export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSuperAdmin?: boolean }) {
   const pathname = usePathname()
 
   function isActive(href: string) {
@@ -53,7 +65,6 @@ export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
           <Link
             key={item.name}
             href={item.href}
-            // ✨ استخدام الـ Class الموحد sidebar-item لضمان مساحة اللمس
             className={cn(
               "sidebar-item group flex items-center gap-3 text-[0.8125rem] font-medium transition-colors duration-150",
               active
@@ -78,7 +89,7 @@ export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
         <>
           <Separator className="my-3 bg-sidebar-border" />
           <p className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-            Administration
+            Clinic Administration
           </p>
           <div className="space-y-1">
             {adminNavigation.map((item) => {
@@ -100,6 +111,41 @@ export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
                       active
                         ? "text-sidebar-accent-foreground"
                         : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
+                    )}
+                  />
+                  <span className="truncate">{item.name}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* ─── SUPER ADMIN SECTION ─── */}
+      {isSuperAdmin && (
+        <>
+          <Separator className="my-3 bg-sidebar-border" />
+          <p className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-primary/80">
+            Platform Control
+          </p>
+          <div className="space-y-1">
+            {superAdminNavigation.map((item) => {
+              const active = isActive(item.href)
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "sidebar-item group flex items-center gap-3 text-[0.8125rem] font-medium transition-colors duration-150",
+                    active
+                      ? "active text-primary bg-primary/10"
+                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent/20 hover:text-primary"
+                  )}
+                >
+                  <item.icon
+                    className={cn(
+                      "h-4 w-4 shrink-0 transition-colors duration-150",
+                      active ? "text-primary" : "text-sidebar-foreground/40 group-hover:text-primary/70"
                     )}
                   />
                   <span className="truncate">{item.name}</span>
