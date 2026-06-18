@@ -31,12 +31,12 @@ export function Navbar() {
           <Link href="/" className="flex items-center gap-2 text-foreground">
             {/* ✅ اللوجو */}
             <img 
-              src="/dashboard-logo.png" 
+              src="/icon.png" 
               alt="Nexora Logo" 
               className="h-9 w-auto object-contain" 
             />
             {/* ✅ اسم السيستم */}
-            <span className="text-xl font-bold tracking-tight">Nexora</span>
+            <span className="text-xl font-bold tracking-tight">Nexora Clinic System</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
