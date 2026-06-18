@@ -111,12 +111,10 @@ export function ClinicTable({ initialData }: ClinicTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
-                      {/* ✅ تمت إزالة asChild */}
-                      <DropdownMenuTrigger>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                      {/* ✅ Fixed: Styled Trigger Directly */}
+                      <DropdownMenuTrigger className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                        <span className="sr-only">Open menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-[160px]">
                         <DropdownMenuItem onClick={() => router.push(`/super-admin/clinics/${clinic.id}`)} className="cursor-pointer">
