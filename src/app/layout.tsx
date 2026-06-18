@@ -36,7 +36,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* إضافة ?v=2 عشان نخلي المتصفح يهمل الكاش */}
-        <link rel="icon" href="/favicon.ico?v=2" />
+        <link rel="icon" href="/icon.png?v=2" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
