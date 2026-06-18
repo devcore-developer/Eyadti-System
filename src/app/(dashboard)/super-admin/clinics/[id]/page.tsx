@@ -7,12 +7,17 @@ import { Separator } from "@/components/ui/separator"
 import { Building2, Users, Calendar, FileText, Activity, MapPin } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
-export default async function ClinicDetailsPage({ params }: { params: { id: string } }) {
+// ✅ تم تغيير نوع params إلى Promise
+export default async function ClinicDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  // ✅ يجب عمل await لـ params أولاً
+  const { id } = await params
+  
   const session = await auth()
   
   if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
 
-  const clinic = await getClinicDetails(params.id)
+  // ✅ استخدام الـ id بعد استخراجه
+  const clinic = await getClinicDetails(id)
 
   if (!clinic) return notFound()
 
@@ -82,7 +87,6 @@ export default async function ClinicDetailsPage({ params }: { params: { id: stri
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm font-medium">Current Plan</p>
-                {/* ✅ تم إزالة plan.name لأن العلاقة غير موجودة في السكيمة */}
                 <p className="text-2xl font-bold">Active Plan</p>
               </div>
               <Separator />
