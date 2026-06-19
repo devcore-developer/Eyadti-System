@@ -2,14 +2,14 @@
 
 import { useTransition, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createUser, updateUser } from "@/lib/actions/admin"
+// ✅ تم تصحيح المسار من @/lib/actions/admin إلى @/actions/admin
+import { createUser, updateUser } from "@/actions/admin"
 import type { ActionResult } from "@/types"
 import { Role } from "@prisma/client"
 import { Building2, Check } from "lucide-react"
 
 type Branch = { id: string; name: string; code: string }
 
-// Updated UserData interface to include new fields
 type UserData = {
   id?: string
   name: string
@@ -160,7 +160,7 @@ export function UserForm({ user, branches = [], userBranchIds = [] }: Props) {
         </div>
       </div>
 
-      {/* ✅ New Section: Profile Details (Image, Specialty, Degree) */}
+      {/* Profile Details Section */}
       <div className="border-t border-gray-200 pt-5">
         <h3 className="text-sm font-medium text-gray-900 mb-3">Profile Details</h3>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -209,7 +209,7 @@ export function UserForm({ user, branches = [], userBranchIds = [] }: Props) {
         </div>
       </div>
 
-      {/* Branch Access Multi-Select */}
+      {/* Branch Access */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Branch Access <span className="text-red-500">*</span>

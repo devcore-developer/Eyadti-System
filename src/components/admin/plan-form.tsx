@@ -1,5 +1,3 @@
-// src/components/admin/plan-form.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -50,9 +48,22 @@ export function PlanForm({ plan, mode }: PlanFormProps) {
       maxBranches: formData.get("maxBranches")
         ? parseInt(formData.get("maxBranches") as string)
         : null,
+      // ✅ إضافة الحقول المفقودة هنا
+      maxMonthlyVisits: formData.get("maxMonthlyVisits")
+        ? parseInt(formData.get("maxMonthlyVisits") as string)
+        : -1,
+      
       onlineBookingEnabled: formData.get("onlineBookingEnabled") === "on",
       analyticsEnabled: formData.get("analyticsEnabled") === "on",
       whatsappEnabled: formData.get("whatsappEnabled") === "on",
+      // ✅ إضافة بافي الفلاتر
+      auditLogsEnabled: formData.get("auditLogsEnabled") === "on",
+      galleryEnabled: formData.get("galleryEnabled") === "on",
+      advancedInvoicesEnabled: formData.get("advancedInvoicesEnabled") === "on",
+      doctorSchedulesEnabled: formData.get("doctorSchedulesEnabled") === "on",
+      queueManagementEnabled: formData.get("queueManagementEnabled") === "on",
+      waitingRoomDisplayEnabled: formData.get("waitingRoomDisplayEnabled") === "on",
+      
       active: formData.get("active") === "on",
     };
 
@@ -232,6 +243,18 @@ export function PlanForm({ plan, mode }: PlanFormProps) {
                 defaultValue={plan?.maxBranches ?? ""}
               />
             </div>
+            {/* ✅ New Limit */}
+            <div className="space-y-2">
+              <Label htmlFor="maxMonthlyVisits">Max Monthly Visits</Label>
+              <Input
+                id="maxMonthlyVisits"
+                name="maxMonthlyVisits"
+                type="number"
+                min="1"
+                placeholder="Unlimited"
+                defaultValue={plan?.maxMonthlyVisits ?? ""}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -268,9 +291,9 @@ export function PlanForm({ plan, mode }: PlanFormProps) {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-sm">Notifications & Reminders</p>
+              <p className="font-medium text-sm">WhatsApp Integration</p>
               <p className="text-xs text-gray-500">
-                In-app, SMS, WhatsApp notifications
+                Send reminders via WhatsApp
               </p>
             </div>
             <Switch
@@ -278,9 +301,82 @@ export function PlanForm({ plan, mode }: PlanFormProps) {
               defaultChecked={plan?.whatsappEnabled ?? false}
             />
           </div>
+          {/* ✅ New Features */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-sm">Active</p>
+              <p className="font-medium text-sm">Audit Logs</p>
+              <p className="text-xs text-gray-500">
+                Track user actions and changes
+              </p>
+            </div>
+            <Switch
+              name="auditLogsEnabled"
+              defaultChecked={plan?.auditLogsEnabled ?? false}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Patient Gallery</p>
+              <p className="text-xs text-gray-500">
+                Before/After photos and media
+              </p>
+            </div>
+            <Switch
+              name="galleryEnabled"
+              defaultChecked={plan?.galleryEnabled ?? false}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Advanced Invoices</p>
+              <p className="text-xs text-gray-500">
+                Detailed billing and taxes
+              </p>
+            </div>
+            <Switch
+              name="advancedInvoicesEnabled"
+              defaultChecked={plan?.advancedInvoicesEnabled ?? false}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Doctor Schedules</p>
+              <p className="text-xs text-gray-500">
+                Manage appointment slots
+              </p>
+            </div>
+            <Switch
+              name="doctorSchedulesEnabled"
+              defaultChecked={plan?.doctorSchedulesEnabled ?? false}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Queue Management</p>
+              <p className="text-xs text-gray-500">
+                Waiting room organization
+              </p>
+            </div>
+            <Switch
+              name="queueManagementEnabled"
+              defaultChecked={plan?.queueManagementEnabled ?? false}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Waiting Room Display</p>
+              <p className="text-xs text-gray-500">
+                TV display for patients
+              </p>
+            </div>
+            <Switch
+              name="waitingRoomDisplayEnabled"
+              defaultChecked={plan?.waitingRoomDisplayEnabled ?? false}
+            />
+          </div>
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div>
+              <p className="font-medium text-sm">Active Status</p>
               <p className="text-xs text-gray-500">
                 Available for new subscriptions
               </p>

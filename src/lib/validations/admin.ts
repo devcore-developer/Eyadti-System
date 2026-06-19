@@ -10,6 +10,11 @@ export const createUserSchema = z.object({
   role: z.nativeEnum(Role, {
     message: "Please select a valid role",
   }),
+  // ✅ الحقول الجديدة المضافة
+  image: z.string().url("Invalid image URL").optional().or(z.literal("")),
+  specialty: z.string().optional(),
+  degree: z.string().optional(),
+  branchIds: z.array(z.string()).optional(),
 })
 
 export const updateUserSchema = z.object({
@@ -19,12 +24,16 @@ export const updateUserSchema = z.object({
     message: "Please select a valid role",
   }),
   password: z.string().min(8, "Password must be at least 8 characters").optional().or(z.literal("")),
+  // ✅ الحقول الجديدة المضافة
+  image: z.string().url("Invalid image URL").optional().or(z.literal("")),
+  specialty: z.string().optional(),
+  degree: z.string().optional(),
+  branchIds: z.array(z.string()).optional(),
 })
 
 // ─── Clinic Schema ──────────────────────────────────────────────────
 export const updateClinicSchema = z.object({
   name: z.string().min(2, "Clinic name is required").max(200),
-  // ✅ التعديل هنا: قبول أي نص (حتى لو فاضي) طول ما الـ max متعديش
   phone: z.string().max(20, "Phone is too long").optional().default(""),
   address: z.string().max(500, "Address is too long").optional().default(""),
 })

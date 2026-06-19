@@ -1,5 +1,3 @@
-// src/actions/admin.ts
-
 "use server"
 
 import { prisma } from "@/lib/db"
@@ -25,6 +23,11 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       email: formData.get("email") as string,
       password: formData.get("password") as string,
       role: formData.get("role") as string,
+      // ✅ استخلاص الحقول الجديدة
+      image: (formData.get("image") as string) || null,
+      specialty: (formData.get("specialty") as string) || null,
+      degree: (formData.get("degree") as string) || null,
+      branchIds: formData.getAll("branchIds") as string[],
     }
 
     const validated = createUserSchema.safeParse(raw)
@@ -41,8 +44,6 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Email is already in use." }
     }
 
-    // ← التعديل: فحص إن العيادة موجودة فعلاً في الداتابيز قبل الإضافة
-    // ده بيمنع خطأ الـ Foreign key لو الـ Session قديمة بعد عمل Reset
     const clinicExists = await prisma.clinic.findUnique({ where: { id: session.clinicId } })
     if (!clinicExists) {
       return { success: false, error: "Clinic not found. Please log out and log in again to refresh your session." }
@@ -57,6 +58,14 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
         password: hashedPassword,
         role: validated.data.role,
         clinicId: session.clinicId,
+        // ✅ حفظ الحقول الجديدة
+        image: validated.data.image,
+        specialty: validated.data.specialty,
+        degree: validated.data.degree,
+        // ✅ ربط الفروع
+        branches: validated.data.branchIds && validated.data.branchIds.length > 0
+          ? { connect: validated.data.branchIds.map(id => ({ id })) }
+          : undefined,
       },
     })
   } catch (error) {
@@ -90,6 +99,11 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       email: formData.get("email") as string,
       role: formData.get("role") as string,
       password: (formData.get("password") as string) || "",
+      // ✅ استخلاص الحقول الجديدة
+      image: (formData.get("image") as string) || null,
+      specialty: (formData.get("specialty") as string) || null,
+      degree: (formData.get("degree") as string) || null,
+      branchIds: formData.getAll("branchIds") as string[],
     }
 
     const validated = updateUserSchema.safeParse(raw)
@@ -105,10 +119,20 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       name: validated.data.name,
       email: validated.data.email,
       role: validated.data.role,
+      image: validated.data.image,
+      specialty: validated.data.specialty,
+      degree: validated.data.degree,
     }
 
     if (validated.data.password && validated.data.password.trim() !== "") {
       updateData.password = await hash(validated.data.password, 10)
+    }
+
+    // ✅ تحديث الفروع (في حالة Prisma Many-to-Many)
+    if (validated.data.branchIds) {
+      updateData.branches = {
+        set: validated.data.branchIds.map(id => ({ id }))
+      }
     }
 
     await prisma.user.update({
