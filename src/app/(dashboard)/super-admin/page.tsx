@@ -1,4 +1,4 @@
-import { getPlatformStats, getAllClinics } from "@/lib/actions/admin"
+import { getPlatformStats, getAllClinics } from "@/actions/super-admin"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { SuperAdminDashboard } from "@/components/super-admin/dashboard"

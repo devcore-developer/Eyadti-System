@@ -56,7 +56,7 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
     } catch (error) {
       console.error("Failed to load unread count:", error)
     }
-  }, [userId, clinicId, router])
+  }, [userId, clinicId, router]) // ✅ قمنا بإزالة loadUnreadCount من هنا
 
   const loadRecent = useCallback(async () => {
     try {
@@ -67,9 +67,10 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
     }
   }, [userId, clinicId])
 
+  // ✅ التصحيح: الـ useEffect يعمل فقط عند تغيّر userId أو clinicId وليس عند كل تحديث للحالة
   useEffect(() => {
     loadUnreadCount()
-  }, [loadUnreadCount])
+  }, [userId, clinicId])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -103,6 +104,7 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
   return (
     <div className="relative">
       <button
+        type="button" // ✅ إضافة type="button" لمنع إرسال فورم
         onClick={handleOpen}
         className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
       >

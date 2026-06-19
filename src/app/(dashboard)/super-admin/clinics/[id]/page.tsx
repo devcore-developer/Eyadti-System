@@ -72,7 +72,7 @@ export default async function ClinicDetailsPage({ params }: { params: Promise<{ 
                 {(clinic as any).recentInvoices?.map((inv: any) => (
                   <div key={inv.id} className="flex items-center justify-between text-sm">
                     <span>#{inv.invoiceNumber || inv.id.slice(0,8)}</span>
-                    <span className="font-medium">{inv.amount || inv.total} USD</span>
+                    <span className="font-medium">{String(inv.amount || inv.total)} USD</span>
                     <Badge variant={inv.status === 'PAID' ? 'default' : 'secondary'}>{inv.status}</Badge>
                   </div>
                 ))}

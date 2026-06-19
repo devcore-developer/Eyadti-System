@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { getAllPlans, impersonateClinic } from "@/actions/super-admin" // ✅ Added impersonateClinic
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -25,6 +27,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
+
+import { GenerateCodeForm } from "@/components/admin/generate-code-form"
 
 interface PlatformStats {
   totalClinics: number
@@ -54,11 +59,37 @@ export function SuperAdminDashboard({
   initialStats: PlatformStats | null, 
   initialClinics: Clinic[] 
 }) {
+  const router = useRouter()
   const [stats] = useState(initialStats)
   const [clinics] = useState(initialClinics)
+  const [isCodeDialogOpen, setIsCodeDialogOpen] = useState(false)
+  const [plans, setPlans] = useState<any[]>([])
+  const [loadingAction, setLoadingAction] = useState<string | null>(null)
   
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+  console.log("🟢 Component Rendering with Stats:", stats);
+
+  // Fetch Plans
+  useEffect(() => {
+    async function loadPlans() {
+      const plansData = await getAllPlans();
+      setPlans(plansData);
+    }
+    loadPlans();
+  }, []);
+
+  // ✅ Updated Support Mode Action
+  const handleImpersonate = async (clinicId: string) => {
+    setLoadingAction(clinicId);
+    const result = await impersonateClinic(clinicId);
+    setLoadingAction(null);
+    
+    if (result.success) {
+      alert("✅ Entering Support Mode...");
+      // ممكن تعمل إعادة توجيه لو عايز
+      // window.location.href = '/dashboard';
+    } else {
+      alert("❌ Failed: " + result.error);
+    }
   }
 
   const KPICard = ({ 
@@ -78,11 +109,11 @@ export function SuperAdminDashboard({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">
+        <div className="text-2xl font-bold text-gray-900 dark:text-white">
           {value?.toLocaleString()} {suffix}
         </div>
         {trend !== undefined && (
-          <p className={cn("text-xs flex items-center gap-1 mt-1", trendUp ? "text-emerald-500" : "text-rose-500")}>
+          <p className={cn("text-xs flex items-center gap-1 mt-1 text-foreground", trendUp ? "text-emerald-500" : "text-rose-500")}>
             {trendUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             <span className="font-medium">{trend}%</span>
             <span className="text-muted-foreground font-normal">from last month</span>
@@ -103,7 +134,7 @@ export function SuperAdminDashboard({
           <Button variant="outline" size="sm">
             <Activity className="mr-2 h-4 w-4 text-emerald-500" /> System Healthy
           </Button>
-          <Button size="sm" className="bg-primary hover:bg-primary/90">
+          <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={() => alert("Report feature coming soon!")}>
             Generate Report
           </Button>
         </div>
@@ -111,40 +142,12 @@ export function SuperAdminDashboard({
 
       {stats && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <KPICard 
-            title="Total Revenue (MRR)" 
-            value={stats.mrr} 
-            icon={DollarSign} 
-            formatFn={formatCurrency}
-            trend={12.5} 
-            trendUp={true} 
-          />
-          <KPICard 
-            title="Active Clinics" 
-            value={stats.activeClinics} 
-            icon={Building2} 
-            suffix={`/${stats.totalClinics}`}
-            trend={8.2} 
-            trendUp={true} 
-          />
-          <KPICard 
-            title="Total Patients" 
-            value={stats.totalPatients} 
-            icon={Users} 
-            trend={5.4} 
-            trendUp={true} 
-          />
-          <KPICard 
-            title="Appointments Today" 
-            value={stats.appointmentsToday} 
-            icon={Activity} 
-            trend={-2.1} 
-            trendUp={false} 
-          />
-          
+          <KPICard title="Total Revenue (MRR)" value={stats.mrr} icon={DollarSign} trend={12.5} trendUp={true} />
+          <KPICard title="Active Clinics" value={stats.activeClinics} icon={Building2} suffix={`/${stats.totalClinics}`} trend={8.2} trendUp={true} />
+          <KPICard title="Total Patients" value={stats.totalPatients} icon={Users} trend={5.4} trendUp={true} />
+          <KPICard title="Appointments Today" value={stats.appointmentsToday} icon={Activity} trend={-2.1} trendUp={false} />
           <KPICard title="Total Doctors" value={stats.totalDoctors} icon={ShieldCheck} className="md:col-span-1" />
           <KPICard title="Active Trials" value={stats.activeTrials} icon={Layers} className="md:col-span-1" />
-          
           <Card className="col-span-1 md:col-span-2 border-amber-500/20 bg-amber-500/5">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">Action Required</CardTitle>
@@ -169,7 +172,7 @@ export function SuperAdminDashboard({
         <Card className="lg:col-span-2 border-border/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Clinics</CardTitle>
-            <Button variant="ghost" size="sm" className="text-primary">View All</Button>
+            <Button variant="ghost" size="sm" className="text-primary" onClick={() => router.push('/super-admin/clinics')}>View All</Button>
           </CardHeader>
           <CardContent>
             <div className="relative w-full overflow-auto">
@@ -188,7 +191,7 @@ export function SuperAdminDashboard({
                     <tr key={clinic.id} className="border-b transition-colors hover:bg-muted/50/50">
                       <td className="p-4 align-middle font-medium">
                         <div className="flex flex-col">
-                          <span>{clinic.name}</span>
+                          <span className="text-gray-900 dark:text-white">{clinic.name}</span>
                           <span className="text-xs text-muted-foreground">Joined {new Date(clinic.createdAt).toLocaleDateString()}</span>
                         </div>
                       </td>
@@ -209,21 +212,26 @@ export function SuperAdminDashboard({
                       </td>
                       <td className="p-4 align-middle text-right">
                         <DropdownMenu>
-                          {/* ✅ Fixed: Styled Trigger Directly */}
                           <DropdownMenuTrigger className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="text-primary cursor-pointer">
+                            <DropdownMenuItem onClick={() => router.push(`/super-admin/clinics/${clinic.id}`)} className="text-primary cursor-pointer">
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-amber-600 cursor-pointer">
+                            {/* ✅ Support Mode Added */}
+                            <DropdownMenuItem 
+                              onClick={() => handleImpersonate(clinic.id)} 
+                              className="text-amber-600 cursor-pointer"
+                              disabled={loadingAction === clinic.id}
+                            >
                               <ShieldCheck className="mr-2 h-4 w-4" />
-                              Support Mode
+                              {loadingAction === clinic.id ? "Switching..." : "Support Mode"}
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            {/* ✅ Settings Added */}
+                            <DropdownMenuItem onClick={() => router.push(`/admin/settings?clinic=${clinic.id}`)} className="cursor-pointer">
                               <Settings className="mr-2 h-4 w-4" />
                               Settings
                             </DropdownMenuItem>
@@ -232,6 +240,11 @@ export function SuperAdminDashboard({
                       </td>
                     </tr>
                   ))}
+                  {clinics.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="text-center p-4 text-muted-foreground">No clinics found.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -275,10 +288,22 @@ export function SuperAdminDashboard({
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">Generate activation codes for new trials or extensions.</p>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" className="w-full">
-                  Generate Code
-                </Button>
-                <Button variant="outline" size="sm" className="w-full">
+                <Dialog open={isCodeDialogOpen} onOpenChange={setIsCodeDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-full">
+                      Generate Code
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Generate Activation Codes</DialogTitle>
+                    </DialogHeader>
+                    <GenerateCodeForm plans={plans} />
+                  </DialogContent>
+                </Dialog>
+
+                {/* ✅ Audit Logs Button */}
+                <Button variant="outline" size="sm" className="w-full" onClick={() => router.push('/admin/audit-logs')}>
                   Audit Logs
                 </Button>
               </div>

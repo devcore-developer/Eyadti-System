@@ -23,11 +23,10 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       email: formData.get("email") as string,
       password: formData.get("password") as string,
       role: formData.get("role") as string,
-      // ✅ استخلاص الحقول الجديدة
       image: (formData.get("image") as string) || null,
       specialty: (formData.get("specialty") as string) || null,
       degree: (formData.get("degree") as string) || null,
-      // استخلاص الـ branchIds لكن مش هنستخدمهم دلوقتي
+      // Note: Extracted to satisfy form, but not saved until Schema supports it
       branchIds: formData.getAll("branchIds") as string[],
     }
 
@@ -59,14 +58,9 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
         password: hashedPassword,
         role: validated.data.role,
         clinicId: session.clinicId,
-        // ✅ حفظ الحقول الجديدة
         image: validated.data.image,
         specialty: validated.data.specialty,
         degree: validated.data.degree,
-        // ❌ تم تعطيل ربط الفروع مؤقتاً لأنه غير موجود في الـ Schema
-        // branches: validated.data.branchIds && validated.data.branchIds.length > 0
-        //   ? { connect: validated.data.branchIds.map(id => ({ id })) }
-        //   : undefined,
       },
     })
   } catch (error) {
@@ -100,7 +94,6 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       email: formData.get("email") as string,
       role: formData.get("role") as string,
       password: (formData.get("password") as string) || "",
-      // ✅ استخلاص الحقول الجديدة
       image: (formData.get("image") as string) || null,
       specialty: (formData.get("specialty") as string) || null,
       degree: (formData.get("degree") as string) || null,
@@ -128,13 +121,6 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
     if (validated.data.password && validated.data.password.trim() !== "") {
       updateData.password = await hash(validated.data.password, 10)
     }
-
-    // ❌ تم تعطيل تحديث الفروع مؤقتاً
-    // if (validated.data.branchIds) {
-    //   updateData.branches = {
-    //     set: validated.data.branchIds.map(id => ({ id }))
-    //   }
-    // }
 
     await prisma.user.update({
       where: { id: userId },

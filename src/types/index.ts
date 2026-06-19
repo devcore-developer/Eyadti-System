@@ -4,6 +4,7 @@ export type ActionResult = {
   error?: string;
   message?: string; // ← أضف السطر ده
   fieldErrors?: Record<string, string[]>;
+  codes?: string[];
 };
 export * from "./subscription";
 export * from "./audit";
