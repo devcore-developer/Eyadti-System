@@ -1,93 +1,54 @@
-import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
-import { prisma } from "@/lib/db"
+import { getActivationCodes } from "@/lib/actions/admin"
 import { GenerateCodeForm } from "@/components/admin/generate-code-form"
-import { getActivationCodes } from "@/actions/super-admin"
-
-export const dynamic = 'force-dynamic';
+// إذا كانت copyToClipboard غير موجود، يمكنك استخدام navigator.clipboard مباشرة
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text)
+  toast.success("Code copied!")
+}
 
 export default async function ActivationCodesPage() {
-  const session = await auth()
-  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
-
-  // جلب الباقات المتاحة لاختيارها في الفورم
-  const plans = await prisma.plan.findMany({
-    where: { active: true },
-    select: { id: true, name: true },
-    orderBy: { monthlyPrice: 'asc' }
-  });
-
-  // جلب الأكواد المولدة مسبقاً
-  const codes = await getActivationCodes();
+  const codes = await getActivationCodes()
 
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Activation Codes Management</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Generate codes linked to specific plans and durations. Clients will use these to upgrade their subscriptions.
-        </p>
-      </div>
+    <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
+      <h1 className="text-3xl font-bold tracking-tight mb-6">Activation Codes</h1>
       
-      {/* فورم التوليد */}
-      <GenerateCodeForm plans={plans} />
-
-      {/* جدول الأكواد */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="text-lg font-bold text-foreground">Recently Generated Codes</h2>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left: Form */}
+        <div className="bg-white dark:bg-[#1E293B] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700/50 p-6 h-fit">
+          <h2 className="text-xl font-bold mb-4">Generate New Code</h2>
+          <GenerateCodeForm />
         </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50">
-              <tr>
-                <th className="px-6 py-3">Code</th>
-                <th className="px-6 py-3">Plan</th>
-                <th className="px-6 py-3">Duration</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Created At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {codes.map((code) => (
-                <tr key={code.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-6 py-4 font-mono font-bold tracking-wider text-foreground select-all">
-                    {code.code}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-md text-xs font-semibold">
-                      {code.plan?.name || "N/A"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-muted-foreground">
-                    {code.durationDays} Days
-                  </td>
-                  <td className="px-6 py-4">
-                    {code.isUsed ? (
-                      <span className="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 rounded-md text-xs font-semibold">
-                        Used
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-md text-xs font-semibold">
-                        Available
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-muted-foreground">
-                    {new Date(code.createdAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-              {codes.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-muted-foreground">
-                    No codes generated yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+
+        {/* Right: List */}
+        <div className="bg-white dark:bg-[#1E293B] rounded-xl shadow-sm border-slate-200 dark:border-slate-700/50 p-6 overflow-hidden">
+          <h2 className="text-xl font-bold mb-4">Generated Codes</h2>
+          <div className="space-y-4">
+            {codes.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground border-2 border-dashed">No codes found.</div>
+            ) : (
+              codes.map((code) => (
+                <div key={code.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700/50 group hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{code.code}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(code.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      // استخدام navigator.clipboard كبديل عن copyToClipboard
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(code.code)
+                        toast.success("Code copied!")
+                      }
+                    }}
+                    className="shrink-0 p-2 bg-white dark:bg-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors"
+                  >
+                    <span className="text-xs font-medium">Copy</span>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
