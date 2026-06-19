@@ -309,3 +309,75 @@ export async function getAllClinicsWithFlags() {
     return []
   }
 }
+// ─── ACTIVATION CODES ──────────────────────────────────────────
+
+export async function getActivationCodes() {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const codes = await prisma.activationCode.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        usedByClinic: {
+          select: { id: true, name: true }
+        },
+        plan: {
+          select: { id: true, name: true, slug: true }
+        }
+      }
+    })
+
+    return codes
+  } catch (error) {
+    console.error("Error fetching activation codes:", error)
+    return []
+  }
+}
+
+export async function generateActivationCode(data: {
+  code?: string
+  type: "SIGNUP" | "SUBSCRIPTION"
+  durationDays: number
+  planId?: string
+}): Promise<ActionResult> {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const code = data.code || `AC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+
+    const existing = await prisma.activationCode.findUnique({ where: { code } })
+    if (existing) return { success: false, error: "This code already exists." }
+
+    await prisma.activationCode.create({
+      data: {
+        code,
+        type: data.type,
+        durationDays: data.durationDays,
+        planId: data.planId ?? null,
+        isUsed: false,
+      }
+    })
+
+    revalidatePath("/admin/activation-codes")
+    return { success: true }
+  } catch (error) {
+    return handleAuthError(error)
+  }
+}
+
+export async function deleteActivationCode(codeId: string): Promise<ActionResult> {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const code = await prisma.activationCode.findUnique({ where: { id: codeId } })
+    if (!code) return { success: false, error: "Code not found." }
+    if (code.isUsed) return { success: false, error: "Cannot delete a used code." }
+
+    await prisma.activationCode.delete({ where: { id: codeId } })
+
+    revalidatePath("/admin/activation-codes")
+    return { success: true }
+  } catch (error) {
+    return handleAuthError(error)
+  }
+}
