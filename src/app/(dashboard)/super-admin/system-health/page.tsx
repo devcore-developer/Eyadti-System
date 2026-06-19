@@ -2,118 +2,156 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Activity, Database, Server, Zap, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Activity, Server, Database, HardDrive, Bell, CheckCircle, AlertTriangle, XCircle, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-interface HealthMetric {
-  service: string
+interface ServiceStatus {
+  id: string
+  name: string
+  icon: any
   status: "operational" | "degraded" | "down"
   latency: number
-  uptime: string
+  uptime: number // percentage 0-100
+  history: boolean[] // last 90 days (true = up, false = down)
 }
 
+const initialServices: ServiceStatus[] = [
+  { id: "api", name: "API Gateway", icon: Server, status: "operational", latency: 24, uptime: 99.9, history: Array(90).fill(true).map((_, i) => Math.random() > 0.02) },
+  { id: "db", name: "PostgreSQL Database", icon: Database, status: "operational", latency: 12, uptime: 99.99, history: Array(90).fill(true) },
+  { id: "storage", name: "File Storage (S3)", icon: HardDrive, status: "degraded", latency: 150, uptime: 98.5, history: Array(90).fill(true).map((_, i) => i > 85 ? Math.random() > 0.5 : true) },
+  { id: "queue", name: "Background Workers", icon: Clock, status: "operational", latency: 50, uptime: 100, history: Array(90).fill(true) },
+  { id: "notifications", name: "Notification Service", icon: Bell, status: "operational", latency: 30, uptime: 99.8, history: Array(90).fill(true).map((_, i) => Math.random() > 0.05) },
+]
+
 export default function SystemHealthPage() {
-  const [checks, setChecks] = useState<HealthMetric[]>([
-    { service: "API Gateway", status: "operational", latency: 24, uptime: "99.9%" },
-    { service: "Primary Database", status: "operational", latency: 12, uptime: "99.99%" },
-    { service: "Redis Cache", status: "operational", latency: 2, uptime: "99.9%" },
-    { service: "Image Storage", status: "degraded", latency: 450, uptime: "98.5%" },
-    { service: "Notification Queue", status: "operational", latency: 50, uptime: "100%" },
-    { service: "Websocket Server", status: "operational", latency: 30, uptime: "100%" },
-  ])
-  
+  const [services, setServices] = useState(initialServices)
   const [lastUpdate, setLastUpdate] = useState(new Date())
 
-  // محاكاة التحقق الحي (Live Updates)
   useEffect(() => {
     const interval = setInterval(() => {
-      setChecks(prev => prev.map(check => ({
-        ...check,
-        latency: Math.floor(Math.random() * (check.status === 'degraded' ? 500 : 50))
+      setServices(prev => prev.map(s => ({
+        ...s,
+        latency: Math.floor(Math.random() * (s.status === 'degraded' ? 200 : 40)) + (s.status === 'degraded' ? 100 : 10)
       })))
       setLastUpdate(new Date())
-    }, 5000) // تحديث كل 5 ثواني
-
+    }, 3000)
     return () => clearInterval(interval)
   }, [])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "operational": return "text-emerald-600 bg-emerald-500/10 border-emerald-500/20"
-      case "degraded": return "text-amber-600 bg-amber-500/10 border-amber-500/20"
-      case "down": return "text-rose-600 bg-rose-500/10 border-rose-500/20"
-      default: return "text-muted-foreground"
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "operational": return <CheckCircle className="h-5 w-5" />
-      case "degraded": return <AlertTriangle className="h-5 w-5" />
-      case "down": return <XCircle className="h-5 w-5" />
-      default: return <div className="h-5 w-5" />
-    }
-  }
+  const hasIssues = services.some(s => s.status !== "operational")
 
   return (
     <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">System Health</h2>
-          <p className="text-muted-foreground mt-1">Real-time monitoring of platform infrastructure.</p>
+          <h2 className="text-3xl font-bold tracking-tight">System Status</h2>
+          <p className="text-muted-foreground mt-1">Real-time infrastructure monitoring and uptime.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background border rounded-md px-3 py-1.5">
-          <Activity className="h-3.5 w-3.5" />
-          Last updated: {lastUpdate.toLocaleTimeString()}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 border border-border/50 rounded-lg px-3 py-2 font-mono">
+          <Activity className="h-3.5 w-3.5 text-primary" />
+          Updated: {lastUpdate.toLocaleTimeString()}
         </div>
       </div>
 
       {/* Overall Status Banner */}
-      <Card className="border-emerald-500/20 bg-emerald-500/5 mb-6">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500 rounded-full">
-              <Activity className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-100">All Systems Operational</h3>
-              <p className="text-sm text-emerald-700/70 dark:text-emerald-200/70">We are currently experiencing no major outages.</p>
-            </div>
+      <Card className={cn(
+        "border transition-colors",
+        hasIssues ? "border-amber-500/30 bg-amber-500/5" : "border-emerald-500/30 bg-emerald-500/5"
+      )}>
+        <CardContent className="flex items-center gap-4 p-6">
+          <div className={cn("p-3 rounded-full", hasIssues ? "bg-amber-500" : "bg-emerald-500")}>
+            {hasIssues ? <AlertTriangle className="h-6 w-6 text-white" /> : <CheckCircle className="h-6 w-6 text-white" />}
+          </div>
+          <div>
+            <h3 className="text-lg font-bold">
+              {hasIssues ? "Experiencing Minor Issues" : "All Systems Operational"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {hasIssues ? "We are investigating increased latency in File Storage." : "No incidents or maintenance currently scheduled."}
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {checks.map((check, idx) => (
-          <Card key={idx} className={cn("border-border/50 transition-colors", check.status === 'degraded' && "border-amber-500/50")}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{check.service}</CardTitle>
-              <div className="flex items-center gap-2">
-                {getStatusIcon(check.status)}
-                <span className={cn("text-xs font-medium", getStatusColor(check.status))}>
-                  {check.status.toUpperCase()}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Response Time</span>
-                <span className="text-sm font-medium font-mono">{check.latency}ms</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Uptime (90d)</span>
-                <span className="text-sm font-medium">{check.uptime}</span>
-              </div>
-              {/* Latency Visualization Bar */}
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-1000 ease-in-out"
-                  style={{ width: `${Math.min(check.latency, 100)}%`, backgroundColor: check.status === 'degraded' ? 'orange' : 'currentColor' }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* 90-Day Uptime Grid (Vercel Style) */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Uptime (Last 90 Days)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {services.map(service => {
+              const Icon = service.icon
+              return (
+                <div key={service.id} className="flex items-center gap-4">
+                  <div className="w-32 shrink-0 flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium truncate">{service.name}</span>
+                  </div>
+                  <div className="flex-1 flex items-center gap-[2px]">
+                    {service.history.map((isUp, idx) => (
+                      <div 
+                        key={idx} 
+                        title={`Day ${90 - idx}: ${isUp ? 'Operational' : 'Down'}`}
+                        className={cn(
+                          "h-6 flex-1 rounded-[2px] transition-colors",
+                          isUp ? "bg-emerald-500/70 hover:bg-emerald-500" : "bg-rose-500/70 hover:bg-rose-500"
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <Badge variant="outline" className={cn(
+                    "text-xs font-mono w-16 justify-center",
+                    service.uptime === 100 ? "border-emerald-500/30 text-emerald-600" : "border-amber-500/30 text-amber-600"
+                  )}>
+                    {service.uptime}%
+                  </Badge>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Service Details Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {services.map(service => {
+          const Icon = service.icon
+          return (
+            <Card key={service.id} className={cn(
+              "border-border/50 transition-all hover:shadow-md",
+              service.status === 'degraded' && "border-amber-500/50 shadow-amber-500/5"
+            )}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">{service.name}</CardTitle>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {service.status === "operational" && <CheckCircle className="h-4 w-4 text-emerald-500" />}
+                  {service.status === "degraded" && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                  {service.status === "down" && <XCircle className="h-4 w-4 text-rose-500" />}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Latency</span>
+                  <span className="font-mono font-medium">{service.latency}ms</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full rounded-full transition-all duration-700",
+                      service.latency < 50 ? "bg-emerald-500" : service.latency < 200 ? "bg-amber-500" : "bg-rose-500"
+                    )}
+                    style={{ width: `${Math.min((service.latency / 300) * 100, 100)}%` }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
     </div>
   )

@@ -1,33 +1,28 @@
-import { getAllClinics } from "@/lib/actions/admin"
+import { getAllClinicsForTable } from "@/lib/actions/super-admin"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { ClinicTable } from "@/components/admin/clinic-table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ClinicsManagementClient } from "./clinics-client"
 
 export default async function ClinicsManagementPage() {
   const session = await auth()
   
   if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
 
-  const clinics = await getAllClinics()
+  const clinics = await getAllClinicsForTable()
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-[1600px] mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Clinics Management</h2>
-          <p className="text-muted-foreground mt-1">Manage all registered clinics on the platform.</p>
+          <p className="text-muted-foreground mt-1">Monitor and manage all registered clinics.</p>
+        </div>
+        <div className="text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-lg border">
+          Total: <span className="font-semibold text-foreground">{clinics.length}</span> Clinics
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Clinics ({clinics.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClinicTable initialData={clinics} />
-        </CardContent>
-      </Card>
+      <ClinicsManagementClient initialClinics={clinics} />
     </div>
   )
 }

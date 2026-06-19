@@ -1,9 +1,11 @@
 import { auth } from "@/lib/auth"
+import { cookies } from "next/headers" // ✅ إضافة الكوكيز
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { MobileNav } from "@/components/dashboard/mobile-nav"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { CommandPalette } from "@/components/dashboard/command-palette"
 import { UserProfileMenu } from "@/components/dashboard/user-profile-menu"
+import { SupportModeBanner } from "@/components/super-admin/support-mode-banner" // ✅ إضافة الـ Banner
 import { prisma } from "@/lib/db"
 import { getSelectedBranch } from "@/lib/actions/branch-context"
 import { SubscriptionGuard } from "@/components/billing/subscription-guard"
@@ -12,17 +14,22 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
+  
+  // ✅ التحقق من وضع الدعم
+  const cookieStore = await cookies()
+  const supportClinicId = cookieStore.get('support_clinic_id')?.value
+  const isSupportMode = session?.user?.role === 'SUPER_ADMIN' && !!supportClinicId
 
-  // ✅ إضافة التحقق من دور السوبر أدمن
   const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
 
-  // ✅ السوبر أدمن لا يحتاج للاشتراك
-  const subscription = !isSuperAdmin && session?.user?.clinicId 
+  // الاشتراك هيتجلب تلقائياً بتاع العيادة المستهدفة لو في Support Mode
+  // لأننا غيرنا session.user.clinicId في ملف auth.ts
+  const subscription = !isSuperAdmin || isSupportMode ? (session?.user?.clinicId 
     ? await prisma.subscription.findUnique({ 
         where: { clinicId: session.user.clinicId }, 
         select: { status: true, trialEndsAt: true, endDate: true, currentPeriodEnd: true } 
       }) 
-    : null
+    : null) : null
 
   const branches = session?.user?.clinicId 
     ? await prisma.branch.findMany({ 
@@ -45,6 +52,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50/50 dark:bg-[#0F172A] print:h-auto print:overflow-visible print:bg-white">
       
+      {/* ✅ Support Mode Banner */}
+      {isSupportMode && <SupportModeBanner clinicId={supportClinicId} />}
+
       {/* ── Desktop Sidebar ── */}
       <div className="hidden lg:flex print:hidden">
         <Sidebar user={session?.user} branches={branches} selectedBranchId={selectedBranchId} />
@@ -67,7 +77,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 userName={session.user.name || "User"}
                 userEmail={session.user.email || ""}
                 userRole={session.user.role || ""}
-                clinicName={clinic?.name || "Clinic"}
+                clinicName={isSupportMode ? `${clinic?.name} (Support)` : (clinic?.name || "Clinic")}
                 branchName={selectedBranch?.name}
               />
             )}
@@ -78,7 +88,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <header className="hidden lg:flex print:hidden h-16 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white/70 dark:bg-[#17212F]/70 backdrop-blur-xl px-6 items-center justify-between shadow-[0_2px_20px_rgba(100,116,139,0.04)] z-10">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xs font-bold uppercase tracking-[0.2em] bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] bg-clip-text text-transparent truncate">
-              {clinic?.name || "Nexora Clinic"}
+              {isSupportMode ? `👁️ ${clinic?.name} (Support Mode)` : (clinic?.name || "Nexora Clinic")}
             </span>
           </div>
           <div className="flex items-center gap-4 shrink-0">
@@ -94,7 +104,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 userName={session.user.name || "User"}
                 userEmail={session.user.email || ""}
                 userRole={session.user.role || ""}
-                clinicName={clinic?.name || "Clinic"}
+                clinicName={isSupportMode ? `${clinic?.name} (Support)` : (clinic?.name || "Clinic")}
                 branchName={selectedBranch?.name}
               />
             )}
@@ -104,8 +114,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {/* ── Main Content ── */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 print:p-0 print:overflow-visible print:bg-white pb-20 lg:pb-8">
           <div className="animate-fade-in-up print:animate-none max-w-[1400px] mx-auto">
-            {/* ✅ استثناء السوبر أدمن من حارس الاشتراك */}
-            {!isSuperAdmin ? (
+            {/* لو في وضع دعم، نعرض المحتوى م wrapping عشان نشوف الوضع الحقيقي للعيادة */}
+            {isSupportMode || isSuperAdmin ? (
+              children
+            ) : (
               <SubscriptionGuard 
                 status={subscription?.status || null}
                 trialEndsAt={subscription?.trialEndsAt || null}
@@ -113,14 +125,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
               >
                 {children}
               </SubscriptionGuard>
-            ) : (
-              children
             )}
           </div>
         </main>
       </div>
 
-      {/* ✅ CommandPalette - لو وجدت مشاكل في النقر، يمكنك تعليق هذا السطر مؤقتاً */}
       <CommandPalette />
     </div>
   )
