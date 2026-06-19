@@ -14,6 +14,13 @@ export async function getPlatformStats() {
   try {
     await requireRole("SUPER_ADMIN")
     
+    // 1. حساب الـ MRR الحقيقي (فلوس الخطط المشتركة شهرية)
+    const activeSubs = await prisma.subscription.findMany({
+      where: { status: "ACTIVE" },
+      include: { plan: { select: { monthlyPrice: true } } }
+    })
+    const mrr = activeSubs.reduce((acc, sub) => acc + (sub.plan?.monthlyPrice || 0), 0)
+
     const todayStart = new Date()
     todayStart.setHours(0,0,0,0)
 
@@ -23,7 +30,6 @@ export async function getPlatformStats() {
       totalUsers,
       totalDoctors,
       totalPatients,
-      totalRevenue,
       activeTrials,
       expiringSubs,
       failedPayments
@@ -33,7 +39,6 @@ export async function getPlatformStats() {
       prisma.user.count(),
       prisma.user.count({ where: { role: "DOCTOR" } }),
       prisma.patient.count(),
-      prisma.invoice.aggregate({ where: { status: "PAID" }, _sum: { amount: true } }),
       prisma.clinic.count({ where: { subscription: { status: "TRIAL" } } }),
       prisma.clinic.count({ where: { subscription: { endDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, status: "ACTIVE" } } }),
       prisma.invoice.count({ where: { status: { not: "PAID" } } })
@@ -45,8 +50,8 @@ export async function getPlatformStats() {
       totalUsers,
       totalDoctors,
       totalPatients,
-      appointmentsToday: 0, // Placeholder until appointments are fully tracked
-      mrr: (totalRevenue._sum.amount as any)?.toNumber?.() || 0,
+      appointmentsToday: 0, 
+      mrr, // ✅ دلوقتي بيجيب فلوس الباقات المشتراك فيها فعلاً
       activeTrials,
       expiringSubs,
       failedPayments
@@ -333,5 +338,48 @@ export async function globalSearch(query: string) {
     }
   } catch (error) {
     return { results: [] }
+  }
+}
+export async function getPlatformAuditLogs() {
+  try {
+    await requireRole("SUPER_ADMIN")
+    return await prisma.auditLog.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        clinic: { select: { id: true, name: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+  } catch (error) {
+    return []
+  }
+}
+export async function getRealSystemHealth() {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const [
+      failedReminders,
+      totalUsers,
+      totalPatients,
+      totalAppointments,
+      totalInvoices
+    ] = await Promise.all([
+      prisma.reminder.count({ where: { status: "FAILED" } }),
+      prisma.user.count(),
+      prisma.patient.count(),
+      prisma.appointment.count(),
+      prisma.invoice.count({ where: { status: { not: "PAID" } } })
+    ])
+
+    return {
+      db: { status: "operational" as const, load: totalPatients + totalAppointments, label: `${totalPatients + totalAppointments} Records` },
+      api: { status: "operational" as const, load: totalUsers, label: `${totalUsers} Active Sessions` },
+      reminders: { status: failedReminders > 10 ? "degraded" as const : "operational" as const, load: failedReminders, label: `${failedReminders} Failed` },
+      billing: { status: totalInvoices > 20 ? "degraded" as const : "operational" as const, load: totalInvoices, label: `${totalInvoices} Unpaid` }
+    }
+  } catch (error) {
+    return null
   }
 }

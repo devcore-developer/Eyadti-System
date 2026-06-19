@@ -1,6 +1,6 @@
 "use client"
 
-import { useTransition } from "react" // ✅ التصحيح هنا
+import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { exitSupportMode } from "@/lib/actions/super-admin"
 import { ShieldAlert, XCircle } from "lucide-react"
@@ -18,7 +18,7 @@ export function SupportModeBanner({ clinicId }: { clinicId: string }) {
   }
 
   return (
-    <div className="bg-gradient-to-r from-rose-600 to-rose-500 text-white px-4 py-2.5 flex items-center justify-center gap-4 text-sm font-medium z-50 relative shadow-lg">
+    <div className="fixed top-0 left-0 right-0 z-[100] bg-gradient-to-r from-rose-600 to-rose-500 text-white px-4 py-2.5 flex items-center justify-center gap-4 text-sm font-medium shadow-lg">
       <ShieldAlert className="h-4 w-4 shrink-0" />
       <span className="hidden sm:inline">
         You are viewing this clinic in <span className="font-bold underline">Support Mode</span>. All actions are being recorded.

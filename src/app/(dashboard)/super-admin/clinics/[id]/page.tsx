@@ -1,4 +1,4 @@
-import { getClinicDetails } from "@/lib/actions/super-admin"
+import { getClinicDetails, impersonateClinic } from "@/lib/actions/super-admin"
 import { auth } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 export default async function ClinicDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -55,13 +56,21 @@ export default async function ClinicDetailsPage({ params }: { params: Promise<{ 
             Owned by <span className="font-medium text-foreground">{clinic.owner?.name || 'Unknown'}</span> • Joined {new Date(clinic.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
-          onClick={() => alert("Support Mode Triggered (Will be fully active in Phase 4)")}
-        >
-          <ShieldCheck className="mr-2 h-4 w-4" /> Enter Support Mode
-        </Button>
+        
+        {/* ✅ إصلاح الزرار: استخدمنا Form عشان نشغل Server Action من غير Client Component */}
+        <form action={async () => {
+          "use server"
+          await impersonateClinic(id)
+          redirect("/super-admin")
+        }}>
+          <Button 
+            type="submit" 
+            variant="outline" 
+            className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+          >
+            <ShieldCheck className="mr-2 h-4 w-4" /> Enter Support Mode
+          </Button>
+        </form>
       </div>
 
       {/* KPIs */}
@@ -120,7 +129,7 @@ export default async function ClinicDetailsPage({ params }: { params: Promise<{ 
             </CardContent>
           </Card>
 
-          {/* Team Users (Non-sensitive) */}
+          {/* Team Users */}
           <Card className="border-border/50">
             <CardHeader>
               <CardTitle className="text-base">Team Members ({clinic.users.length} shown)</CardTitle>
@@ -166,7 +175,6 @@ export default async function ClinicDetailsPage({ params }: { params: Promise<{ 
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Subscription Card */}
           <Card className="border-border/50">
             <CardHeader>
               <CardTitle className="text-base">Subscription Details</CardTitle>
@@ -184,18 +192,14 @@ export default async function ClinicDetailsPage({ params }: { params: Promise<{ 
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Start Date</p>
                 <p className="text-sm font-medium">
-                  {clinic.subscription?.startDate 
-                    ? new Date(clinic.subscription.startDate).toLocaleDateString() 
-                    : "N/A"}
+                  {clinic.subscription?.startDate ? new Date(clinic.subscription.startDate).toLocaleDateString() : "N/A"}
                 </p>
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Expires</p>
                 <p className="text-sm font-medium flex items-center gap-1">
                   <Clock className="h-3 w-3 text-muted-foreground" />
-                  {clinic.subscription?.endDate 
-                    ? formatDistanceToNow(new Date(clinic.subscription.endDate), { addSuffix: true }) 
-                    : "N/A"}
+                  {clinic.subscription?.endDate ? formatDistanceToNow(new Date(clinic.subscription.endDate), { addSuffix: true }) : "N/A"}
                 </p>
               </div>
               {clinic.subscription?.endDate && new Date(clinic.subscription.endDate) < new Date() && clinic.subscription.status !== "EXPIRED" && (
@@ -206,7 +210,6 @@ export default async function ClinicDetailsPage({ params }: { params: Promise<{ 
             </CardContent>
           </Card>
 
-          {/* Recent Invoices */}
           <Card className="border-border/50">
             <CardHeader>
               <CardTitle className="text-base">Recent Invoices</CardTitle>
@@ -221,10 +224,7 @@ export default async function ClinicDetailsPage({ params }: { params: Promise<{ 
                     </div>
                     <div className="text-right">
                       <p className="font-semibold">{Number(inv.amount).toLocaleString()} EGP</p>
-                      <Badge 
-                        variant={inv.status === 'PAID' ? 'default' : 'secondary'} 
-                        className="text-[10px] mt-1"
-                      >
+                      <Badge variant={inv.status === 'PAID' ? 'default' : 'secondary'} className="text-[10px] mt-1">
                         {inv.status}
                       </Badge>
                     </div>
@@ -239,9 +239,4 @@ export default async function ClinicDetailsPage({ params }: { params: Promise<{ 
       </div>
     </div>
   )
-}
-
-// Helper for cn if not imported globally
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ')
 }
