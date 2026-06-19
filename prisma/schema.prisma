@@ -128,6 +128,7 @@ model Branch {
   appointments    Appointment[]
   invoices        Invoice[]
   payments        Payment[]
+  users           User[]  
   visits          Visit[]
   prescriptions   Prescription[]
   notifications   Notification[]
@@ -192,6 +193,7 @@ model User {
   prescriptions        Prescription[]
   schedules            DoctorSchedule[]
   notifications        Notification[]
+  branches             Branch[] 
   auditLogs            AuditLog[]
   payments             Payment[]
   notificationSettings NotificationSettings?

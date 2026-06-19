@@ -27,6 +27,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       image: (formData.get("image") as string) || null,
       specialty: (formData.get("specialty") as string) || null,
       degree: (formData.get("degree") as string) || null,
+      // استخلاص الـ branchIds لكن مش هنستخدمهم دلوقتي
       branchIds: formData.getAll("branchIds") as string[],
     }
 
@@ -62,10 +63,10 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
         image: validated.data.image,
         specialty: validated.data.specialty,
         degree: validated.data.degree,
-        // ✅ ربط الفروع
-        branches: validated.data.branchIds && validated.data.branchIds.length > 0
-          ? { connect: validated.data.branchIds.map(id => ({ id })) }
-          : undefined,
+        // ❌ تم تعطيل ربط الفروع مؤقتاً لأنه غير موجود في الـ Schema
+        // branches: validated.data.branchIds && validated.data.branchIds.length > 0
+        //   ? { connect: validated.data.branchIds.map(id => ({ id })) }
+        //   : undefined,
       },
     })
   } catch (error) {
@@ -128,12 +129,12 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       updateData.password = await hash(validated.data.password, 10)
     }
 
-    // ✅ تحديث الفروع (في حالة Prisma Many-to-Many)
-    if (validated.data.branchIds) {
-      updateData.branches = {
-        set: validated.data.branchIds.map(id => ({ id }))
-      }
-    }
+    // ❌ تم تعطيل تحديث الفروع مؤقتاً
+    // if (validated.data.branchIds) {
+    //   updateData.branches = {
+    //     set: validated.data.branchIds.map(id => ({ id }))
+    //   }
+    // }
 
     await prisma.user.update({
       where: { id: userId },
