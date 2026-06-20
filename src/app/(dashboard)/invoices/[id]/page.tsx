@@ -1,4 +1,3 @@
-// src/app/(dashboard)/invoices/[id]/page.tsx
 import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
@@ -7,8 +6,10 @@ import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge"
 import { UpdateInvoiceStatus } from "@/components/invoices/update-invoice-status"
 import { InvoiceSummaryCard } from "@/components/invoices/invoice-summary-card"
 import { OutstandingBalanceWidget } from "@/components/invoices/outstanding-balance-widget"
+import { PrintButton } from "@/components/invoices/print-button"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Printer, CreditCard, RotateCcw, FileDown } from "lucide-react"
+import { RotateCcw, FileDown, Printer } from "lucide-react"
+import { RecordPaymentDialog } from "@/components/invoices/record-payment-dialog"
 
 export default async function InvoiceDetailPage({
   params,
@@ -38,7 +39,6 @@ export default async function InvoiceDetailPage({
     lineTotal: item.quantity * Number(item.unitPrice),
   }))
 
-  // ✅ التعديل هنا: استخدام session.user?.role لأننا بنستخدم auth()
   const canUpdateStatus = session.user?.role === "SUPER_ADMIN" || session.user?.role === "ADMIN" || session.user?.role === "RECEPTIONIST"
 
   const paidAmount = invoice.status === "PAID" ? safeAmount : (invoice.status === "PARTIAL" ? safeAmount * 0.5 : 0)
@@ -57,7 +57,7 @@ export default async function InvoiceDetailPage({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <Link href="/invoices" className="inline-flex items-center text-sm text-muted-foreground hover:text-[#6B9CFF] transition-colors mb-2">
-            <ArrowLeft className="mr-1 h-3 w-3" /> Back to Invoices
+            ← Back to Invoices
           </Link>
           <h1 className="text-2xl font-bold text-foreground">Invoice #{invoice.id.slice(-5).toUpperCase()}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Issued on {formatDate(invoice.createdAt)}</p>
@@ -65,9 +65,8 @@ export default async function InvoiceDetailPage({
         <div className="flex items-center gap-3">
           <InvoiceStatusBadge status={invoice.status} />
           {canUpdateStatus && <UpdateInvoiceStatus invoiceId={invoice.id} currentStatus={invoice.status} />}
-          <Button variant="outline" size="sm" className="rounded-xl border-dashed gap-2" onClick={() => window.print()}>
-            <Printer className="h-4 w-4" /> Print
-          </Button>
+          {/* ✅ تم استخدام الـ Client Component عشان الـ Print */}
+          <PrintButton />
         </div>
       </div>
 
@@ -118,7 +117,7 @@ export default async function InvoiceDetailPage({
             <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-3">
               <Link href="/invoices/new"><Button variant="outline" className="w-full rounded-xl text-xs h-20 flex flex-col gap-1 border-dashed hover:bg-muted/50"><FileDown className="h-4 w-4" /> New Invoice</Button></Link>
-              <Link href={`/invoices/${invoice.id}/pay`}><Button className="w-full rounded-xl text-xs h-20 flex flex-col gap-1 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-md"><CreditCard className="h-4 w-4" /> Record Pay</Button></Link>
+              <RecordPaymentDialog invoiceId={invoice.id} remainingAmount={remainingAmount} />
               <Link href="#"><Button variant="outline" className="w-full rounded-xl text-xs h-20 flex flex-col gap-1 border-dashed hover:bg-muted/50"><RotateCcw className="h-4 w-4" /> Refund</Button></Link>
               <Link href="#"><Button variant="outline" className="w-full rounded-xl text-xs h-20 flex flex-col gap-1 border-dashed hover:bg-muted/50"><Printer className="h-4 w-4" /> Export PDF</Button></Link>
             </div>

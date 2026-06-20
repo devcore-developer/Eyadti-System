@@ -1,7 +1,6 @@
 import { AlertCircle, DollarSign } from "lucide-react"
 import { formatCurrency } from "@/lib/utils/date-filters"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
+import { RecordPaymentDialog } from "@/components/invoices/record-payment-dialog"
 
 interface OutstandingBalanceWidgetProps {
   totalOutstanding: number
@@ -39,11 +38,8 @@ export function OutstandingBalanceWidget({ totalOutstanding, patientCount, lastP
         )}
       </div>
 
-      <Link href={`/invoices/${invoiceId}/pay`}>
-        <Button className="w-full bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 rounded-xl">
-          <DollarSign className="h-4 w-4 mr-2" /> Collect Payment
-        </Button>
-      </Link>
+      {/* ✅ تم استبدال اللينك بالـ Dialog */}
+      <RecordPaymentDialog invoiceId={invoiceId} remainingAmount={totalOutstanding} />
     </div>
   )
 }

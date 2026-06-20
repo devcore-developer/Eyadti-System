@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Search, ShieldAlert, UserCircle, Building2 } from "lucide-react"
+import { Search, ShieldAlert, UserCircle, Building2, Filter } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Log {
@@ -19,12 +19,26 @@ interface Log {
   clinic: { name: string } | null
 }
 
+// ✅ قائمة أنواع الحدث المتاحة للفيلتر
+const ACTION_FILTERS = [
+  { value: "ALL", label: "All Actions" },
+  { value: "SUPPORT_MODE", label: "Support Mode" },
+  { value: "TOGGLE_FEATURE_ON", label: "Feature Flag ON" },
+  { value: "TOGGLE_FEATURE_OFF", label: "Feature Flag OFF" },
+  { value: "DELETE", label: "Deletes" },
+]
+
 export function AuditLogsClient({ initialLogs }: { initialLogs: Log[] }) {
   const [search, setSearch] = useState("")
-  
+  const [actionFilter, setActionFilter] = useState("ALL")
+  // ✅ تم تعديل هذا السطر (إضافة علامة =)
+  const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>({ from: "", to: "" })
+
   const filteredLogs = initialLogs.filter(log => {
     const searchStr = `${log.action} ${log.user?.name} ${log.clinic?.name} ${log.entityType}`.toLowerCase()
-    return searchStr.includes(search.toLowerCase())
+    const matchesSearch = searchStr.includes(search.toLowerCase())
+    const matchesAction = actionFilter === "ALL" || log.action.includes(actionFilter)
+    return matchesSearch && matchesAction
   })
 
   const getActionColor = (action: string) => {
@@ -37,15 +51,49 @@ export function AuditLogsClient({ initialLogs }: { initialLogs: Log[] }) {
   return (
     <Card className="border-border/50">
       <CardContent className="p-6">
-        <div className="relative w-full max-w-sm mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search actions, users, clinics..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+        {/* ✅ شريط الفلاترة */}
+        <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6 bg-muted/20 p-4 rounded-lg border border-border/50">
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search actions, users, clinics..." className="pl-10 w-full" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <select 
+              className="h-9 rounded-md border border-border/50 bg-background px-3 text-sm"
+              value={actionFilter} 
+              onChange={(e) => setActionFilter(e.target.value)}
+            >
+              {ACTION_FILTERS.map((filter) => (
+                <option key={filter.value} value={filter.value}>{filter.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-nowrap">From:</span>
+            <input 
+              type="date" 
+              className="h-9 rounded-md border border-border/50 bg-background px-3 text-sm"
+              value={dateFilter.from} 
+              onChange={(e) => setDateFilter({ ...dateFilter, from: e.target.value })}
+            />
+            <span className="text-xs text-muted-nowrap">To:</span>
+            <input 
+              type="date" 
+              className="h-9 rounded-md border border-border/50 bg-background px-3 text-sm"
+              value={dateFilter.to} 
+              onChange={(e) => setDateFilter({ ...dateFilter, to: e.target.value })}
+            />
+          </div>
         </div>
 
+        {/* Logs List */}
         <div className="space-y-3">
           {filteredLogs.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg">
-              No audit logs found.
+              No logs found for this filter.
             </div>
           ) : (
             filteredLogs.map((log) => (

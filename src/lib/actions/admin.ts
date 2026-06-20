@@ -381,3 +381,33 @@ export async function deleteActivationCode(codeId: string): Promise<ActionResult
     return handleAuthError(error)
   }
 }
+export async function recordPayment(invoiceId: string, amount: number, method: string) {
+  try {
+    const session = await auth()
+    if (!session?.user?.clinicId) return { success: false, error: "Unauthorized" }
+
+    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } })
+    if (!invoice) return { success: false, error: "Invoice not found" }
+
+    // 1. تسجيل عملية الدفع
+    await prisma.payment.create({
+      data: {
+        invoiceId,
+        amount,
+        method: method as any,
+        recordedById: session.user.id,
+        clinicId: session.user.clinicId,
+      }
+    })
+
+    // 2. تحديث حالة الفاتورة
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "PAID" }
+    })
+
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: "Failed to record payment" }
+  }
+}
