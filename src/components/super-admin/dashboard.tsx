@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { GenerateCodeForm } from "@/components/admin/generate-code-form"
 import { AreaChart, Area, ResponsiveContainer, YAxis } from "recharts"
+import { DownloadPdfButton } from "@/components/super-admin/download-pdf-button"
 
 interface PlatformStats {
   totalClinics: number; activeClinics: number; totalUsers: number; totalDoctors: number
@@ -100,9 +101,7 @@ export function SuperAdminDashboard({
           <p className="text-muted-foreground mt-1 text-sm">Real-time analytics based on live database metrics.</p>
         </div>
         <div className="flex items-center gap-3">
-          <a href="/api/super-admin/export" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 h-9 px-4 py-2 transition-colors">
-            Export Report
-          </a>
+          <DownloadPdfButton />
         </div>
       </div>
 

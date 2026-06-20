@@ -422,3 +422,70 @@ export async function getPlatformAuditLogs() {
     return []
   }
 }
+
+// ✅ تقرير الأرباح حسب الفترة الزمنية
+export async function getRevenueReportData(from: string, to: string) {
+  try {
+    await requireRole("SUPER_ADMIN")
+    
+    const startDate = new Date(from)
+    startDate.setHours(0, 0, 0, 0)
+    const endDate = new Date(to)
+    endDate.setHours(23, 59, 59, 999)
+
+    const subscriptions = await prisma.subscription.findMany({
+      where: {
+        status: { in: ["ACTIVE", "TRIAL"] },
+        OR: [
+          { startDate: { lte: endDate }, endDate: { gte: startDate } },
+          { startDate: { lte: endDate }, endDate: null } 
+        ]
+      },
+      include: {
+        clinic: { select: { id: true, name: true, owner: { select: { name: true } } } },
+        plan: { select: { name: true, monthlyPrice: true } }
+      }
+    })
+
+    let totalRevenue = 0
+    const reportData = subscriptions.map(sub => {
+      const subStart = new Date(sub.startDate)
+      const subEnd = sub.endDate ? new Date(sub.endDate) : new Date()
+
+      let activeMonthsCount = 0
+
+      // نمر على كل شهر في الفترة اللي اختارها
+      let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+      const endCursor = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+
+      while (cursor <= endCursor) {
+        const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999) // آخر يوم في الشهر
+
+        // لو الاشتراك كان شغل في أي يوم من الشهر ده = شهر كامل فلوس
+        if (subStart <= monthEnd && subEnd >= cursor) {
+          activeMonthsCount++
+        }
+
+        cursor.setMonth(cursor.getMonth() + 1) // نروح للشهر اللي جاي
+      }
+
+      // الفلوس = عدد الأشهر الكاملة × سعر الخطة (من غير أي تقسيم)
+      const revenue = activeMonthsCount * (sub.plan?.monthlyPrice || 0)
+      totalRevenue += revenue
+
+      return {
+        clinicName: sub.clinic.name,
+        ownerName: sub.clinic.owner?.name || "N/A",
+        planName: sub.plan?.name || "Free",
+        status: sub.status,
+        activeMonths: activeMonthsCount,
+        revenue
+      }
+    })
+
+    return { data: reportData, totalRevenue, startDate: from, endDate: to }
+  } catch (error) {
+    console.error("Error fetching revenue data:", error)
+    return null
+  }
+}
