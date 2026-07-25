@@ -52,7 +52,7 @@ export default function LoginPage() {
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
               <Stethoscope className="h-6 w-6 text-white" />
             </div>
-            <span className="text-2xl font-bold tracking-tight text-white">Eyadti</span>
+            <span className="text-2xl font-bold tracking-tight text-white">Nexora</span>
           </div>
         </div>
 
@@ -93,7 +93,7 @@ export default function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
               <Stethoscope className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">Eyadti</span>
+            <span className="text-xl font-bold text-foreground">Nexora</span>
           </div>
 
           <div className="animate-fade-in-up">

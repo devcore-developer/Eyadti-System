@@ -36,7 +36,7 @@ async function main() {
       {
         id: 'u1',
         name: 'Admin',
-        email: 'admin@eyadti.com',
+        email: 'admin@nexora.com',
         password: adminPassword,
         role: 'ADMIN',
         clinicId: 'c1',
@@ -44,7 +44,7 @@ async function main() {
       {
         id: 'd1',
         name: 'Dr. Sarah',
-        email: 'doctor@eyadti.com',
+        email: 'doctor@nexora.com',
         password: doctorPassword,
         role: 'DOCTOR',
         clinicId: 'c1',
@@ -75,8 +75,8 @@ async function main() {
   await prisma.$executeRawUnsafe(`ALTER TABLE "clinics" ALTER COLUMN "ownerId" SET NOT NULL;`);
 
   console.log('✅ Seed successful! You can login with:');
-  console.log('👉 Admin Email: admin@eyadti.com | Password: Admin@2024!');
-  console.log('👉 Doctor Email: doctor@eyadti.com | Password: Doctor@2024!');
+  console.log('👉 Admin Email: admin@nexora.com | Password: Admin@2024!');
+  console.log('👉 Doctor Email: doctor@nexora.com | Password: Doctor@2024!');
 }
 
 main()

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getAvailableTimeSlots, createBooking, getBranches, getDoctorsByBranch } from "@/lib/actions/booking"
+import { getAvailableTimeSlots, createBooking, getBranches, getDoctorsByBranch, getAvailableDoctors } from "@/lib/actions/booking"
 import { AvailableSlots } from "./available-slots"
 import { PatientInfoForm } from "./patient-info-form"
 import { Loader2, Calendar, Clock, User, CheckCircle2, MapPin, Phone, ArrowRight, ChevronLeft, Building2, Sparkles, Stethoscope, Award } from "lucide-react"
@@ -43,21 +43,33 @@ export function BookingWizard({ clinic, clinicId }: Props) {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    async function loadBranches() {
+    async function loadInitialData() {
       setLoading(true)
+      setError("")
       try {
         const data = await getBranches(clinicId)
         setBranches(data || [])
+        
         if (data && data.length === 1) {
+          // لو فيه فرع واحد بس، اختاره تلقائي
           handleBranchSelect(data[0])
+        } else if (!data || data.length === 0) {
+          // ✨ التعديل هنا: لو مفيش فروع خالص، اجيب كل أطباء العيادة وتجاهل خطوة الفرع
+          const allDoctors = await getAvailableDoctors(clinicId)
+          setDoctors(allDoctors || [])
+          if (!allDoctors || allDoctors.length === 0) {
+            setError("No doctors available for booking at the moment.")
+          } else {
+            setStep(2) // أنقله مباشرة لخطوة اختيار الدكتور
+          }
         }
       } catch (err) {
-        setError("Failed to load branches")
+        setError("Failed to load clinic data")
       } finally {
         setLoading(false)
       }
     }
-    loadBranches()
+    loadInitialData()
   }, [clinicId])
 
   const handleBranchSelect = async (branch: Branch) => {
@@ -172,7 +184,7 @@ export function BookingWizard({ clinic, clinicId }: Props) {
           </div>
         )}
 
-        {/* Step 1: Branch Selection */}
+        {/* Step 1: Branch Selection (يظهر لو فيه فروع بس) */}
         {step === 1 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4">
             <div className="flex items-center gap-2 mb-2">
@@ -202,11 +214,12 @@ export function BookingWizard({ clinic, clinicId }: Props) {
           </div>
         )}
 
-        {/* Step 2: Doctor Selection (UPDATED) */}
+        {/* Step 2: Doctor Selection */}
         {step === 2 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4">
+             {/* ✨ التعديل هنا: لو فيه فروع يكتب "Change Branch"، لو مفيش يكتب "Back" */}
              <button onClick={() => setStep(1)} className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-teal-700 transition-colors">
-              <ChevronLeft className="w-4 h-4" /> Change Branch
+              <ChevronLeft className="w-4 h-4" /> {branches.length > 0 ? "Change Branch" : "Back"}
             </button>
             
             <div className="flex items-center gap-2 mb-4">

@@ -7,6 +7,7 @@ import { SubscriptionStatus } from "@prisma/client";
 import { checkAndExpireTrials } from "./services/trial-system";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET, // إضافة الـ Secret
   pages: {
     signIn: "/login",
   },
@@ -105,53 +106,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
-        
-        // ⚠️ Support Mode Override Logic
-        // لو المستخدم سوبر أدمن، نشوف هل فيه كوكي لوضع الدعم
-        if (token.role === "SUPER_ADMIN") {
-          try {
-            // استدعاء cookies() داخل callback NextAuth شغال في App Router
-            const { cookies } = await import("next/headers");
-            const cookieStore = await cookies();
-            const supportClinicId = cookieStore.get('support_clinic_id')?.value;
-
-            if (supportClinicId) {
-              // نغير الـ clinicId في الـ session مؤقتاً
-              session.user.clinicId = supportClinicId;
-              // نحتفظ بالـ role الأصلي عشان الـ permissions تشتغل صح
-              // ونضيف flag مخفي عشان الـ UI تعرف إنه وضع دعم
-              (session.user as any).isSupportMode = true;
-              
-              // نجيب بيانات الاشتراك بتاعة العيادة المستهدفة عشان الـ UI يرسمها صح
-              const targetSub = await prisma.subscription.findUnique({
-                where: { clinicId: supportClinicId },
-              });
-              if (targetSub) {
-                session.user.subscriptionStatus = targetSub.status as any;
-                session.user.planId = targetSub.planId;
-                session.user.trialEndsAt = targetSub.trialEndsAt;
-                session.user.currentPeriodEnd = targetSub.currentPeriodEnd;
-              }
-            } else {
-              session.user.clinicId = token.clinicId as string;
-              session.user.subscriptionStatus = token.subscriptionStatus as SubscriptionStatus | "SUPER_ADMIN" | "EXPIRED" | null;
-              session.user.planId = token.planId as string | null;
-              session.user.trialEndsAt = token.trialEndsAt as Date | null;
-              session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null;
-            }
-          } catch (error) {
-            // Fallback لو حصل مشكلة في قراءة الكوكي
-            session.user.clinicId = token.clinicId as string;
-            session.user.subscriptionStatus = "SUPER_ADMIN";
-          }
-        } else {
-          // باقي المستخدمين العاديين
-          session.user.clinicId = token.clinicId as string;
-          session.user.subscriptionStatus = token.subscriptionStatus as SubscriptionStatus | "SUPER_ADMIN" | "EXPIRED" | null;
-          session.user.planId = token.planId as string | null;
-          session.user.trialEndsAt = token.trialEndsAt as Date | null;
-          session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null;
-        }
+        session.user.clinicId = token.clinicId as string;
+        session.user.subscriptionStatus = token.subscriptionStatus as SubscriptionStatus | "SUPER_ADMIN" | "EXPIRED" | null;
+        session.user.planId = token.planId as string | null;
+        session.user.trialEndsAt = token.trialEndsAt as Date | null;
+        session.user.currentPeriodEnd = token.currentPeriodEnd as Date | null;
       }
       return session;
     },

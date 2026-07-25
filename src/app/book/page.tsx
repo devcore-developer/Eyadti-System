@@ -4,7 +4,6 @@ import { redirect } from "next/navigation"
 export default async function BookRootPage() {
   // لو حد دخل على /book من غير slug، بنوجهه لأول عيادة موجودة في السيستم
   const clinic = await prisma.clinic.findFirst({
-    where: { slug: { not: null as unknown as string } },
     orderBy: { createdAt: "asc" },
     select: { slug: true }
   })
@@ -13,7 +12,7 @@ export default async function BookRootPage() {
     redirect(`/book/${clinic.slug}`)
   }
 
-  // Fallback لو مفيش عيادات ليها slug
+  // Fallback لو مفيش عيادات مسجلة
   return (
     <div className="flex items-center justify-center min-h-screen">
       <p>No clinics available for booking yet.</p>

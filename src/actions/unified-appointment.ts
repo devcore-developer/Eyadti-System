@@ -1,8 +1,8 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { auth } from "@/lib/auth" // ✨ استبدال requireRole بـ auth
-import { hasPermission } from "@/lib/permissions/patients" // ✨ نظام الصلاحيات الجديد
+import { auth } from "@/lib/auth" 
+import { hasPermission } from "@/lib/permissions/patients" 
 import { AppointmentType, AppointmentStatus, VisitStatus, Priority } from "@prisma/client"
 import type { ActionResult } from "@/types"
 import { revalidatePath } from "next/cache"
@@ -28,7 +28,6 @@ export async function createUnifiedAppointment(formData: FormData): Promise<Acti
     const session = await auth()
     if (!session?.user) return { success: false, error: "Unauthorized" }
     
-    // ✨ استخدام نظام الصلاحيات الجديد
     if (!hasPermission(session.user.role, "appointment:create")) {
       return { success: false, error: "Forbidden: You don't have permission to create appointments." }
     }
@@ -41,7 +40,7 @@ export async function createUnifiedAppointment(formData: FormData): Promise<Acti
     const appointmentType = formData.get("appointmentType") as AppointmentType
     const doctorId = formData.get("doctorId") as string
     const dateTime = formData.get("dateTime") as string
-    const notes = formData.get("notes") as string
+    const notes = (formData.get("notes") as string) || ""
 
     if (!doctorId || !dateTime || !appointmentType) {
       return { success: false, error: "Missing required fields" }
@@ -83,34 +82,33 @@ export async function createUnifiedAppointment(formData: FormData): Promise<Acti
         type: appointmentType,
       }
 
-      // Step 3: Handle Behavior based on Type
+      // Step 3: Handle Behavior based on Type (فقط للوكيت إن بوكينج أو مشي من أماكن تانية)
       if (appointmentType === AppointmentType.WALK_IN || appointmentType === AppointmentType.EMERGENCY) {
-        appointmentData.status = AppointmentStatus.CONFIRMED // Auto Confirm
+        appointmentData.status = AppointmentStatus.CONFIRMED 
         
         const queueNumber = await generateQueueNumber(clinicId)
         const priority = appointmentType === AppointmentType.EMERGENCY ? Priority.URGENT : Priority.MEDIUM
 
-        // Create Appointment
         const appointment = await tx.appointment.create({ data: appointmentData })
 
-        // Auto Create Visit & Enter Waiting Room
         await tx.visit.create({
           data: {
             clinicId,
             patientId: currentPatientId,
             doctorId,
-            appointmentId: appointment.id, // Link them!
+            appointmentId: appointment.id,
             visitDate: new Date(),
             status: VisitStatus.WAITING,
             queueNumber,
             priority,
             checkedInAt: new Date(),
+            notes: notes || null,
           }
         })
 
         return appointment
       } else {
-        // SCHEDULED: Just book it, no visit yet!
+        // SCHEDULED: مجرد حجز موعد
         appointmentData.status = AppointmentStatus.SCHEDULED
         return await tx.appointment.create({ data: appointmentData })
       }
@@ -133,7 +131,6 @@ export async function checkInAppointment(appointmentId: string): Promise<ActionR
     const session = await auth()
     if (!session?.user) return { success: false, error: "Unauthorized" }
     
-    // ✨ التأكد من أن المستخدم يملك صلاحية الـ Check-in
     if (!hasPermission(session.user.role, "appointment:check_in")) {
       return { success: false, error: "Forbidden: Only reception or admin can check-in patients." }
     }
@@ -162,7 +159,8 @@ export async function checkInAppointment(appointmentId: string): Promise<ActionR
           status: VisitStatus.WAITING,
           queueNumber,
           priority: Priority.MEDIUM,
-          checkedInAt: new Date(),
+          checkedInAt: new Date(), // ✨ يبدأ العداد من هنا بالضبط
+          notes: appointment.notes,
         }
       })
     ])
@@ -177,13 +175,12 @@ export async function checkInAppointment(appointmentId: string): Promise<ActionR
   return { success: true }
 }
 
-// ── UPDATE VISIT STATUS (Moving patient through the workflow) ──
+// ── UPDATE VISIT STATUS ──
 export async function updateVisitStatus(visitId: string, newStatus: VisitStatus): Promise<ActionResult> {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: "Unauthorized" }
     
-    // ✨ التأكد من صلاحية تغيير حالة الزيارة
     if (!hasPermission(session.user.role, "visit:change_status")) {
       return { success: false, error: "Forbidden: You cannot change visit status." }
     }
@@ -198,13 +195,11 @@ export async function updateVisitStatus(visitId: string, newStatus: VisitStatus)
 
     if (!visit) return { success: false, error: "Visit not found" }
 
-    // Update Visit Status
     await prisma.visit.update({
       where: { id: visitId },
       data: { status: newStatus },
     })
 
-    // If Completed, also update the Appointment status
     if (newStatus === VisitStatus.COMPLETED && visit.appointmentId) {
       await prisma.appointment.update({
         where: { id: visit.appointmentId },

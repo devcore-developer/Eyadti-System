@@ -1,4 +1,3 @@
-// components/appointments/appointment-table.tsx
 import Link from "next/link"
 import { AppointmentStatusBadge } from "./appointment-status-badge"
 import { AppointmentRowActions } from "./appointment-row-actions"
@@ -6,6 +5,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { MobileCard, MobileCardItem } from "@/components/ui/mobile-card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, CalendarX } from "lucide-react"
+
 
 type AppointmentRow = {
   id: string
@@ -57,7 +57,7 @@ export function AppointmentTable({
         title="No appointments found" 
         description="There are no appointments matching your criteria for this day." 
         actionLabel="Book New"
-        onAction={() => window.location.href = "/appointments/new"}
+        actionUrl="/appointments/new"
       />
     )
   }

@@ -5,14 +5,13 @@ import { auth } from "@/lib/auth"
 import { z } from "zod"
 import type { ActionResult } from "@/types"
 import { revalidatePath } from "next/cache"
-import { Gender } from "@prisma/client"
+import { Gender, VisitStatus, Priority } from "@prisma/client"
 
 // ── Zod Schemas ──────────────────────────────────────
 
 const VisitItemSchema = z.string().min(1, "Cannot be empty")
 
 const PatientVisitSchema = z.object({
-  // Patient Info (if new)
   patientId: z.string().optional(),
   fullName: z.string().optional(),
   phone: z.string().optional(),
@@ -20,13 +19,11 @@ const PatientVisitSchema = z.object({
   dateOfBirth: z.string().optional(),
   nationalId: z.string().optional(),
   
-  // Visit Info
   doctorId: z.string().min(1, "Select a doctor"),
   visitDate: z.string().min(1, "Visit date is required"),
-  visitType: z.string().optional(), // كشف ولا استشارة
-  notes: z.string().optional(),
+  visitType: z.string().optional(),
   
-  // بيانات طبية (اختيارية للريسبشن، واجبة للدكتور لو عدّل الزيارة)
+  notes: z.string().optional(),
   complaints: z.array(z.string()).optional(), 
   diagnoses: z.array(z.string()).optional(),
   treatmentPlans: z.array(z.string()).optional(),
@@ -42,6 +39,21 @@ function safeJsonParse(str: string | null): string[] {
   } catch {
     return []
   }
+}
+
+// ── Helper: Generate Queue Number safely ────────────
+
+async function generateQueueNumber(clinicId: string): Promise<number> {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const lastVisit = await prisma.visit.findFirst({
+    where: { clinicId, createdAt: { gte: today } },
+    orderBy: { queueNumber: "desc" },
+    select: { queueNumber: true }
+  })
+  
+  return (lastVisit?.queueNumber || 0) + 1
 }
 
 // ── Helper: Get or Create IDs for Relations ──────────
@@ -84,8 +96,8 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
 
   const patientId = (formData.get("patientId") as string) || ""
   const isNewPatient = !patientId
+  const isEmergency = (formData.get("isEmergency") as string) === "true" // ✨ قراءة حالة الطوارئ
 
-  // Validate based on context
   if (isNewPatient) {
     const name = formData.get("fullName") as string
     const phone = formData.get("phone") as string
@@ -120,11 +132,9 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
     const diagnosisIds = parsed.data.diagnoses ? await getDiagnosisIds(parsed.data.diagnoses) : []
     const treatmentIds = parsed.data.treatmentPlans ? await getTreatmentIds(parsed.data.treatmentPlans) : []
 
-    // 🔥 ATOMIC TRANSACTION
     const result = await prisma.$transaction(async (tx) => {
       let currentPatientId = parsed.data.patientId!
 
-      // Step 1: Create Patient if not exists
       if (isNewPatient) {
         const newPatient = await tx.patient.create({
           data: {
@@ -132,25 +142,23 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
             phone: parsed.data.phone!,
             gender: (parsed.data.gender || "MALE") as Gender,
             dateOfBirth: parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth) : new Date("1990-01-01"),
-            // بنخزن الـ National Id مؤقتاً في الـ address لو مش عندك حقل مخصص
             address: parsed.data.nationalId || null, 
             clinicId: session.user.clinicId,
           }
         })
         currentPatientId = newPatient.id
       } else if (parsed.data.nationalId) {
-        // لو المريض موجود ومش حط الـ nationalId قبل كده، نحدثه
         await tx.patient.update({
           where: { id: currentPatientId },
           data: { address: parsed.data.nationalId }
         })
       }
 
-      // Step 2: Create Visit
-      // بنحط نوع الكشف في أول الـ Notes عشان يظهر للدكتور
       const visitNotes = parsed.data.visitType 
         ? `[${parsed.data.visitType}] ${parsed.data.notes || ''}`.trim()
         : parsed.data.notes || null
+
+      const queueNumber = await generateQueueNumber(session.user.clinicId)
 
       const visit = await tx.visit.create({
         data: {
@@ -159,10 +167,13 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
           doctorId: parsed.data.doctorId,
           visitDate: new Date(parsed.data.visitDate),
           notes: visitNotes,
+          status: VisitStatus.WAITING,
+          queueNumber,
+          priority: isEmergency ? Priority.URGENT : Priority.MEDIUM, // ✨ تحديد الأولوية
+          checkedInAt: new Date(), // ✨ يبدأ العداد من هنا
         },
       })
 
-      // Step 3: Create Relations (if provided by doctor)
       if (complaintIds.length > 0) {
         await tx.visitComplaint.createMany({ data: complaintIds.map(complaintId => ({ visitId: visit.id, complaintId })) as any })
       }

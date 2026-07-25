@@ -1,7 +1,7 @@
 import { Navbar } from "./navbar"
 import { Hero } from "./hero"
 import { MotionWrapper } from "./motion-wrapper"
-import PricingPage from "@/app/(landing)/pricing/page" // سنستخدم صفحة الباقات التي بنيناها مسبقاً
+import PricingSection from "./pricing-section" // سنستخدم صفحة الباقات التي بنيناها مسبقاً
 import Link from "next/link"
 
 export function LandingPage() {
@@ -41,7 +41,7 @@ export function LandingPage() {
       {/* Pricing Section */}
       <section id="pricing" className="py-24 md:py-32 bg-muted/30">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <PricingPage /> 
+            <PricingSection /> 
          </div>
       </section>
 
@@ -56,7 +56,7 @@ export function LandingPage() {
                   Start Managing Your Clinic Professionally Today
                 </h2>
                 <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-                  Join hundreds of clinics already using Eyadti to save time, reduce no-shows, and increase revenue.
+                  Join hundreds of clinics already using Nexora to save time, reduce no-shows, and increase revenue.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link href="/signup" className="inline-flex items-center justify-center gap-2 font-semibold text-white px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] shadow-[0_15px_35px_rgba(107,156,255,0.3)] hover:-translate-y-0.5 transition-all">
@@ -79,7 +79,7 @@ export function LandingPage() {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] flex items-center justify-center">
               {/* Logo icon */}
             </div>
-            <span className="font-bold">Eyadti</span>
+            <span className="font-bold">Nexora</span>
           </div>
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} Nexora. All rights reserved.

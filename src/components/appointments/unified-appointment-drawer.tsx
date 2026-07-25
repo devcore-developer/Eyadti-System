@@ -92,13 +92,13 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
         </Button>
       </SheetTrigger>
       
-      {/* ✨ w-full على الموبايل، و max-w-lg على الـ Desktop. وتقسيم الـ layout لـ header, form, footer */}
       <SheetContent className="w-full sm:max-w-lg h-full flex flex-col p-0">
         <SheetHeader className="p-4 sm:p-6 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)]">
           <SheetTitle className="text-xl">New Appointment</SheetTitle>
         </SheetHeader>
         
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-28 sm:pb-6">
+        {/* ⬇️ التعديل الأول: ضفنا id="appointment-form" ⬇️ */}
+        <form id="appointment-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-28 sm:pb-6">
             
           {/* STEP 1 */}
           <div className="space-y-4 rounded-lg border p-4 bg-gray-50/50 dark:bg-slate-800/20">
@@ -197,10 +197,16 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
           )}
         </form>
 
-        {/* ✨ Sticky Footer على الموبايل داخل الـ Drawer */}
+        {/* ✨ Sticky Footer */}
         {(selectedPatient || isNewPatient) && (
           <div className="sticky bottom-0 bg-white dark:bg-[#1B2838] border-t border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] p-4 sm:static sm:border-0 sm:px-6 sm:pb-6 sm:pt-0">
-            <Button type="submit" form="appointment-form" disabled={isPending} onClick={handleSubmit as any} className="w-full h-12 text-base bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md">
+            {/* ⬇️ التعديل التاني: شلنا onClick وخلينا type="submit" و form="appointment-form" ⬇️ */}
+            <Button 
+              type="submit" 
+              form="appointment-form" 
+              disabled={isPending} 
+              className="w-full h-12 text-base bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
+            >
               {isPending ? "Processing..." : "Confirm & Proceed"}
             </Button>
           </div>

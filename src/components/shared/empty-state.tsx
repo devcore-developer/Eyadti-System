@@ -1,4 +1,4 @@
-// components/shared/empty-state.tsx
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ interface EmptyStateProps {
   title: string
   description: string
   actionLabel?: string
+  actionUrl?: string
   onAction?: () => void
   className?: string
 }
@@ -17,6 +18,7 @@ export function EmptyState({
   title,
   description,
   actionLabel,
+  actionUrl,
   onAction,
   className,
 }: EmptyStateProps) {
@@ -40,14 +42,23 @@ export function EmptyState({
         {description}
       </p>
       
-      {actionLabel && onAction && (
+      {actionLabel && (actionUrl || onAction) && (
         <div className="mt-8">
-          <Button 
-            onClick={onAction}
-            className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 rounded-xl px-6 py-3 text-sm font-semibold"
-          >
-            {actionLabel}
-          </Button>
+          {actionUrl ? (
+            <Link 
+              href={actionUrl}
+              className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 rounded-xl px-6 py-3 text-sm font-semibold inline-flex items-center"
+            >
+              {actionLabel}
+            </Link>
+          ) : (
+            <Button 
+              onClick={onAction}
+              className="gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 rounded-xl px-6 py-3 text-sm font-semibold"
+            >
+              {actionLabel}
+            </Button>
+          )}
         </div>
       )}
     </div>

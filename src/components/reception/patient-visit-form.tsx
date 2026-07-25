@@ -3,7 +3,7 @@
 import { useTransition, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createPatientVisit } from "@/lib/actions/visits"
-import { searchPatients } from "@/lib/actions/patients"
+import { createUnifiedAppointment } from "@/actions/unified-appointment"
 import type { ActionResult } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,14 +32,27 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
   const [searchResults, setSearchResults] = useState<PatientOption[]>([])
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(preselectedPatient || null)
   const [isNewPatient, setIsNewPatient] = useState(false)
+  
+  // ✨ الحالات الجديدة البسيطة
+  const [addToWaitingRoom, setAddToWaitingRoom] = useState(false)
+  const [isEmergency, setIsEmergency] = useState(false)
+  
   const debouncedSearch = useDebounce(searchQuery, 300)
+
+  // لو اختار طوارئ، يتحتم يدخل الانتظار
+  useEffect(() => {
+    if (isEmergency) {
+      setAddToWaitingRoom(true)
+    }
+  }, [isEmergency])
 
   // Search Effect
   useEffect(() => {
     if (debouncedSearch && !selectedPatient) {
-      searchPatients(debouncedSearch, clinicId).then(results => {
-        setSearchResults(results as PatientOption[])
-      })
+       fetch(`/api/patients/search?q=${debouncedSearch}&clinicId=${clinicId}`)
+        .then(res => res.json())
+        .then(data => setSearchResults(data || []))
+        .catch(() => setSearchResults([]))
     } else {
       setSearchResults([])
     }
@@ -50,8 +63,8 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
       setError(result.error || "Something went wrong")
       toast.error(result.error || "Something went wrong")
     } else {
-      toast.success("Patient Visit created successfully")
-      router.push("/waiting-room") 
+      toast.success(addToWaitingRoom ? "Patient added to Waiting Room" : "Appointment scheduled successfully")
+      router.push(addToWaitingRoom ? "/waiting-room" : "/appointments") 
       router.refresh()
     }
   }
@@ -75,7 +88,20 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
     }
 
     startTransition(async () => {
-      const result = await createPatientVisit(formData)
+      let result: ActionResult
+
+      if (addToWaitingRoom) {
+        // مشي أو طوارئ: يدخل غرفة الانتظار فوراً
+        formData.set("isEmergency", isEmergency ? "true" : "false")
+        result = await createPatientVisit(formData)
+      } else {
+        // موعد مجدول: مايدخلش الانتظار
+        formData.set("appointmentType", "SCHEDULED")
+        formData.set("dateTime", formData.get("visitDate") as string)
+        formData.set("isNewPatient", isNewPatient ? "true" : "false")
+        result = await createUnifiedAppointment(formData)
+      }
+
       handleResult(result)
     })
   }
@@ -146,6 +172,7 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
           <div className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold">Visit Details</h3>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              
               <div className="space-y-2">
                 <Label>Attending Doctor *</Label>
                 <select name="doctorId" required className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm">
@@ -153,20 +180,57 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
                   {doctors.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
                 </select>
               </div>
+
               <div className="space-y-2">
-                <Label>Visit Type *</Label>
-                <select name="visitType" required className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm">
+                <Label>Visit Type</Label>
+                <select name="visitType" className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm">
                   <option value="EXAMINATION">Examination (كشف)</option>
                   <option value="CONSULTATION">Consultation (استشارة)</option>
                   <option value="FOLLOW_UP">Follow-up (متابعة)</option>
                 </select>
               </div>
+
               <div className="space-y-2 sm:col-span-2">
                 <Label>Date & Time *</Label>
                 <Input name="visitDate" type="datetime-local" required />
               </div>
+
+              {/* ✨ الخيارات المبسطة الجديدة */}
+              <div className="sm:col-span-2 flex flex-col sm:flex-row gap-6 pt-2 border-t mt-2">
+                
+                {/* خيار الطوارئ */}
+                <Label className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={isEmergency}
+                    onChange={(e) => setIsEmergency(e.target.checked)}
+                    className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  />
+                  <div>
+                    <span className="font-semibold text-red-600">Emergency Patient</span>
+                    <p className="text-xs text-gray-500">Auto-added to Waiting Room with high priority</p>
+                  </div>
+                </Label>
+
+                {/* خيار غرفة الانتظار */}
+                <Label className={`flex items-center gap-3 cursor-pointer ${isEmergency ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <input 
+                    type="checkbox" 
+                    checked={addToWaitingRoom}
+                    onChange={(e) => setAddToWaitingRoom(e.target.checked)}
+                    disabled={isEmergency}
+                    className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                  />
+                  <div>
+                    <span className="font-medium">Add to Waiting Room</span>
+                    <p className="text-xs text-gray-500">Check-in immediately instead of scheduling</p>
+                  </div>
+                </Label>
+
+              </div>
             </div>
-            <div className="space-y-2">
+            
+            <div className="space-y-2 mt-4">
               <Label>Initial Notes (Optional)</Label>
               <Textarea name="notes" rows={2} placeholder="Reason for visit or brief notes..." />
             </div>
@@ -174,7 +238,7 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
 
           <div className="flex items-center gap-3 pt-4">
             <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md flex-1 h-12 text-base">
-              {isPending ? "Saving..." : "Register & Open Visit"}
+              {isPending ? "Saving..." : (addToWaitingRoom ? "Register & Add to Queue" : "Register & Schedule Appointment")}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()} className="h-12">Cancel</Button>
           </div>

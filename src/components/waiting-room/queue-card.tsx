@@ -23,17 +23,19 @@ type QueueCardProps = {
   checkedInAt: Date | null
 }
 
+// ✨ تصحيح حساب وقت الانتظار (يبدأ فقط من وقت الـ Check-in الفعلي)
 function getWaitTime(checkedInAt: Date | null): string {
-  if (!checkedInAt) return "N/A"
+  if (!checkedInAt) return "Scheduled" // لو ملونش وقت دخول، يبقى موعد مستقبلي
   const diff = new Date().getTime() - new Date(checkedInAt).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m`
-  return `${Math.floor(mins / 60)}h ${mins % 60}m`
+  if (mins < 1) return "Just arrived" // ✨ بدل "0m" المقززة
+  if (mins < 60) return `Waiting ${mins} min`
+  return `Waiting ${Math.floor(mins / 60)}h ${mins % 60}m`
 }
 
 const statusConfig: Record<VisitStatus, { label: string; color: string; nextStatus?: VisitStatus; nextLabel?: string }> = {
   CHECKED_IN: { label: "Checked In", color: "bg-blue-100 text-blue-800", nextStatus: VisitStatus.WAITING, nextLabel: "Move to Waiting" },
-  WAITING: { label: "Waiting", color: "bg-yellow-100 text-yellow-800", nextStatus: VisitStatus.WITH_DOCTOR, nextLabel: "Call Patient" },
+  WAITING: { label: "Waiting", color: "bg-blue-100 text-blue-800", nextStatus: VisitStatus.WITH_DOCTOR, nextLabel: "Call Patient" },
   WITH_DOCTOR: { label: "With Doctor", color: "bg-green-100 text-green-800", nextStatus: VisitStatus.PROCEDURE, nextLabel: "To Procedure" },
   PROCEDURE: { label: "Procedure", color: "bg-purple-100 text-purple-800", nextStatus: VisitStatus.BILLING, nextLabel: "To Billing" },
   BILLING: { label: "Billing", color: "bg-orange-100 text-orange-800" },
@@ -55,10 +57,8 @@ export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, d
   }
 
   return (
-    // ✨ تحويل الكارت ليكون صديق للمس، مع فصل منطقة النقر عن منطقة الإجراءات
     <Card className={`relative overflow-hidden transition-all hover:shadow-md flex flex-col ${isEmergency ? "border-red-400 bg-red-50/50 shadow-red-100 border-l-4 border-l-red-500" : "bg-white"}`}>
       <div className="p-4 flex-1">
-        {/* Header: Queue #, Name & Status */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 min-w-0">
             {queueNumber && <span className="text-2xl font-bold text-gray-300 shrink-0">#{queueNumber}</span>}
@@ -67,13 +67,12 @@ export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, d
           <Badge className={`${config.color} border-0 shrink-0`}>{config.label}</Badge>
         </div>
 
-        {/* Body: Details & Badges */}
         <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
           <div className="flex items-center gap-1.5 truncate">
             <Stethoscope className="h-4 w-4 shrink-0" /> <span className="truncate">Dr. {doctorName}</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
-            <Clock className="h-4 w-4" /> {getWaitTime(checkedInAt)}
+            <Clock className="h-4 w-4" /> <span className={checkedInAt && Math.floor((new Date().getTime() - new Date(checkedInAt).getTime()) / 60000) >= 15 ? "text-orange-500 font-semibold" : ""}>{getWaitTime(checkedInAt)}</span>
           </div>
         </div>
         
@@ -83,7 +82,6 @@ export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, d
         </div>
       </div>
 
-      {/* ✨ Footer: Actions - Full width on mobile, compact on desktop */}
       {status !== VisitStatus.COMPLETED && (
         <div className="p-4 pt-0 sm:pt-4 sm:px-4 border-t sm:border-t-0 mt-auto">
           {status === VisitStatus.BILLING ? (
