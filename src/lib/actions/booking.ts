@@ -13,7 +13,7 @@ const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID || "c1"
 export async function getPublicClinicInfo(clinicId: string) {
   const [clinic, settings] = await Promise.all([
     prisma.clinic.findUnique({
-      where: { id: clinicId },
+      where: { slug: clinicId },
       select: { id: true, name: true, address: true, phone: true },
     }),
     prisma.clinicSettings.findUnique({
