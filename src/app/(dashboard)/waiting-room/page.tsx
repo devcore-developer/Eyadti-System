@@ -36,6 +36,7 @@ export default async function WaitingRoomPage() {
     priority: v.priority,
     status: v.status,
     checkedInAt: v.checkedInAt ? v.checkedInAt.toISOString() : null,
+    visitDate: v.visitDate.toISOString(), // ✨ إضافة وقت الموعد الفعلي لحساب الوقت المتبقي
   }))
 
   const waitingCount = serializedVisits.filter(v => v.status === VisitStatus.WAITING).length
@@ -81,6 +82,7 @@ export default async function WaitingRoomPage() {
               priority={visit.priority}
               status={visit.status}
               checkedInAt={visit.checkedInAt ? new Date(visit.checkedInAt) : null} 
+              scheduledTime={visit.visitDate}
             />
           ))}
         </div>

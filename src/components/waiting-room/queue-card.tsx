@@ -21,14 +21,39 @@ type QueueCardProps = {
   priority: Priority
   status: VisitStatus
   checkedInAt: Date | null
+  scheduledTime: Date | string | null // ✨ إضافة وقت الموعد الفعلي
 }
 
-// ✨ تصحيح حساب وقت الانتظار (يبدأ فقط من وقت الـ Check-in الفعلي)
-function getWaitTime(checkedInAt: Date | null): string {
-  if (!checkedInAt) return "Scheduled" // لو ملونش وقت دخول، يبقى موعد مستقبلي
-  const diff = new Date().getTime() - new Date(checkedInAt).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return "Just arrived" // ✨ بدل "0m" المقززة
+// ✨ دالة ذكية لحساب الوقت (متبقي ولا انتظار)
+function getTimeDisplay(scheduledTime: Date | string | null, checkedInAt: Date | string | null): string {
+  const now = new Date()
+  const scheduled = scheduledTime ? new Date(scheduledTime) : null
+  const checkedIn = checkedInAt ? new Date(checkedInAt) : null
+
+  // لو مفيش موعد محدد، ن fallback لوقت التسجيل
+  if (!scheduled) {
+    if (!checkedIn) return "Scheduled"
+    const diffMs = now.getTime() - checkedIn.getTime()
+    const mins = Math.floor(diffMs / 60000)
+    if (mins < 1) return "Just arrived"
+    if (mins < 60) return `Waiting ${mins} min`
+    return `Waiting ${Math.floor(mins / 60)}h ${mins % 60}m`
+  }
+
+  // الحالة 1: الموعد لسه في المستقبل (المريض مجهز بدري)
+  if (now < scheduled) {
+    const diffMs = scheduled.getTime() - now.getTime()
+    const mins = Math.floor(diffMs / 60000)
+    if (mins < 60) return `In ${mins} min` // بقى عليه 45 دقيقة مثلاً
+    const hours = Math.floor(mins / 60)
+    const remMins = mins % 60
+    return `In ${hours}h ${remMins}m`  // بقى عليه 4h 15m
+  }
+
+  // الحالة 2: الموعد عدى (المريض بيستنى الدكتور فعلياً)
+  const diffMs = now.getTime() - scheduled.getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return "Just arrived"
   if (mins < 60) return `Waiting ${mins} min`
   return `Waiting ${Math.floor(mins / 60)}h ${mins % 60}m`
 }
@@ -42,7 +67,7 @@ const statusConfig: Record<VisitStatus, { label: string; color: string; nextStat
   COMPLETED: { label: "Completed", color: "bg-gray-100 text-gray-800" },
 }
 
-export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, doctorName, appointmentType, priority, status, checkedInAt }: QueueCardProps) {
+export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, doctorName, appointmentType, priority, status, checkedInAt, scheduledTime }: QueueCardProps) {
   const [isPending, startTransition] = useTransition()
   const config = statusConfig[status]
   const isEmergency = priority === Priority.URGENT
@@ -55,6 +80,9 @@ export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, d
       else toast.error(result.error || "Failed to update status")
     })
   }
+
+  const timeDisplay = getTimeDisplay(scheduledTime, checkedInAt)
+  const isWaitingLate = timeDisplay.includes("Waiting") && !timeDisplay.includes("Just arrived")
 
   return (
     <Card className={`relative overflow-hidden transition-all hover:shadow-md flex flex-col ${isEmergency ? "border-red-400 bg-red-50/50 shadow-red-100 border-l-4 border-l-red-500" : "bg-white"}`}>
@@ -72,7 +100,11 @@ export function QueueCard({ id, queueNumber, patientName, patientId, doctorId, d
             <Stethoscope className="h-4 w-4 shrink-0" /> <span className="truncate">Dr. {doctorName}</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
-            <Clock className="h-4 w-4" /> <span className={checkedInAt && Math.floor((new Date().getTime() - new Date(checkedInAt).getTime()) / 60000) >= 15 ? "text-orange-500 font-semibold" : ""}>{getWaitTime(checkedInAt)}</span>
+            <Clock className="h-4 w-4" /> 
+            {/* ✨ لو المريض مستني أكتر من 15 دقيقة يبقى لونه برتقاني */}
+            <span className={isWaitingLate ? "text-orange-500 font-semibold" : timeDisplay.includes("In ") ? "text-blue-500" : ""}>
+              {timeDisplay}
+            </span>
           </div>
         </div>
         
