@@ -219,6 +219,7 @@ model Clinic {
   id            String               @id @default(cuid())
   name          String
   slug          String              @unique
+  address       String?  
   phone         String?
   logoUrl       String?  
   ownerId       String?
