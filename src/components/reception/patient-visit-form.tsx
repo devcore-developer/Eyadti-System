@@ -4,6 +4,7 @@ import { useTransition, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createPatientVisit } from "@/lib/actions/visits"
 import { createUnifiedAppointment } from "@/actions/unified-appointment"
+import { searchPatients } from "@/lib/actions/patients" // ✨ رجعنا الاستدعاء الأصلي
 import type { ActionResult } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,7 +34,7 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(preselectedPatient || null)
   const [isNewPatient, setIsNewPatient] = useState(false)
   
-  // ✨ الحالات الجديدة البسيطة
+  // ✨ الحالات الجديدة
   const [addToWaitingRoom, setAddToWaitingRoom] = useState(false)
   const [isEmergency, setIsEmergency] = useState(false)
   
@@ -46,13 +47,12 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
     }
   }, [isEmergency])
 
-  // Search Effect
+  // ✨ بحث آمن باستخدام الـ Action الأصلي
   useEffect(() => {
     if (debouncedSearch && !selectedPatient) {
-       fetch(`/api/patients/search?q=${debouncedSearch}&clinicId=${clinicId}`)
-        .then(res => res.json())
-        .then(data => setSearchResults(data || []))
-        .catch(() => setSearchResults([]))
+      searchPatients(debouncedSearch, clinicId).then(results => {
+        setSearchResults(results as PatientOption[])
+      }).catch(() => setSearchResults([]))
     } else {
       setSearchResults([])
     }
@@ -194,40 +194,38 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
                 <Label>Date & Time *</Label>
                 <Input name="visitDate" type="datetime-local" required />
               </div>
+            </div>
 
-              {/* ✨ الخيارات المبسطة الجديدة */}
-              <div className="sm:col-span-2 flex flex-col sm:flex-row gap-6 pt-2 border-t mt-2">
-                
-                {/* خيار الطوارئ */}
-                <Label className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={isEmergency}
-                    onChange={(e) => setIsEmergency(e.target.checked)}
-                    className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                  />
-                  <div>
-                    <span className="font-semibold text-red-600">Emergency Patient</span>
-                    <p className="text-xs text-gray-500">Auto-added to Waiting Room with high priority</p>
-                  </div>
-                </Label>
+            {/* ✨ الخيارات المبسطة */}
+            <div className="flex flex-col sm:flex-row gap-6 pt-4 border-t mt-4">
+              
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={isEmergency}
+                  onChange={(e) => setIsEmergency(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500 mt-0.5"
+                />
+                <div>
+                  <span className="font-semibold text-red-600">Emergency Patient</span>
+                  <p className="text-xs text-gray-500">Auto-added to Waiting Room with high priority</p>
+                </div>
+              </label>
 
-                {/* خيار غرفة الانتظار */}
-                <Label className={`flex items-center gap-3 cursor-pointer ${isEmergency ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <input 
-                    type="checkbox" 
-                    checked={addToWaitingRoom}
-                    onChange={(e) => setAddToWaitingRoom(e.target.checked)}
-                    disabled={isEmergency}
-                    className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                  />
-                  <div>
-                    <span className="font-medium">Add to Waiting Room</span>
-                    <p className="text-xs text-gray-500">Check-in immediately instead of scheduling</p>
-                  </div>
-                </Label>
+              <label className={`flex items-start gap-3 cursor-pointer ${isEmergency ? 'opacity-50 pointer-events-none' : ''}`}>
+                <input 
+                  type="checkbox" 
+                  checked={addToWaitingRoom}
+                  onChange={(e) => setAddToWaitingRoom(e.target.checked)}
+                  disabled={isEmergency}
+                  className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 mt-0.5"
+                />
+                <div>
+                  <span className="font-medium">Add to Waiting Room</span>
+                  <p className="text-xs text-gray-500">Check-in immediately instead of scheduling</p>
+                </div>
+              </label>
 
-              </div>
             </div>
             
             <div className="space-y-2 mt-4">
