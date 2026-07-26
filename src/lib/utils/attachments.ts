@@ -7,6 +7,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   CT_SCAN: "CT Scan",
   PRESCRIPTION: "Prescription",
   MEDICAL_REPORT: "Medical Report",
+  THREE_D_MODEL: "3D Model",
   OTHER: "Other",
 }
 

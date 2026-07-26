@@ -1,5 +1,3 @@
-// src/app/(dashboard)/admin/users/edit/[id]/page.tsx
-
 import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
@@ -23,6 +21,9 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
         name: true,
         email: true,
         role: true,
+        image: true,
+        specialty: true,
+        degree: true,
         userBranches: { 
           select: { branchId: true } 
         }
@@ -37,7 +38,6 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
 
   if (!user) redirect("/admin/users")
 
-  // استخراج الـ branchIds من علاقة userBranches
   const branchIds = user.userBranches.map(ub => ub.branchId)
 
   return (
@@ -56,9 +56,12 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
             name: user.name,
             email: user.email,
             role: user.role,
-            branches: branchIds, // تمرير الفروع المختارة
-          } as any} // ← استخدام as any لتجاوز خطط الـ Types مؤقتاً
+            image: user.image,
+            specialty: user.specialty,
+            degree: user.degree,
+          }}
           branches={branches} 
+          userBranchIds={branchIds}
         />
       </div>
     </div>

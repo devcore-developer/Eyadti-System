@@ -1,114 +1,111 @@
 import { notFound } from "next/navigation"
 import { getBookingConfirmation } from "@/lib/actions/booking"
-import { Calendar, Clock, MapPin, User, Phone, Share2 } from "lucide-react"
+import { Calendar, Clock, MapPin, User, Phone, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
 export default async function ConfirmationPage({ params }: { params: Promise<{ appointmentId: string }> }) {
   const { appointmentId } = await params
-  
   const data = await getBookingConfirmation(appointmentId)
-  
   if (!data) notFound()
 
   const { patient, doctor, clinic, dateTime, clinicName, logoUrl } = data
-
   const dateObj = new Date(dateTime)
-  const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-  const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  const dateStr = dateObj.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+  const timeStr = dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-teal-50 via-white to-emerald-50">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-teal-100 animate-in fade-in zoom-in-95 duration-500">
-        
-        {/* Success Header */}
-        <div className="bg-teal-600 p-8 text-center text-white relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+    <div className="min-h-[80vh] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-lg">
+        {/* ─── Success Card ─── */}
+        <div className="bg-white rounded-[30px] shadow-[0_20px_60px_rgba(15,23,42,.08)] border border-gray-100/80 overflow-hidden">
+          {/* Header */}
+          <div className="relative px-8 pt-10 pb-8 text-center overflow-hidden" style={{ background: "linear-gradient(135deg, #15B8A6, #3B82F6)" }}>
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_right,white,transparent_70%)]" />
+            <div className="relative z-10">
+              <div className="w-18 h-18 mx-auto mb-5 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30" style={{ width: 72, height: 72 }}>
+                <CheckCircle2 className="w-10 h-10 text-white" strokeWidth={1.5} />
+              </div>
+              <h1 className="text-2xl font-bold text-white mb-1">You&apos;re Booked!</h1>
+              <p className="text-white/70 text-sm font-medium">Confirmation #{appointmentId.slice(-6).toUpperCase()}</p>
             </div>
-            <h1 className="text-2xl font-bold mb-1">You're Booked!</h1>
-            <p className="text-teal-100 text-sm">Appointment #{appointmentId.slice(-6).toUpperCase()}</p>
+          </div>
+
+          {/* Body */}
+          <div className="px-8 py-8 space-y-6">
+            {/* Clinic */}
+            <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 shrink-0">
+                {logoUrl ? <img src={logoUrl} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-5 h-5 text-slate-400" />}
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-slate-900 truncate">{clinicName}</h2>
+                <p className="text-xs text-slate-500 mt-0.5 truncate">{clinic.address}</p>
+              </div>
+            </div>
+
+            {/* Date & Time */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-2 text-slate-400 mb-2">
+                  <Calendar className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Date</span>
+                </div>
+                <p className="font-bold text-slate-900 text-sm leading-snug">{dateStr}</p>
+              </div>
+              <div className="p-4 rounded-2xl border border-blue-100" style={{ background: "linear-gradient(135deg, #EFF6FF, #F0FDFA)" }}>
+                <div className="flex items-center gap-2 text-blue-600 mb-2">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Time</span>
+                </div>
+                <p className="font-bold text-blue-900 text-sm">{timeStr}</p>
+              </div>
+            </div>
+
+            {/* Doctor & Patient */}
+            <div className="space-y-2">
+              {[
+                { icon: User, label: "Doctor", value: `Dr. ${doctor.name}`, color: "blue" },
+                { icon: User, label: "Patient", value: patient.fullName, color: "violet" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    item.color === "blue" ? "bg-blue-50 text-blue-600" : "bg-violet-50 text-violet-600"
+                  }`}>
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">{item.label}</p>
+                    <p className="font-semibold text-slate-900 text-sm">{item.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="pt-2 space-y-3">
+              <a
+                href={`tel:${clinic.phone}`}
+                className="w-full py-3.5 bg-white border-2 border-gray-200 text-slate-700 rounded-2xl hover:border-slate-300 hover:bg-slate-50 font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:shadow-sm"
+              >
+                <Phone className="w-4 h-4" /> Call Clinic
+              </a>
+
+              <Link
+                href="/"
+                className="w-full py-3.5 text-center text-sm font-semibold text-slate-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-1"
+              >
+                Return to Home <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Details Card */}
-        <div className="p-6 space-y-6">
-          
-          {/* Clinic Info */}
-          <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 overflow-hidden">
-               {logoUrl ? <img src={logoUrl} alt="Logo" /> : <MapPin className="w-6 h-6" />}
-            </div>
-            <div>
-              <h2 className="font-bold text-gray-900">{clinicName}</h2>
-              <p className="text-xs text-gray-500">{clinic.address}</p>
-            </div>
-          </div>
-
-          {/* Time & Date */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-              <div className="flex items-center gap-2 text-gray-400 mb-1">
-                <Calendar className="w-4 h-4" />
-                <span className="text-xs font-medium uppercase">Date</span>
-              </div>
-              <p className="font-bold text-gray-900 leading-tight">{dateStr}</p>
-            </div>
-            <div className="bg-teal-50 p-4 rounded-2xl border border-teal-100">
-              <div className="flex items-center gap-2 text-teal-600 mb-1">
-                <Clock className="w-4 h-4" />
-                <span className="text-xs font-medium uppercase">Time</span>
-              </div>
-              <p className="font-bold text-teal-900 leading-tight">{timeStr}</p>
-            </div>
-          </div>
-
-          {/* Doctor & Patient */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                  <User className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Doctor</p>
-                  <p className="font-semibold text-gray-900">Dr. {doctor.name}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                  <User className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Patient</p>
-                  <p className="font-semibold text-gray-900">{patient.fullName}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="pt-4 space-y-3">
-            <a 
-              href={`tel:${clinic.phone}`}
-              className="w-full py-3.5 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:border-gray-300 hover:bg-gray-50 font-semibold flex items-center justify-center gap-2 transition-all"
-            >
-              <Phone className="w-4 h-4" /> Call Clinic
-            </a>
-            
-            <div className="text-center">
-               <Link href="/" className="text-sm text-gray-400 hover:text-teal-600 transition-colors">
-                 Return to Home
-               </Link>
-            </div>
-          </div>
-
+        {/* Security Note */}
+        <div className="mt-4 flex items-center justify-center gap-2 text-[12px] text-slate-400">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Your booking is confirmed and encrypted</span>
         </div>
       </div>
     </div>

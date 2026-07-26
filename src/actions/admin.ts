@@ -6,6 +6,7 @@ import { createUserSchema, updateUserSchema, updateClinicSchema } from "@/lib/va
 import type { ActionResult } from "@/types"
 import { hash } from "bcryptjs"
 import { revalidatePath } from "next/cache"
+import { Role } from "@prisma/client"
 
 function handleAuthError(error: unknown): ActionResult {
   if (error instanceof AuthenticationError) return { success: false, error: error.message }
@@ -23,10 +24,9 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       email: formData.get("email") as string,
       password: formData.get("password") as string,
       role: formData.get("role") as string,
-      image: (formData.get("image") as string) || null,
-      specialty: (formData.get("specialty") as string) || null,
-      degree: (formData.get("degree") as string) || null,
-      // Note: Extracted to satisfy form, but not saved until Schema supports it
+      image: (formData.get("image") as string) || "",
+      specialty: (formData.get("specialty") as string) || "",
+      degree: (formData.get("degree") as string) || "",
       branchIds: formData.getAll("branchIds") as string[],
     }
 
@@ -51,18 +51,37 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
 
     const hashedPassword = await hash(validated.data.password, 10)
 
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         name: validated.data.name,
         email: validated.data.email,
         password: hashedPassword,
         role: validated.data.role,
         clinicId: session.clinicId,
-        image: validated.data.image,
-        specialty: validated.data.specialty,
-        degree: validated.data.degree,
+        image: validated.data.image || null,
+        specialty: validated.data.specialty || null,
+        degree: validated.data.degree || null,
       },
     })
+
+    // ✅ FIX: ربط المستخدم بالفروع
+    if (validated.data.branchIds && validated.data.branchIds.length > 0) {
+      if (validated.data.role === Role.DOCTOR) {
+        await prisma.doctorBranch.createMany({
+          data: validated.data.branchIds.map(branchId => ({
+            doctorId: newUser.id,
+            branchId,
+          })),
+        })
+      } else {
+        await prisma.userBranch.createMany({
+          data: validated.data.branchIds.map(branchId => ({
+            userId: newUser.id,
+            branchId,
+          })),
+        })
+      }
+    }
   } catch (error) {
     if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
       return handleAuthError(error)
@@ -94,9 +113,9 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       email: formData.get("email") as string,
       role: formData.get("role") as string,
       password: (formData.get("password") as string) || "",
-      image: (formData.get("image") as string) || null,
-      specialty: (formData.get("specialty") as string) || null,
-      degree: (formData.get("degree") as string) || null,
+      image: (formData.get("image") as string) || "",
+      specialty: (formData.get("specialty") as string) || "",
+      degree: (formData.get("degree") as string) || "",
       branchIds: formData.getAll("branchIds") as string[],
     }
 
@@ -113,9 +132,9 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       name: validated.data.name,
       email: validated.data.email,
       role: validated.data.role,
-      image: validated.data.image,
-      specialty: validated.data.specialty,
-      degree: validated.data.degree,
+      image: validated.data.image || null,
+      specialty: validated.data.specialty || null,
+      degree: validated.data.degree || null,
     }
 
     if (validated.data.password && validated.data.password.trim() !== "") {
@@ -126,6 +145,31 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       where: { id: userId },
       data: updateData,
     })
+
+    // ✅ FIX: تحديث ربط المستخدم بالفروع
+    if (validated.data.branchIds) {
+      if (validated.data.role === Role.DOCTOR) {
+        await prisma.$transaction([
+          prisma.doctorBranch.deleteMany({ where: { doctorId: userId } }),
+          prisma.doctorBranch.createMany({
+            data: validated.data.branchIds.map(branchId => ({
+              doctorId: userId,
+              branchId,
+            })),
+          }),
+        ])
+      } else {
+        await prisma.$transaction([
+          prisma.userBranch.deleteMany({ where: { userId } }),
+          prisma.userBranch.createMany({
+            data: validated.data.branchIds.map(branchId => ({
+              userId,
+              branchId,
+            })),
+          }),
+        ])
+      }
+    }
   } catch (error) {
     if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
       return handleAuthError(error)

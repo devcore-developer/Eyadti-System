@@ -51,6 +51,7 @@ enum AttachmentCategory {
   CT_SCAN
   PRESCRIPTION
   MEDICAL_REPORT
+  THREE_D_MODEL
   OTHER
 }
 

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { deleteAttachment } from "@/lib/actions/attachments"
 import { getCategoryLabel } from "@/lib/utils/attachments"
 import { Button } from "@/components/ui/button"
-import { FileText, Image, Download, Trash2, Loader2 } from "lucide-react"
+import { FileText, Box, Download, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 type AttachmentRow = {
@@ -43,11 +43,16 @@ function formatDate(date: Date | string): string {
   }
 }
 
+function isStlFile(fileName: string): boolean {
+  return fileName.split(".").pop()?.toLowerCase() === "stl"
+}
+
 const categoryColors: Record<string, string> = {
   LAB_RESULT: "bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-400",
   XRAY: "bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-950/30 dark:text-purple-400",
   MRI: "bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/30 dark:text-violet-400",
   CT_SCAN: "bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-950/30 dark:text-indigo-400",
+  THREE_D_MODEL: "bg-violet-100 text-violet-800 ring-violet-500/20 dark:bg-violet-950/40 dark:text-violet-300",
   PRESCRIPTION: "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400",
   MEDICAL_REPORT: "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400",
   OTHER: "bg-gray-50 text-gray-700 ring-gray-600/20 dark:bg-gray-950/30 dark:text-gray-400",
@@ -56,6 +61,7 @@ const categoryColors: Record<string, string> = {
 export function AttachmentCard({ attachment, canDelete }: Props) {
   const [isPending, startTransition] = useTransition()
   const isImage = attachment.fileType.startsWith("image/")
+  const isStl = isStlFile(attachment.fileName)
 
   function handleDelete() {
     startTransition(async () => {
@@ -84,6 +90,12 @@ export function AttachmentCard({ attachment, canDelete }: Props) {
                 />
               </div>
             </a>
+          ) : isStl ? (
+            <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" download>
+              <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-950/30">
+                <Box className="h-8 w-8 text-violet-500" />
+              </div>
+            </a>
           ) : (
             <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer">
               <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/30">
@@ -101,12 +113,14 @@ export function AttachmentCard({ attachment, canDelete }: Props) {
                 href={attachment.fileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                download={isStl}
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate block"
               >
                 {attachment.fileName}
               </a>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {formatFileSize(attachment.fileSize)} • Uploaded by {attachment.uploadedBy.name}
+                {isStl && <span className="text-violet-500 font-medium"> • 3D Model</span>}
               </p>
             </div>
           </div>

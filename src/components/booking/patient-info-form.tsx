@@ -1,12 +1,81 @@
 "use client"
 
-import { useState } from "react"
-import { User, Phone, Mail, FileText, Loader2 } from "lucide-react"
+import { useState, useRef } from "react"
+import { User, Phone, Mail, FileText, Loader2, Check, AlertCircle, CalendarDays } from "lucide-react"
 
 interface PatientInfoFormProps {
   onSubmit: (data: any) => Promise<void>
   submitting: boolean
-  onBack?: () => void
+}
+
+function FloatingField({
+  label,
+  name,
+  type = "text",
+  icon: Icon,
+  required = false,
+  value,
+  onChange,
+  error,
+}: {
+  label: string
+  name: string
+  type?: string
+  icon: React.ElementType
+  required?: boolean
+  value: string
+  onChange: (name: string, value: string) => void
+  error?: string
+}) {
+  const [focused, setFocused] = useState(false)
+  const isActive = focused || value.length > 0
+  const isValid = value.length > 0 && !error
+  const hasError = error && value.length > 0
+
+  return (
+    <div className="relative">
+      <Icon
+        className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200 z-10 ${
+          hasError ? "text-red-500" : isActive ? "text-blue-500" : "text-slate-400"
+        }`}
+      />
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={(e) => onChange(name, e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        className={`w-full pl-12 pr-11 pt-6 pb-2 bg-slate-50 border-2 rounded-[18px] text-slate-900 text-[15px] transition-all duration-200 outline-none appearance-none ${
+          hasError
+            ? "border-red-400 shadow-[0_0_0_4px_rgba(239,68,68,.08)]"
+            : isValid
+            ? "border-emerald-400 shadow-[0_0_0_4px_rgba(34,197,94,.08)]"
+            : isActive
+            ? "border-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,.1)] bg-white"
+            : "border-gray-200 hover:border-gray-300"
+        }`}
+      />
+      <label
+        className={`absolute pointer-events-none transition-all duration-200 font-medium ${
+          Icon ? "left-12" : "left-4"
+        } ${
+          isActive
+            ? "top-2.5 text-[11px] " + (hasError ? "text-red-500" : isValid ? "text-emerald-600" : "text-blue-500")
+            : "top-1/2 -translate-y-1/2 text-sm text-slate-400"
+        }`}
+      >
+        {label}
+      </label>
+      {/* Validation icon */}
+      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+        {isValid && <Check className="w-4.5 h-4.5 text-emerald-500" strokeWidth={2.5} />}
+        {hasError && <AlertCircle className="w-4.5 h-4.5 text-red-500" />}
+      </div>
+      {hasError && <p className="text-xs text-red-500 mt-1.5 ml-1 font-medium">{error}</p>}
+    </div>
+  )
 }
 
 export function PatientInfoForm({ onSubmit, submitting }: PatientInfoFormProps) {
@@ -15,132 +84,100 @@ export function PatientInfoForm({ onSubmit, submitting }: PatientInfoFormProps) 
     phone: "",
     email: "",
     gender: "MALE",
-    notes: ""
+    notes: "",
   })
-  const [error, setError] = useState("")
-  const [focused, setFocused] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [notesFocused, setNotesFocused] = useState(false)
+
+  const handleChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
-    
-    if (!formData.fullName || !formData.phone) {
-      setError("Name and Phone are required")
-      return
-    }
+    const newErrors: Record<string, string> = {}
+    if (!formData.fullName.trim()) newErrors.fullName = "Full name is required"
+    if (!formData.phone.trim()) newErrors.phone = "Phone number is required"
+    else if (!/^[\d\s+()-]{7,}$/.test(formData.phone)) newErrors.phone = "Enter a valid phone number"
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Enter a valid email"
+
+    setErrors(newErrors)
+    if (Object.keys(newErrors).length > 0) return
 
     await onSubmit(formData)
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <User className="w-5 h-5 text-teal-600" />
-          Your Details
-        </h3>
-        
-        {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4 flex items-center gap-2"><span>⚠️</span> {error}</div>}
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="space-y-4">
+        <FloatingField label="Full Name *" name="fullName" icon={User} required value={formData.fullName} onChange={handleChange} error={errors.fullName} />
+        <FloatingField label="Phone Number *" name="phone" type="tel" icon={Phone} required value={formData.phone} onChange={handleChange} error={errors.phone} />
+        <FloatingField label="Email (Optional)" name="email" type="email" icon={Mail} value={formData.email} onChange={handleChange} error={errors.email} />
+      </div>
 
-        {/* Name Input */}
-        <div className="relative mb-4 group">
-          <User className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${focused === 'name' ? 'text-teal-500' : 'text-gray-400'}`} />
-          <input
-            type="text"
-            name="fullName"
-            placeholder="Full Name *"
-            required
-            value={formData.fullName}
-            onChange={handleChange}
-            onFocus={() => setFocused('name')}
-            onBlur={() => setFocused(null)}
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:ring-0 focus:bg-white transition-all duration-200 outline-none ${focused === 'name' ? 'border-teal-500 shadow-lg shadow-teal-500/10' : 'border-transparent focus:border-gray-200'}`}
-          />
-        </div>
-
-        {/* Phone Input */}
-        <div className="relative mb-4 group">
-          <Phone className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${focused === 'phone' ? 'text-teal-500' : 'text-gray-400'}`} />
-          <input
-            type="tel"
-            name="phone"
-            placeholder="Phone Number *"
-            required
-            value={formData.phone}
-            onChange={handleChange}
-            onFocus={() => setFocused('phone')}
-            onBlur={() => setFocused(null)}
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:ring-0 focus:bg-white transition-all duration-200 outline-none ${focused === 'phone' ? 'border-teal-500 shadow-lg shadow-teal-500/10' : 'border-transparent focus:border-gray-200'}`}
-          />
-        </div>
-
-        {/* Email Input */}
-        <div className="relative mb-4 group">
-          <Mail className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${focused === 'email' ? 'text-teal-500' : 'text-gray-400'}`} />
-          <input
-            type="email"
-            name="email"
-            placeholder="Email (Optional)"
-            value={formData.email}
-            onChange={handleChange}
-            onFocus={() => setFocused('email')}
-            onBlur={() => setFocused(null)}
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:ring-0 focus:bg-white transition-all duration-200 outline-none ${focused === 'email' ? 'border-teal-500 shadow-lg shadow-teal-500/10' : 'border-transparent focus:border-gray-200'}`}
-          />
-        </div>
-
-        {/* Gender Select */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-           <button
-            type="button"
-            onClick={() => setFormData(prev => ({ ...prev, gender: "MALE" }))}
-            className={`py-3 rounded-xl border-2 font-medium text-sm transition-all flex items-center justify-center gap-2 ${formData.gender === "MALE" ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100'}`}
-          >
-            <span>♂</span> Male
-          </button>
-           <button
-            type="button"
-            onClick={() => setFormData(prev => ({ ...prev, gender: "FEMALE" }))}
-            className={`py-3 rounded-xl border-2 font-medium text-sm transition-all flex items-center justify-center gap-2 ${formData.gender === "FEMALE" ? 'bg-pink-50 border-pink-500 text-pink-700' : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100'}`}
-          >
-            <span>♀</span> Female
-          </button>
-        </div>
-
-        {/* Notes Textarea */}
-        <div className="relative group">
-          <FileText className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${focused === 'notes' ? 'text-teal-500' : 'text-gray-400'}`} />
-          <textarea
-            name="notes"
-            placeholder="Reason for visit (Optional)"
-            rows={2}
-            value={formData.notes}
-            onChange={handleChange}
-            onFocus={() => setFocused('notes')}
-            onBlur={() => setFocused(null)}
-            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl focus:ring-0 focus:bg-white transition-all duration-200 outline-none resize-none ${focused === 'notes' ? 'border-teal-500 shadow-lg shadow-teal-500/10' : 'border-transparent focus:border-gray-200'}`}
-          />
+      {/* Gender */}
+      <div>
+        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2.5 ml-1">Gender</label>
+        <div className="grid grid-cols-2 gap-3">
+          {(["MALE", "FEMALE"] as const).map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setFormData((prev) => ({ ...prev, gender: g }))}
+              className={`py-3.5 rounded-2xl border-2 font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+                formData.gender === g
+                  ? g === "MALE"
+                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm shadow-blue-500/10"
+                    : "bg-pink-50 border-pink-500 text-pink-700 shadow-sm shadow-pink-500/10"
+                  : "bg-slate-50 border-gray-200 text-slate-500 hover:bg-slate-100 hover:border-gray-300"
+              }`}
+            >
+              <span>{g === "MALE" ? "♂" : "♀"}</span> {g === "MALE" ? "Male" : "Female"}
+            </button>
+          ))}
         </div>
       </div>
 
+      {/* Notes */}
+      <div className="relative">
+        <FileText
+          className={`absolute left-4 top-3.5 w-5 h-5 transition-colors duration-200 z-10 ${
+            notesFocused ? "text-blue-500" : "text-slate-400"
+          }`}
+        />
+        <textarea
+          name="notes"
+          value={formData.notes}
+          onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+          onFocus={() => setNotesFocused(true)}
+          onBlur={() => setNotesFocused(false)}
+          rows={3}
+          placeholder="Reason for visit (Optional)"
+          className={`w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 rounded-[18px] text-slate-900 text-[15px] transition-all duration-200 outline-none resize-none ${
+            notesFocused
+              ? "border-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,.1)] bg-white"
+              : "border-gray-200 hover:border-gray-300"
+          }`}
+        />
+      </div>
+
+      {/* Submit */}
       <button
         type="submit"
         disabled={submitting}
-        className="w-full py-4 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-2xl hover:shadow-lg hover:shadow-teal-500/30 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:transform-none font-bold text-lg flex items-center justify-center gap-2"
+        className="w-full py-4 rounded-2xl text-white font-bold text-[16px] flex items-center justify-center gap-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+        style={{ background: "linear-gradient(135deg, #3B82F6, #06B6D4)" }}
       >
         {submitting ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
             Booking...
           </>
         ) : (
           <>
             Confirm Appointment
-            <span className="bg-white/20 p-1 rounded-full text-xs">✓</span>
+            <span className="bg-white/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">✓</span>
           </>
         )}
       </button>

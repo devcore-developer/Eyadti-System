@@ -63,32 +63,67 @@ export async function getAvailableDoctors(clinicId: string) {
 }
 
 // ── Get Available Time Slots ─────────────────────────
-export async function getAvailableTimeSlots(doctorId: string, clinicId: string, dateStr: string) {
+// ── Get Available Time Slots ─────────────────────────
+export async function getAvailableTimeSlots(
+  doctorId: string,
+  clinicId: string,
+  dateStr: string,
+  branchId?: string | null
+) {
   const date = new Date(dateStr + "T00:00:00")
   const dayOfWeek = date.getDay()
 
   const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
   const duration = settings?.defaultAppointmentDuration || 30
 
-  const doctorSchedule = await prisma.doctorSchedule.findFirst({
-    where: { doctorId, dayOfWeek },
-  })
+  // ✅ FIX #1 & #2: ابحث عن schedule الفرع المحدد أولاً، ثم fallback لـ null
+  let doctorSchedule = null
+
+  if (branchId) {
+    doctorSchedule = await prisma.doctorSchedule.findFirst({
+      where: { doctorId, branchId, dayOfWeek },
+    })
+  }
+
+  // Fallback: ابحث عن schedule عام (بدون فرع)
+  if (!doctorSchedule) {
+    doctorSchedule = await prisma.doctorSchedule.findFirst({
+      where: { doctorId, branchId: null, dayOfWeek },
+    })
+  }
+
+  // Fallback أخير: أي schedule للدكتور في اليوم ده
+  if (!doctorSchedule) {
+    doctorSchedule = await prisma.doctorSchedule.findFirst({
+      where: { doctorId, dayOfWeek },
+    })
+  }
 
   if (!doctorSchedule || !doctorSchedule.isAvailable) return []
 
+  // ✅ FIX #3: لو مفيش clinic working hours، استخدم مواعيد الدكتور مباشرة
   const clinicHours = await prisma.clinicWorkingHours.findFirst({
     where: { clinicId, dayOfWeek },
   })
 
-  if (!clinicHours || clinicHours.isClosed) return []
+  let effectiveStart: string
+  let effectiveEnd: string
 
-  const effectiveStart = doctorSchedule.startTime > clinicHours.startTime 
-    ? doctorSchedule.startTime 
-    : clinicHours.startTime
-    
-  const effectiveEnd = doctorSchedule.endTime < clinicHours.endTime 
-    ? doctorSchedule.endTime 
-    : clinicHours.endTime
+  if (clinicHours && !clinicHours.isClosed) {
+    effectiveStart = doctorSchedule.startTime > clinicHours.startTime
+      ? doctorSchedule.startTime
+      : clinicHours.startTime
+
+    effectiveEnd = doctorSchedule.endTime < clinicHours.endTime
+      ? doctorSchedule.endTime
+      : clinicHours.endTime
+  } else if (clinicHours?.isClosed) {
+    return []
+  } else {
+    // مفيش clinic working hours — استخدم مواعيد الدكتور
+    effectiveStart = doctorSchedule.startTime
+    effectiveEnd = doctorSchedule.endTime
+  }
 
   if (effectiveStart >= effectiveEnd) return []
 
@@ -366,4 +401,77 @@ export async function getDoctorsByBranch(clinicId: string, branchId: string) {
     ...doc,
     workingDays: doc.schedules.map(s => dayNames[s.dayOfWeek])
   }))
+}
+
+// ── Check In Booking ─────────────────────────────────
+export async function checkInBooking(bookingId: string) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+      patient: true,
+      doctor: true,
+      appointment: { include: { visit: { select: { id: true } } } },
+      },
+    })
+
+    if (!booking) return { success: false, error: "Booking not found" }
+    if (booking.status === "CANCELLED") return { success: false, error: "Cancelled booking cannot be checked in" }
+    if (booking.status === "COMPLETED") return { success: false, error: "Already checked in" }
+    if (booking.appointment?.visit) return { success: false, error: "Visit already exists" }
+
+    const now = new Date()
+
+    // Create visit
+    await prisma.visit.create({
+      data: {
+        clinicId: booking.clinicId,
+        branchId: booking.branchId,
+        patientId: booking.patientId,
+        doctorId: booking.doctorId,
+        visitDate: now,
+        appointmentId: booking.appointmentId,
+        status: "WAITING",
+        checkedInAt: now,
+        notes: "Checked in from Online Booking",
+      },
+    })
+
+    // Update booking
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: "COMPLETED" },
+    })
+
+    // Update appointment
+    if (booking.appointmentId) {
+      await prisma.appointment.update({
+        where: { id: booking.appointmentId },
+        data: { status: "CONFIRMED", arrivedAt: now },
+      })
+    }
+
+    revalidatePath("/appointments/online")
+    revalidatePath("/waiting-room")
+
+    return { success: true }
+  } catch (error) {
+    console.error("Check-in error:", error)
+    return { success: false, error: "Failed to check in patient" }
+  }
+}
+
+// ── Update Booking Notes ─────────────────────────────
+export async function updateBookingNotes(appointmentId: string, notes: string) {
+  try {
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { notes },
+    })
+    revalidatePath("/appointments/online")
+    return { success: true }
+  } catch (error) {
+    console.error(error)
+    return { success: false, error: "Failed to save notes" }
+  }
 }
