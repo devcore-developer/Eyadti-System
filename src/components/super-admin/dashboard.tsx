@@ -135,6 +135,7 @@ export function SuperAdminDashboard({
 }) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false)
   const [currentTime, setCurrentTime] = useState("")
   const [stats] = useState(initialStats)
   const [clinics] = useState(initialClinics)
@@ -262,8 +263,7 @@ export function SuperAdminDashboard({
     { icon: XCircle, label: "Suspend Clinic", href: "/super-admin/clinics", color: "text-[#EF6B6B]", bg: "bg-[#EF6B6B]/10", hoverBg: "hover:bg-[#EF6B6B]/20" },
     { icon: CheckCircle2, label: "Activate Clinic", href: "/super-admin/clinics", color: "text-[#5BC0BE]", bg: "bg-[#5BC0BE]/10", hoverBg: "hover:bg-[#5BC0BE]/20" },
     { icon: SlidersHorizontal, label: "Manage Plans", href: "/admin/plans", color: "text-[#A78BFA]", bg: "bg-[#A78BFA]/10", hoverBg: "hover:bg-[#A78BFA]/20" },
-    { icon: Megaphone, label: "Announcement", href: "#", color: "text-[#F4B860]", bg: "bg-[#F4B860]/10", hoverBg: "hover:bg-[#F4B860]/20" },
-    { icon: HeadphonesIcon, label: "Support Mode", href: "#", color: "text-[#6B9CFF]", bg: "bg-[#6B9CFF]/10", hoverBg: "hover:bg-[#6B9CFF]/20" },
+    { icon: Megaphone, label: "Announcement", href: "#", color: "text-[#F4B860]", bg: "bg-[#F4B860]/10", hoverBg: "hover:bg-[#F4B860]/20", onClick: () => setIsAnnouncementOpen(true) },    { icon: HeadphonesIcon, label: "Support Mode", href: "#", color: "text-[#6B9CFF]", bg: "bg-[#6B9CFF]/10", hoverBg: "hover:bg-[#6B9CFF]/20" },
     { icon: BarChart3, label: "Revenue Report", href: "/super-admin/billing", color: "text-[#6BCB77]", bg: "bg-[#6BCB77]/10", hoverBg: "hover:bg-[#6BCB77]/20" },
     { icon: FileDown, label: "Export Reports", href: "#", color: "text-[#5BC0BE]", bg: "bg-[#5BC0BE]/10", hoverBg: "hover:bg-[#5BC0BE]/20" },
     { icon: Wrench, label: "System Settings", href: "/super-admin/features", color: "text-muted-foreground", bg: "bg-muted", hoverBg: "hover:bg-muted/80" },
@@ -519,14 +519,18 @@ export function SuperAdminDashboard({
         )}
 
         {/* ── ANNOUNCEMENTS ──────────────────────────────────────── */}
-        <AnnouncementsCenter />
+                <AnnouncementsCenter 
+          isDialogOpen={isAnnouncementOpen} 
+          onDialogChange={setIsAnnouncementOpen} 
+          initialAnnouncements={initialAnnouncements} 
+        />
 
         {/* ── QUICK ACTIONS ──────────────────────────────────────── */}
         <div className="space-y-4">
           <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#F4B860]" /><h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Quick Actions</h3></div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {quickActions.map((action) => (
-              <button key={action.label} className="premium-card p-4 flex flex-col items-center gap-3 text-center transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-none group" onClick={() => { if (action.href !== "#") router.push(action.href) }}>
+              <button key={action.label} className="premium-card p-4 flex flex-col items-center gap-3 text-center transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-none group" onClick={() => { if (action.onClick) { action.onClick() } else if (action.href && action.href !== "#") { router.push(action.href) } }}>
                 <div className={cn("p-3 rounded-xl transition-colors", action.bg, action.hoverBg)}><action.icon className={cn("h-5 w-5", action.color)} /></div>
                 <span className="text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors">{action.label}</span>
               </button>

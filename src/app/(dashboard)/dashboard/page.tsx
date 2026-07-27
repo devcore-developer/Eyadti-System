@@ -29,6 +29,7 @@ import { Suspense } from "react"
 import { MobileLayout, MobileBottomNav, MobileFab } from "./mobile-layout"
 import { MobileDashboard } from "./mobile-dashboard"
 import { prisma } from "@/lib/db"
+import { AnnouncementBanner } from "@/components/dashboard/announcement-banner"
 
 export const dynamic = "force-dynamic"
 
@@ -125,6 +126,9 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
 
   return (
     <>
+      {/* ━━━ PLATFORM ANNOUNCEMENTS BANNER ━━━ */}
+      <AnnouncementBanner />
+
       {/* ═══════════════════════════════════════════════════
           📱 MOBILE LAYOUT
          ═══════════════════════════════════════════════════ */}

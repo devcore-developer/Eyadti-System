@@ -5,7 +5,7 @@
 import { BillingOverview as BillingOverviewType, PlanType, BillingCycle } from "@/types/subscription";
 import { SubscriptionBadge } from "./subscription-badge";
 import { UsageProgress } from "./usage-progress";
-import { PricingTable } from "./pricing-table";
+import { PricingTable } from "@/components/invoices/pricing-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {

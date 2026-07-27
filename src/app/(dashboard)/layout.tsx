@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth"
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { MobileNav } from "@/components/dashboard/mobile-nav"
 import { NotificationBell } from "@/components/notifications/notification-bell"
@@ -37,6 +38,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
         select: { status: true, trialEndsAt: true, endDate: true, currentPeriodEnd: true } 
       }) 
     : null) : null
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🛡️ SUSPENSION GUARD (Phase 3 - Step 5)
+  // إذا كانت العيادة موقوفة، نمنع الوصول لأي صفحة ونوجهه فوراً
+  // ملاحظة: هذا لا ينطبق على السوبر أدمن أو وضع الدعم الفني
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (!isSupportMode && !isSuperAdmin && subscription?.status === "SUSPENDED") {
+    redirect("/suspended")
+  }
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   const branches = session?.user?.clinicId 
     ? await prisma.branch.findMany({ 
