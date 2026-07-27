@@ -106,6 +106,14 @@ enum CodeType {
   SUBSCRIPTION
 }
 
+
+enum AnnouncementType {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+
 // ── Multi-Branch Support ─────────────────────────────
 
 model Branch {
@@ -207,7 +215,7 @@ model User {
 
   accounts Account[]
   sessions Session[]
-
+  announcements          Announcement[]       @relation("AnnouncementCreator")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -241,6 +249,7 @@ model Clinic {
   branches      Branch[]
   galleryItems GalleryItem[]
   usedActivationCodes ActivationCode[]
+  operationalStatus String @default("ACTIVE") // ACTIVE, SUSPENDED, ARCHIVED
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -988,4 +997,52 @@ enum VisitStatus {
   PROCEDURE
   BILLING
   COMPLETED
+}
+
+// ── Announcements & Platform Broadcaster ───────────
+
+model Announcement {
+  id                   String            @id @default(cuid())
+  title                String
+  message              String
+  type                 AnnouncementType @default(INFO)
+  
+  // Targeting
+  targetAll            Boolean           @default(false)
+  targetClinicIds     String[]          @default([])
+  targetPlanIds        String[]          @default([])
+  
+  // Scheduling
+  startsAt             DateTime          @default(now())
+  endsAt               DateTime?
+  
+  // Configuration
+  isDismissible        Boolean           @default(true)
+  requireConfirmation  Boolean           @default(false)
+  
+  // Creator
+  createdByUserId      String?
+  createdByUser        User?             @relation("AnnouncementCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  reads                AnnouncementRead[]
+
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id             String       @id @default(cuid())
+  announcementId String
+  clinicId       String
+  userId         String
+  readAt         DateTime     @default(now())
+
+  announcement  Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  
+  @@unique([announcementId, clinicId, userId])
+  @@index([clinicId])
+  @@index([announcementId])
+  @@map("announcement_reads")
 }

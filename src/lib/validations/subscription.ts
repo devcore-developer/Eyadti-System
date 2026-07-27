@@ -107,3 +107,27 @@ export type UpdateSubscriptionInput = z.infer<typeof updateSubscriptionSchema>;
 export type CancelSubscriptionInput = z.infer<typeof cancelSubscriptionSchema>;
 export type UsageCheckInput = z.infer<typeof usageCheckSchema>;
 export type FeatureCheckInput = z.infer<typeof featureCheckSchema>;
+
+// ─── Clinic Lifecycle Schemas ──────────────────────────────────
+
+export const renewSubscriptionSchema = z.object({
+  clinicId: z.string().cuid(),
+  daysToAdd: z.number().int().min(1).max(365),
+});
+
+export const suspendClinicSchema = z.object({
+  clinicId: z.string().cuid(),
+  reason: z.string().max(500).optional(),
+});
+
+export const activateClinicSchema = z.object({
+  clinicId: z.string().cuid(),
+});
+
+export const archiveClinicSchema = z.object({
+  clinicId: z.string().cuid(),
+});
+
+export const permanentDeleteClinicSchema = z.object({
+  clinicId: z.string().cuid(),
+});

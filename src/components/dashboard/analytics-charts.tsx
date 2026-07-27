@@ -42,7 +42,7 @@ export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
     return (
       <div className="grid grid-cols-1 gap-6 md:gap-8">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="p-6 md:p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-muted/30 animate-pulse h-[350px]" />
+          <div key={i} className="p-6 md:p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-muted/30 animate-pulse h-[450px]" />
         ))}
       </div>
     )
@@ -69,9 +69,9 @@ export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
           </div>
           
           {/* Chart Container with Fixed Height */}
-          <div className="h-[300px] w-full">
+          <div className="h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
+              <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 35 }}>
                 <defs>
                   <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={chart.color} stopOpacity={0.2}/>

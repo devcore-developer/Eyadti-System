@@ -9,7 +9,8 @@ import { SupportModeBanner } from "@/components/super-admin/support-mode-banner"
 import { prisma } from "@/lib/db"
 import { getSelectedBranch } from "@/lib/actions/branch-context"
 import { SubscriptionGuard } from "@/components/billing/subscription-guard"
-import { cn } from "@/lib/utils" // ✅ إضافة cn
+import { cn } from "@/lib/utils"
+import { getSupportModeClinicData } from "@/lib/actions/super-admin"
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const isSupportMode = session?.user?.role === 'SUPER_ADMIN' && !!supportClinicId
 
   const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+
+  // ✅ جلب بيانات العيادة لبانر وضع الدعم المطور
+  let supportData = null
+  if (isSupportMode && supportClinicId) {
+    supportData = await getSupportModeClinicData(supportClinicId)
+  }
 
   // الاشتراك هيتجلب تلقائياً بتاع العيادة المستهدفة لو في Support Mode
   const subscription = !isSuperAdmin || isSupportMode ? (session?.user?.clinicId 
@@ -51,8 +58,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <>
-      {/* ✅ Support Mode Banner (بره الـ Flex عشان يغطي الصفحة كلها من غير ما يأكل مساحة) */}
-      {isSupportMode && <SupportModeBanner clinicId={supportClinicId} />}
+      {/* ✅ Support Mode Banner المطور مع الـ Diagnostics */}
+      {isSupportMode && supportData && (
+        <SupportModeBanner 
+          clinicId={supportClinicId}
+          clinicName={supportData.name}
+          ownerName={supportData.owner?.name}
+          planName={supportData.subscription?.plan?.name}
+          branchCount={supportData._count.branches}
+          doctorCount={supportData._count.users}
+          patientCount={supportData._count.patients}
+          storageUsed={supportData.diagnostics.storageUsed}
+          lastActivity={supportData.diagnostics.lastActivity?.createdAt}
+        />
+      )}
 
       {/* ✅ تم تعديل الـ div الأساسي عشان ياخد padding-top لو في Support Mode */}
       <div className={cn(
@@ -83,7 +102,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   userName={session.user.name || "User"}
                   userEmail={session.user.email || ""}
                   userRole={session.user.role || ""}
-                  clinicName={isSupportMode ? `${clinic?.name} (Support)` : (clinic?.name || "Clinic")}
+                  clinicName={isSupportMode ? `${supportData?.name || clinic?.name} (Support)` : (clinic?.name || "Clinic")}
                   branchName={selectedBranch?.name}
                 />
               )}
@@ -94,7 +113,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <header className="hidden lg:flex print:hidden h-16 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white/70 dark:bg-[#17212F]/70 backdrop-blur-xl px-6 items-center justify-between shadow-[0_2px_20px_rgba(100,116,139,0.04)] z-10">
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-xs font-bold uppercase tracking-[0.2em] bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] bg-clip-text text-transparent truncate">
-                {isSupportMode ? `👁️ ${clinic?.name} (Support Mode)` : (clinic?.name || "Nexora Clinic")}
+                {isSupportMode ? `👁️ ${supportData?.name || clinic?.name} (Support Mode)` : (clinic?.name || "Nexora Clinic")}
               </span>
             </div>
             <div className="flex items-center gap-4 shrink-0">
@@ -110,7 +129,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   userName={session.user.name || "User"}
                   userEmail={session.user.email || ""}
                   userRole={session.user.role || ""}
-                  clinicName={isSupportMode ? `${clinic?.name} (Support)` : (clinic?.name || "Clinic")}
+                  clinicName={isSupportMode ? `${supportData?.name || clinic?.name} (Support)` : (clinic?.name || "Clinic")}
                   branchName={selectedBranch?.name}
                 />
               )}
@@ -125,7 +144,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 children
               ) : (
                 <SubscriptionGuard 
-                  status={subscription?.status || null}
+                  subscriptionStatus={subscription?.status || null}
+                  operationalStatus="ACTIVE"
                   trialEndsAt={subscription?.trialEndsAt || null}
                   endDate={subscription?.currentPeriodEnd || null}
                 >

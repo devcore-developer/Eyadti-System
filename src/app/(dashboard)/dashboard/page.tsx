@@ -18,7 +18,6 @@ import { UpcomingAppointments } from "@/components/dashboard/upcoming-appointmen
 import { TopDoctors } from "@/components/dashboard/top-doctors"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { CardSkeleton, ChartSkeleton } from "@/components/ui/premium-skeletons"
-import { MobileLayout, MobileBottomNav, MobileFab } from "./mobile-layout" 
 import {
   Users,
   CalendarCheck,
@@ -27,6 +26,9 @@ import {
   Menu, Bell, CalendarDays, Clock, UserPlus, FileText, Pill
 } from "lucide-react"
 import { Suspense } from "react"
+import { MobileLayout, MobileBottomNav, MobileFab } from "./mobile-layout"
+import { MobileDashboard } from "./mobile-dashboard"
+import { prisma } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
@@ -75,11 +77,12 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
   if (!session?.user?.clinicId) redirect("/login")
   const clinicId = session.user.clinicId
 
-  const [stats, chartData, recentActivity, doctorAnalytics] = await Promise.all([
+  const [stats, chartData, recentActivity, doctorAnalytics, clinic] = await Promise.all([
     getDashboardStats(clinicId, period),
     getChartData(clinicId),
     getRecentActivity(clinicId),
     getDoctorAnalytics(clinicId),
+    prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } }),
   ])
 
   const doctorName = session.user.name || "Doctor"
@@ -106,7 +109,7 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
   const upcomingComponent = <UpcomingAppointments appointments={recentActivity.appointments.slice(0, 3)} />
   
   const chartComponent = (
-    <div className="h-[220px] w-full overflow-hidden rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] p-4 md:p-6">
+    <div className="w-full rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] p-4 md:p-6">
       <AnalyticsCharts data={chartData} />
     </div>
   )
@@ -122,21 +125,23 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
 
   return (
     <>
-      {/* ═══════════════════════════════════════════════════════════════
-          📱 MOBILE LAYOUT (Exact Order, Exact Components, Only Spacing)
-         ═══════════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════
+          📱 MOBILE LAYOUT
+         ═══════════════════════════════════════════════════ */}
       <div className="block md:hidden">
         <MobileLayout>
-          {heroComponent}
-          {quickActionsComponent}
-          {statsComponent}
-          {filterComponent}
-          {upcomingComponent}
-          {chartComponent}
-          {recentListsComponent}
+          <MobileDashboard
+            doctorName={doctorName}
+            clinicName={clinic?.name || "My Clinic"}
+            todayAppointments={stats.todayAppointments}
+            pendingInvoices={stats.unpaidInvoicesCount}
+            newPatients={stats.newPatients}
+            stats={stats}
+            chartData={chartData}
+            recentActivity={recentActivity}
+          />
         </MobileLayout>
 
-        {/* Mobile FAB (Positioned 20px above Nav) */}
         <MobileFab actions={[
           { label: "New Patient", href: "/patients/new", icon: <UserPlus className="h-5 w-5 text-gray-600" /> },
           { label: "Appointment", href: "/appointments/new", icon: <CalendarDays className="h-5 w-5 text-gray-600" /> },
@@ -144,26 +149,12 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
           { label: "Prescription", href: "#", icon: <Pill className="h-5 w-5 text-gray-600" /> },
         ]} />
 
-        {/* Mobile Bottom Nav (Keep exact existing structure/layout) */}
         <MobileBottomNav links={[
-          { label: "Home", href: "/dashboard", active: true, icon: <CalendarDays className="w-[26px] h-[26px]" /> },
-          { label: "Patients", href: "/patients", icon: <Users className="w-[26px] h-[26px]" /> },
-          { label: "Appts", href: "/appointments", icon: <CalendarDays className="w-[26px] h-[26px]" /> },
-          { label: "Queue", href: "/waiting-room", icon: <Clock className="w-[26px] h-[26px]" /> },
+          { label: "Home", href: "/dashboard", active: true, icon: <CalendarDays className="w-[24px] h-[24px]" /> },
+          { label: "Patients", href: "/patients", icon: <Users className="w-[24px] h-[24px]" /> },
+          { label: "Appts", href: "/appointments", icon: <CalendarDays className="w-[24px] h-[24px]" /> },
+          { label: "Queue", href: "/waiting-room", icon: <Clock className="w-[24px] h-[24px]" /> },
         ]} />
-
-        {/* Simple Mobile Top Bar (16px safe area, matching desktop structure) */}
-        <div className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4 bg-background/80 backdrop-blur-xl border-b border-border/50 safe-area-top">
-          <div className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-muted transition-colors">
-            <Menu className="w-6 h-6 text-foreground" />
-          </div>
-          <h1 className="font-bold text-[16px] text-foreground truncate max-w-[200px]">Dashboard</h1>
-          <div className="flex items-center gap-2">
-            <button className="relative h-10 w-10 flex items-center justify-center rounded-xl hover:bg-muted transition-colors">
-              <Bell className="w-6 h-6 text-foreground" />
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
@@ -181,7 +172,7 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
           {statsComponent}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
             <div className="lg:col-span-2 space-y-6 md:space-y-8">
-              <div className="h-[350px] w-full overflow-hidden rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] p-4 sm:p-6 md:p-8">
+              <div className="w-full rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] p-4 sm:p-6 md:p-8">
                 <AnalyticsCharts data={chartData} />
               </div>
             </div>

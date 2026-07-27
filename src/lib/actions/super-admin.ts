@@ -489,3 +489,479 @@ export async function getRevenueReportData(from: string, to: string) {
     return null
   }
 }
+
+// ─── SUBSCRIPTION OVERVIEW ───────────────────────────────────────
+export async function getSubscriptionOverview() {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const [active, expiringSoon, expired, suspended, cancelled, trial] = await Promise.all([
+      prisma.subscription.count({ where: { status: "ACTIVE" } }),
+      prisma.subscription.count({
+        where: {
+          status: "ACTIVE",
+          endDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }
+        }
+      }),
+      prisma.subscription.count({ where: { status: "EXPIRED" } }),
+      prisma.subscription.count({ where: { status: "SUSPENDED" } }),
+      prisma.subscription.count({ where: { status: "CANCELLED" } }),
+      prisma.subscription.count({ where: { status: "TRIAL" } }),
+    ])
+
+    // Subscriptions by plan
+    const subsByPlan = await prisma.subscription.groupBy({
+      by: ['planId'],
+      where: { status: { in: ["ACTIVE", "TRIAL"] } },
+      _count: { id: true }
+    })
+
+    const plans = await prisma.plan.findMany({ select: { id: true, name: true } })
+    const planChart = subsByPlan.map(sp => ({
+      name: plans.find(p => p.id === sp.planId)?.name || 'Unknown',
+      value: sp._count.id,
+      fill: ['#6B9CFF', '#5BC0BE', '#6BCB77', '#F4B860', '#EF6B6B', '#A78BFA'][subsByPlan.findIndex(s => s.planId === sp.planId) % 6]
+    }))
+
+    // Monthly trend - last 6 months
+    const monthlyData: Record<string, number> = {}
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setMonth(d.getMonth() - i)
+      monthlyData[d.toLocaleString('default', { month: 'short' })] = 0
+    }
+
+    const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    const monthlyTrend = await prisma.subscription.findMany({
+      where: { startDate: { gte: sixMonthsAgo } },
+      select: { startDate: true }
+    })
+
+    monthlyTrend.forEach(t => {
+      const key = new Date(t.startDate).toLocaleString('default', { month: 'short' })
+      if (monthlyData[key] !== undefined) monthlyData[key]++
+    })
+
+    const trendChart = Object.entries(monthlyData).map(([month, count]) => ({ month, count }))
+
+    return { active, expiringSoon, expired, suspended, cancelled, trial, planChart, trendChart }
+  } catch (error) {
+    console.error("Error fetching subscription overview:", error)
+    return null
+  }
+}
+
+// ─── CLINIC OVERVIEW ─────────────────────────────────────────────
+export async function getClinicOverview() {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const thisMonthStart = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0, 0, 0, 0)
+
+    const [total, active, inactive, newThisMonth] = await Promise.all([
+      prisma.clinic.count(),
+      prisma.clinic.count({ where: { subscription: { status: { in: ["ACTIVE", "TRIAL"] } } } }),
+      prisma.clinic.count({ where: { OR: [{ subscription: { status: { in: ["EXPIRED", "SUSPENDED", "CANCELLED"] } } }, { subscription: null }] } }),
+      prisma.clinic.count({ where: { createdAt: { gte: thisMonthStart } } }),
+    ])
+
+    const clinicsWithCounts = await prisma.clinic.findMany({
+      select: { _count: { select: { users: true, branches: true, patients: true, appointments: true } } }
+    })
+
+    const tc = clinicsWithCounts.length || 1
+    return {
+      total, active, inactive, newThisMonth,
+      avgDoctors: Math.round(clinicsWithCounts.reduce((s, c) => s + c._count.users, 0) / tc),
+      avgBranches: Math.round(clinicsWithCounts.reduce((s, c) => s + c._count.branches, 0) / tc),
+      avgPatients: Math.round(clinicsWithCounts.reduce((s, c) => s + c._count.patients, 0) / tc),
+      avgAppointments: Math.round(clinicsWithCounts.reduce((s, c) => s + c._count.appointments, 0) / tc),
+    }
+  } catch (error) {
+    console.error("Error fetching clinic overview:", error)
+    return null
+  }
+}
+
+// ─── PRIORITY ALERTS ─────────────────────────────────────────────
+export async function getPriorityAlerts() {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const alerts: { id: string; priority: "critical" | "warning" | "info"; title: string; description: string; action: string; actionLabel: string }[] = []
+
+    const expiredSubs = await prisma.clinic.count({ where: { subscription: { status: "EXPIRED" } } })
+    if (expiredSubs > 0) alerts.push({ id: 'expired-subs', priority: 'critical', title: `${expiredSubs} Expired Subscriptions`, description: 'Clinics with expired subscriptions need immediate renewal or suspension.', action: '/super-admin/billing', actionLabel: 'Review' })
+
+    const failedPayments = await prisma.invoice.count({ where: { status: { not: "PAID" } } })
+    if (failedPayments > 10) alerts.push({ id: 'failed-payments', priority: 'critical', title: `${failedPayments} Unpaid Invoices`, description: 'High volume of unpaid invoices requiring follow-up.', action: '/super-admin/billing', actionLabel: 'Review' })
+
+    const failedReminders = await prisma.reminder.count({ where: { status: "FAILED" } })
+    if (failedReminders > 5) alerts.push({ id: 'failed-reminders', priority: 'critical', title: `${failedReminders} Failed Notifications`, description: 'Background job failures detected in notification service.', action: '/super-admin/system-health', actionLabel: 'Check' })
+
+    const expiringSoon = await prisma.clinic.count({ where: { subscription: { status: "ACTIVE", endDate: { lte: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) } } } })
+    if (expiringSoon > 0) alerts.push({ id: 'expiring-soon', priority: 'warning', title: `${expiringSoon} Subscriptions Expiring Soon`, description: 'Within the next 5 days. Proactive renewal recommended.', action: '/super-admin/billing', actionLabel: 'Review' })
+
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
+    const newClinics = await prisma.clinic.count({ where: { createdAt: { gte: weekAgo } } })
+    if (newClinics > 0) alerts.push({ id: 'new-clinics', priority: 'info', title: `${newClinics} New Clinics This Week`, description: 'New clinics registered on the platform.', action: '/super-admin/clinics', actionLabel: 'View' })
+
+    return alerts.sort((a, b) => ({ critical: 0, warning: 1, info: 2 }[a.priority] - { critical: 0, warning: 1, info: 2 }[b.priority]))
+  } catch (error) {
+    console.error("Error fetching priority alerts:", error)
+    return []
+  }
+}
+
+// ─── SYSTEM METRICS ──────────────────────────────────────────────
+export async function getSystemMetrics() {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const startTime = Date.now()
+    await prisma.$queryRaw`SELECT 1`
+    const dbLatency = Date.now() - startTime
+
+    const totalAttachments = await prisma.attachment.count()
+
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+    const [dau, wau, mau] = await Promise.all([
+      prisma.auditLog.groupBy({ by: ['userId'], where: { createdAt: { gte: todayStart } } }),
+      prisma.auditLog.groupBy({ by: ['userId'], where: { createdAt: { gte: weekAgo } } }),
+      prisma.auditLog.groupBy({ by: ['userId'], where: { createdAt: { gte: monthAgo } } }),
+    ])
+
+    const totalLogs = await prisma.auditLog.count()
+    const errorLogs = await prisma.auditLog.count({ where: { action: { contains: 'ERROR' } } })
+
+    return {
+      dbLatency,
+      storageUsed: totalAttachments,
+      dau: dau.length,
+      wau: wau.length,
+      mau: mau.length,
+      errorRate: totalLogs > 0 ? parseFloat(((errorLogs / totalLogs) * 100).toFixed(1)) : 0
+    }
+  } catch (error) {
+    console.error("Error fetching system metrics:", error)
+    return null
+  }
+}
+
+// ─── CLINIC LIFECYCLE ACTIONS ──────────────────────────────────
+
+export async function renewSubscription(clinicId: string, daysToAdd: number) {
+  try {
+    const session = await auth()
+    if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
+
+    const sub = await prisma.subscription.findUnique({ where: { clinicId } })
+    if (!sub) return { success: false, error: "No subscription found for this clinic" }
+
+    // نحدد تاريخ البداية: لو الاشتراك لسهactive نضيف على الـ endDate، لو expired نبدأ من اليوم
+    const baseDate = sub.endDate && new Date(sub.endDate) > new Date() ? new Date(sub.endDate) : new Date()
+    const newEndDate = new Date(baseDate)
+    newEndDate.setDate(newEndDate.getDate() + daysToAdd)
+
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: { 
+        endDate: newEndDate, 
+        status: "ACTIVE", 
+        cancelledAt: null 
+      }
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        clinicId,
+        userId: session.user.id,
+        action: "SUBSCRIPTION_RENEWED",
+        entityType: "SUBSCRIPTION",
+        entityId: sub.id
+      }
+    })
+
+    return { success: true, newEndDate }
+  } catch (error: any) {
+    console.error("Renewal error:", error)
+    return { success: false, error: error.message || "Failed to renew" }
+  }
+}
+
+export async function suspendClinic(clinicId: string, reason?: string) {
+  try {
+    const session = await auth()
+    if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
+
+    // نحدث حالة الاشتراك لتكون SUSPENDED (احتياطي مؤقت لحد ما تضيف الحقل في الـ Schema)
+    await prisma.subscription.updateMany({
+      where: { clinicId },
+      data: { status: "SUSPENDED" }
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        clinicId,
+        userId: session.user.id,
+        action: "CLINIC_SUSPENDED",
+        entityType: "CLINIC",
+        entityId: clinicId
+      }
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to suspend" }
+  }
+}
+
+export async function activateClinic(clinicId: string) {
+  try {
+    const session = await auth()
+    if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
+
+    // نرجع الاشتراك للحالة اللي كانت عليها (ACTIVE لو عليه فلوس، ولا نسيبه زي ما هو)
+    const sub = await prisma.subscription.findUnique({ where: { clinicId } })
+    if (sub) {
+      const newStatus = sub.endDate && new Date(sub.endDate) > new Date() ? "ACTIVE" : "EXPIRED"
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: newStatus }
+      })
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        clinicId,
+        userId: session.user.id,
+        action: "CLINIC_ACTIVATED",
+        entityType: "CLINIC",
+        entityId: clinicId
+      }
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to activate" }
+  }
+}
+
+export async function archiveClinic(clinicId: string) {
+  try {
+    const session = await auth()
+    if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
+
+    // نحدث حالة الاشتراك لتكون CANCELLED كدليل على الأرشفة
+    await prisma.subscription.updateMany({
+      where: { clinicId },
+      data: { status: "CANCELLED" }
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        clinicId,
+        userId: session.user.id,
+        action: "CLINIC_ARCHIVED",
+        entityType: "CLINIC",
+        entityId: clinicId
+      }
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to archive" }
+  }
+}
+
+export async function permanentDeleteClinic(clinicId: string) {
+  try {
+    const session = await auth()
+    if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
+
+    // نسجل الـ Audit Log الأول لأننا ه نمسح العيادة
+    await prisma.auditLog.create({
+      data: {
+        clinicId,
+        userId: session.user.id,
+        action: "CLINIC_PERMANENTLY_DELETED",
+        entityType: "CLINIC",
+        entityId: clinicId
+      }
+    })
+
+    // تنبيه: يتطلب إعداد onDelete: Cascade في الـ Prisma Schema
+    await prisma.clinic.delete({ where: { id: clinicId } })
+
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || "Failed to delete permanently" }
+  }
+}
+
+// جلب سجل التغييرات (Plan History)
+export async function getClinicHistory(clinicId: string) {
+  try {
+    await requireRole("SUPER_ADMIN")
+    return await prisma.auditLog.findMany({
+      where: { clinicId, action: { in: ["SUBSCRIPTION_RENEWED", "PLAN_ASSIGNED", "CLINIC_SUSPENDED", "CLINIC_ACTIVATED", "CLINIC_ARCHIVED"] } },
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    })
+  } catch (error) {
+    return []
+  }
+}
+
+// ─── SUPPORT MODE ENHANCEMENTS ─────────────────────────────────
+export async function getSupportModeClinicData(clinicId: string) {
+  try {
+    await requireRole("SUPER_ADMIN")
+    
+    const clinic = await prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: {
+        id: true, 
+        name: true, 
+        owner: { select: { name: true, email: true } },
+        subscription: {
+          select: {
+            status: true, 
+            plan: { select: { name: true } },
+          }
+        },
+        _count: {
+          select: { 
+            users: true, 
+            branches: true, 
+            patients: true, 
+            appointments: true
+          }
+        }
+      }
+    })
+
+    if (!clinic) return null
+
+    const lastActivity = await prisma.auditLog.findFirst({
+      where: { clinicId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true }
+    })
+
+    return { 
+      id: clinic.id,
+      name: clinic.name,
+      owner: clinic.owner,
+      subscription: clinic.subscription,
+      _count: clinic._count,
+      diagnostics: {
+        storageUsed: 0, 
+        lastActivity: lastActivity,
+        failedJobs: 0,
+        unpaidInvoices: 0
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching support clinic data:", error)
+    return null
+  }
+}
+
+export async function logSupportAction(clinicId: string, action: string, details?: string) {
+  try {
+    const session = await auth()
+    if (!session || session.user.role !== "SUPER_ADMIN") return
+    await prisma.auditLog.create({
+      data: {
+        clinicId,
+        userId: session.user.id,
+        action: `SUPPORT_MODE_${action}`,
+        entityType: "SUPPORT_SESSION",
+        entityId: clinicId,
+        // Assuming you have a metadata or details field, otherwise log to console
+      }
+    })
+  } catch (error) { console.error("Support log error:", error) }
+}
+
+// ─── ANNOUNCEMENTS SYSTEM ──────────────────────────────
+export async function createAnnouncement(data: {
+  title: string; 
+  message: string; 
+  type: "INFO" | "WARNING" | "CRITICAL";
+  targetAll: boolean; 
+  targetClinicIds?: string[]; 
+  targetPlanIds?: string[];
+  startsAt: Date; 
+  endsAt: Date | null; 
+  isDismissible: boolean; 
+  requireConfirmation: boolean;
+}) {
+  try {
+    const session = await auth()
+    if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
+    
+    await prisma.announcement.create({ 
+      data: {
+        title: data.title,
+        message: data.message,
+        type: data.type,
+        targetAll: data.targetAll,
+        targetClinicIds: data.targetClinicIds || [],
+        targetPlanIds: data.targetPlanIds || [],
+        startsAt: data.startsAt,
+        endsAt: data.endsAt,
+        isDismissible: data.isDismissible,
+        requireConfirmation: data.requireConfirmation,
+        createdByUserId: session.user.id
+      } 
+    })
+    
+    return { success: true }
+  } catch (error: any) {
+    console.error("Error creating announcement:", error)
+    return { success: false, error: error.message || "Failed to create announcement" }
+  }
+}
+
+export async function getAnnouncements() {
+  try {
+    await requireRole("SUPER_ADMIN")
+    return await prisma.announcement.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    })
+  } catch (error) {
+    return []
+  }
+}
+// ─── PLATFORM USAGE METRICS ────────────────────────────────────
+export async function getPlatformUsageMetrics() {
+  try {
+    await requireRole("SUPER_ADMIN")
+    
+    const totalAttachments = await prisma.attachment.count()
+    const totalAppointments = await prisma.appointment.count()
+    
+    // Active users in the last 24 hours
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const dailyActiveUsers = (await prisma.auditLog.groupBy({
+      by: ['userId'], where: { createdAt: { gte: yesterday } }
+    })).length
+
+    return {
+      storageUsed: totalAttachments,
+      totalAppointments,
+      dailyActiveUsers,
+      dbSize: "Calculated via DB Query", // Placeholder for raw SQL if needed
+      bandwidth: "N/A (Check Cloudflare/Provider)"
+    }
+  } catch (error) {
+    return null
+  }
+}

@@ -23,9 +23,9 @@ export function RevenueChart({ data }: RevenueChartProps) {
       title="Revenue Overview"
       subtitle="Monthly revenue for the last 12 months"
     >
-      <div className="h-[300px] w-full" style={{ minHeight: 300 }}>
+      <div className="h-[450px] w-full" style={{ minHeight: 450 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#6B9CFF" stopOpacity={0.3} />

@@ -96,12 +96,30 @@ export async function getChartData(clinicId: string) {
 
     const monthPatients = patients.filter(pat => pat.createdAt >= monthStart && pat.createdAt <= monthEnd).length
 
-    months.push({
-      name: monthName,
-      revenue: monthRevenue,
-      appointments: monthAppointments,
-      patients: monthPatients,
-    })
+  months.push({
+    name: monthName,
+    revenue: monthRevenue,
+    appointments: monthAppointments || 0,
+    patients: monthPatients || 0,
+  })
+
+  // ✅ لو مفيش بيانات حقيقية، ارجع بيانات وهمية عشان الـ chart يتكرمل
+  if (months.every(m => m.revenue === 0 && m.appointments === 0 && m.patients === 0)) {
+    return [
+      { name: "Jan", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Feb", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Mar", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Apr", revenue: 0, appointments: 0, patients: 0 },
+      { name: "May", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Jun", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Jul", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Aug", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Sep", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Oct", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Nov", revenue: 0, appointments: 0, patients: 0 },
+      { name: "Dec", revenue: 0, appointments: 0, patients: 0 },
+    ]
+  }
   }
 
   return months
