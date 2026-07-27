@@ -18,12 +18,21 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🛡️ AUTHENTICATION GUARD (منع غير المسجلين من الدخول)
+  // ملاحظة: السوبر أدمن لا يملك clinicId لذا نتحقق من الـ user فقط
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (!session?.user) {
+    redirect("/login")
+  }
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
   // التحقق من وضع الدعم
   const cookieStore = await cookies()
   const supportClinicId = cookieStore.get('support_clinic_id')?.value
-  const isSupportMode = session?.user?.role === 'SUPER_ADMIN' && !!supportClinicId
+  const isSupportMode = session.user.role === 'SUPER_ADMIN' && !!supportClinicId
 
-  const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+  const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
 
   // ✅ جلب بيانات العيادة لبانر وضع الدعم المطور
   let supportData = null
@@ -32,7 +41,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   // الاشتراك هيتجلب تلقائياً بتاع العيادة المستهدفة لو في Support Mode
-  const subscription = !isSuperAdmin || isSupportMode ? (session?.user?.clinicId 
+  const subscription = !isSuperAdmin || isSupportMode ? (session.user.clinicId 
     ? await prisma.subscription.findUnique({ 
         where: { clinicId: session.user.clinicId }, 
         select: { status: true, trialEndsAt: true, endDate: true, currentPeriodEnd: true } 
@@ -49,7 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  const branches = session?.user?.clinicId 
+  const branches = session.user.clinicId 
     ? await prisma.branch.findMany({ 
         where: { clinicId: session.user.clinicId, isActive: true }, 
         select: { id: true, name: true, code: true },
@@ -58,7 +67,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     : []
     
   const selectedBranchId = await getSelectedBranch()
-  const clinic = session?.user?.clinicId 
+  const clinic = session.user.clinicId 
     ? await prisma.clinic.findUnique({ 
         where: { id: session.user.clinicId }, 
         select: { name: true } 
@@ -93,7 +102,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         
         {/* ── Desktop Sidebar ── */}
         <div className="hidden lg:flex print:hidden">
-          <Sidebar user={session?.user} branches={branches} selectedBranchId={selectedBranchId} />
+          <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} />
         </div>
         
         <div className="flex flex-1 flex-col overflow-hidden min-w-0 print:overflow-visible">
@@ -101,22 +110,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {/* ── Mobile Top Navbar ── */}
           <header className="lg:hidden print:hidden sticky top-0 z-40 h-14 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white/80 dark:bg-[#17212F]/80 backdrop-blur-xl px-3 flex items-center justify-between">
             <MobileNav clinicName={clinic?.name || "Nexora Clinic"}>
-              <Sidebar user={session?.user} branches={branches} selectedBranchId={selectedBranchId} isMobile />
+              <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} isMobile />
             </MobileNav>
             
             <div className="flex items-center gap-1">
-              {session?.user?.id && session?.user?.clinicId && (
+              {session.user.id && session.user.clinicId && (
                 <NotificationBell userId={session.user.id} clinicId={session.user.clinicId} />
               )}
-              {session?.user && (
-                <UserProfileMenu 
-                  userName={session.user.name || "User"}
-                  userEmail={session.user.email || ""}
-                  userRole={session.user.role || ""}
-                  clinicName={isSupportMode ? `${supportData?.name || clinic?.name} (Support)` : (clinic?.name || "Clinic")}
-                  branchName={selectedBranch?.name}
-                />
-              )}
+              <UserProfileMenu 
+                userName={session.user.name || "User"}
+                userEmail={session.user.email || ""}
+                userRole={session.user.role || ""}
+                clinicName={isSupportMode ? `${supportData?.name || clinic?.name} (Support)` : (clinic?.name || "Clinic")}
+                branchName={selectedBranch?.name}
+              />
             </div>
           </header>
 
@@ -132,18 +139,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <span className="font-mono text-[10px]">⌘</span>
                 <span className="font-mono text-[10px]">K</span>
               </div>
-              {session?.user?.id && session?.user?.clinicId && (
+              {session.user.id && session.user.clinicId && (
                 <NotificationBell userId={session.user.id} clinicId={session.user.clinicId} />
               )}
-              {session?.user && (
-                <UserProfileMenu 
-                  userName={session.user.name || "User"}
-                  userEmail={session.user.email || ""}
-                  userRole={session.user.role || ""}
-                  clinicName={isSupportMode ? `${supportData?.name || clinic?.name} (Support)` : (clinic?.name || "Clinic")}
-                  branchName={selectedBranch?.name}
-                />
-              )}
+              <UserProfileMenu 
+                userName={session.user.name || "User"}
+                userEmail={session.user.email || ""}
+                userRole={session.user.role || ""}
+                clinicName={isSupportMode ? `${supportData?.name || clinic?.name} (Support)` : (clinic?.name || "Clinic")}
+                branchName={selectedBranch?.name}
+              />
             </div>
           </header>
           

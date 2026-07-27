@@ -7,7 +7,7 @@ import { SubscriptionStatus } from "@prisma/client";
 import { checkAndExpireTrials } from "./services/trial-system";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: process.env.AUTH_SECRET, // إضافة الـ Secret
+  secret: process.env.AUTH_SECRET,
   pages: {
     signIn: "/login",
   },
@@ -42,6 +42,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!isValidPassword) {
           throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🛡️ ACCOUNT STATUS GUARD (التحقق من حالة الحساب)
+        // ملاحظة: لو عندك حقل status في الـ Database، شيل علامة التعليق عن الأسطر اللي تحت
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        
+        /*
+        if (user.status === "SUSPENDED") {
+          throw new Error("تم تعليق هذا الحساب. يرجى التواصل مع الدعم الفني.");
+        }
+        
+        if (user.status === "INACTIVE") {
+          throw new Error("هذا الحساب غير مفعل بعد.");
+        }
+        */
+        
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
         return {
           id: user.id,
