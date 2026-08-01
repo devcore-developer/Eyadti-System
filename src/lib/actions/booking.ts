@@ -3,10 +3,9 @@
 import { prisma } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { bookingFormSchema } from "@/lib/validations/booking"
-import { notifyAppointmentCreated } from "@/lib/notifications/events"
+import { notifyAppointmentCreated, notifyAppointmentCancelled } from "@/lib/notifications/events"
 import { AppointmentStatus, Gender } from "@prisma/client"
 import { requireFeature } from "@/lib/services/feature-gate"
-import { notifyAppointmentCreated, notifyAppointmentCancelled } from "@/lib/notifications/events"
 
 const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID || "c1"
 
