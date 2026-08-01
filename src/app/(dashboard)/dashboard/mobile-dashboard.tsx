@@ -1,14 +1,13 @@
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { formatCurrency } from "@/lib/utils/date-filters"
 import {
-  Menu, Bell, CalendarDays, Clock, UserPlus, FileText,
+  CalendarDays, FileText, UserPlus,
   Pill, Users, CalendarCheck, TrendingUp, AlertCircle,
   ChevronRight
 } from "lucide-react"
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { formatCurrency } from "@/lib/utils/date-filters"
-
 type MobileDashboardProps = {
   doctorName: string
   clinicName: string
@@ -37,40 +36,6 @@ function getGreeting() {
   if (h < 12) return "Good Morning"
   if (h < 17) return "Good Afternoon"
   return "Good Evening"
-}
-
-/* ═══ Top Bar ═══ */
-
-function MobileTopBar({ clinicName }: { clinicName: string }) {
-  return (
-    <div
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4"
-      style={{
-        height: 60,
-        background: "rgba(255,255,255,.90)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(0,0,0,0.04)",
-        paddingTop: "env(safe-area-inset-top, 0px)",
-      }}
-    >
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center active:bg-gray-100 transition-colors">
-        <Menu className="w-[18px] h-[18px] text-gray-600" strokeWidth={2} />
-      </div>
-      <h1 className="font-semibold text-[14px] text-gray-900 truncate max-w-[160px]">{clinicName}</h1>
-      <div className="flex items-center gap-2">
-        <button className="relative w-10 h-10 rounded-xl flex items-center justify-center active:bg-gray-100 transition-colors">
-          <Bell className="w-[18px] h-[18px] text-gray-600" strokeWidth={2} />
-        </button>
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-          style={{ background: "linear-gradient(135deg, #5BC0BE, #6B9CFF)" }}
-        >
-          {clinicName.charAt(0)}
-        </div>
-      </div>
-    </div>
-  )
 }
 
 /* ═══ Hero ═══ */
@@ -334,8 +299,6 @@ export function MobileDashboard({
 }: MobileDashboardProps) {
   return (
     <>
-      <MobileTopBar clinicName={clinicName} />
-
       <MobileHero
         doctorName={doctorName}
         clinicName={clinicName}
@@ -376,8 +339,6 @@ export function MobileDashboard({
           const time = a.dateTime ? new Date(a.dateTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : ""
           const statusCfg = a.status === "CONFIRMED"
             ? { bg: "rgba(107,156,255,0.08)", text: "#6B9CFF" }
-            : a.status === "CANCELLED"
-            ? { bg: "rgba(239,107,107,0.08)", text: "#EF6B6B" }
             : { bg: "rgba(244,184,96,0.08)", text: "#F4B860" }
 
           return (
@@ -392,7 +353,7 @@ export function MobileDashboard({
                 <p className="text-[11px] text-gray-400 truncate">{a.doctorName} · {time}</p>
               </div>
               <span className="text-[9px] font-bold px-2 py-0.5 rounded-md shrink-0" style={{ background: statusCfg.bg, color: statusCfg.text }}>
-                {a.status || "Scheduled"}
+                {a.status}
               </span>
             </>
           )

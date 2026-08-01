@@ -7,50 +7,30 @@ import { X, Plus } from "lucide-react"
 export function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#F5F7FB]">
-      <div className="px-4 pt-[68px] pb-[100px] space-y-5">{children}</div>
+      <div className="px-4 pt-14 pb-[80px] space-y-5">{children}</div>
     </div>
   )
 }
 
 export function MobileBottomNav({ links }: { links: { label: string; href: string; icon: React.ReactNode; active?: boolean }[] }) {
-  const activeIndex = links.findIndex((l) => l.active)
-
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 border-t border-gray-100/80"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100"
       style={{
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        boxShadow: "0 -1px 12px rgba(0,0,0,0.04)",
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
       }}
     >
-      <div className="relative h-[72px] max-w-lg mx-auto flex items-center justify-around px-2">
-        {/* Sliding indicator */}
-        <div
-          className="absolute bottom-2 left-2 right-2 rounded-[14px] transition-all duration-300 ease-out pointer-events-none"
-          style={{
-            width: `calc(${100 / links.length}% - 6px)`,
-            left: `calc(${activeIndex * (100 / links.length)}% + 3px)`,
-            background: "linear-gradient(135deg, #5BC0BE, #6B9CFF)",
-            boxShadow: "0 2px 12px rgba(107,156,255,0.25)",
-            height: 36,
-          }}
-        />
-
+      <div className="h-[64px] max-w-lg mx-auto flex items-center justify-around px-4">
         {links.map((item) => (
           <button
             key={item.label}
             onClick={() => (window.location.href = item.href)}
-            className="relative z-10 flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 active:scale-90"
+            className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 active:scale-90 transition-all duration-150"
           >
-            <div className="transition-colors duration-200" style={{ color: item.active ? "#6B9CFF" : "#94A3B8" }}>
+            <div style={{ color: item.active ? "#6B9CFF" : "#94A3B8" }}>
               {item.icon}
             </div>
             <span
-              className="mt-0.5 transition-colors duration-200"
               style={{
                 fontSize: 10,
                 color: item.active ? "#6B9CFF" : "#94A3B8",
@@ -78,7 +58,6 @@ export function MobileFab({ actions }: { actions: { label: string; href: string;
         right: 16,
       }}
     >
-      {/* Backdrop */}
       {isOpen && (
         <div 
           className="fixed inset-0 z-[-1]" 
@@ -86,7 +65,6 @@ export function MobileFab({ actions }: { actions: { label: string; href: string;
         />
       )}
 
-      {/* Popup */}
       <div
         className="absolute bottom-[68px] right-0 w-48 bg-white rounded-2xl border border-gray-100/80 overflow-hidden"
         style={{
@@ -110,7 +88,6 @@ export function MobileFab({ actions }: { actions: { label: string; href: string;
         ))}
       </div>
 
-      {/* Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative flex items-center justify-center active:scale-90 transition-transform duration-150"
