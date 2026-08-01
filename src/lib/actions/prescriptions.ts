@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import type { ActionResult } from "@/types"
+import { notifyPrescriptionCreated } from "@/lib/notifications/events"  // ✅ ADDED
 
 // ── Zod Schemas ──────────────────────────────────────
 
@@ -74,7 +75,7 @@ export async function createPrescription(formData: FormData): Promise<ActionResu
   }
 
   try {
-    await prisma.prescription.create({
+    const prescription = await prisma.prescription.create({
       data: {
         clinicId: session.user.clinicId,
         patientId: parsed.data.patientId,
@@ -88,6 +89,25 @@ export async function createPrescription(formData: FormData): Promise<ActionResu
         },
       },
     })
+
+    // ✅ ADDED: Send notification
+    try {
+      const patient = await prisma.patient.findUnique({
+        where: { id: parsed.data.patientId },
+        select: { fullName: true },
+      })
+      if (patient) {
+        await notifyPrescriptionCreated(
+          prescription.id,
+          parsed.data.patientId,
+          patient.fullName,
+          session.user.clinicId,
+          session.user.id
+        )
+      }
+    } catch (notifError) {
+      console.error("Failed to send prescription notification:", notifError)
+    }
 
     revalidatePath(`/patients/${parsed.data.patientId}/prescriptions`)
     revalidatePath(`/patients/${parsed.data.patientId}`)

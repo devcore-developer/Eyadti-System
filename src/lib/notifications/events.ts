@@ -1,3 +1,5 @@
+// lib/notifications/events.ts
+
 import { dispatchNotification } from "./dispatcher"
 
 export async function notifyPatientCreated(patientId: string, patientName: string, clinicId: string, userId: string) {
@@ -23,10 +25,7 @@ export async function notifyAppointmentCreated(
   clinicId: string, 
   userId: string
 ) {
-  // رسالة للدكتور (داخل السيستم)
   const internalMessage = `Appointment for ${patientName} with ${doctorName} on ${date}.`
-  
-  // رسالة واتساب للمريض (لذيذة ومتناسقة)
   const whatsappMessage = `مرحباً ${patientName} 👋\nتم حجز موعدك بنجاح في عيادة *${clinicName}*.\nالدكتور: ${doctorName}\nالموعد: ${new Date(date).toLocaleString('ar-EG', { dateStyle: 'full', timeStyle: 'short' })}\nننتظرك! 🏥`
 
   await dispatchNotification({
@@ -39,7 +38,7 @@ export async function notifyAppointmentCreated(
     relatedEntityType: "APPOINTMENT",
     relatedEntityId: appointmentId,
     patientPhone: patientPhone,
-    externalMessage: whatsappMessage, // رسالة الواتساب
+    externalMessage: whatsappMessage,
   })
 }
 
@@ -95,7 +94,14 @@ export async function notifyInvoicePaid(invoiceId: string, patientName: string, 
   })
 }
 
-export async function notifyPrescriptionCreated(prescriptionId: string, patientName: string, clinicId: string, userId: string) {
+// ✅ FIXED: Added patientId parameter to fix routing
+export async function notifyPrescriptionCreated(
+  prescriptionId: string, 
+  patientId: string,  // ✅ NEW: Required for correct routing
+  patientName: string, 
+  clinicId: string, 
+  userId: string
+) {
   await dispatchNotification({
     userId,
     clinicId,
@@ -104,6 +110,26 @@ export async function notifyPrescriptionCreated(prescriptionId: string, patientN
     type: "PRESCRIPTION_CREATED",
     priority: "LOW",
     relatedEntityType: "PRESCRIPTION",
-    relatedEntityId: prescriptionId,
+    relatedEntityId: patientId,  // ✅ FIXED: Use patientId for routing
+  })
+}
+
+// ✅ ADDED: Emergency/Walk-in notification
+export async function notifyEmergencyWalkIn(
+  appointmentId: string,
+  patientName: string,
+  doctorName: string,
+  clinicId: string,
+  userId: string
+) {
+  await dispatchNotification({
+    userId,
+    clinicId,
+    title: "🚨 Emergency Walk-in",
+    message: `Emergency patient ${patientName} assigned to ${doctorName}.`,
+    type: "APPOINTMENT_CREATED",
+    priority: "HIGH",
+    relatedEntityType: "WAITING_ROOM",
+    relatedEntityId: appointmentId,
   })
 }

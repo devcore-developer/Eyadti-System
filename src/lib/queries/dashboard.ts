@@ -1,3 +1,5 @@
+// lib/queries/dashboard.ts
+
 import { prisma } from "@/lib/db"
 import { getDateRange, type FilterPeriod } from "@/lib/utils/date-filters"
 import { startOfMonth, subMonths, format, startOfDay, endOfDay } from "date-fns"
@@ -60,7 +62,7 @@ export async function getDashboardStats(clinicId: string, period: FilterPeriod) 
 }
 
 // ───────────────────────────────────────
-// Chart Data (Last 12 Months) - OPTIMIZED
+// Chart Data (Last 12 Months) - FIXED
 // ───────────────────────────────────────
 export async function getChartData(clinicId: string) {
   const now = new Date()
@@ -96,14 +98,15 @@ export async function getChartData(clinicId: string) {
 
     const monthPatients = patients.filter(pat => pat.createdAt >= monthStart && pat.createdAt <= monthEnd).length
 
-  months.push({
-    name: monthName,
-    revenue: monthRevenue,
-    appointments: monthAppointments || 0,
-    patients: monthPatients || 0,
-  })
+    months.push({
+      name: monthName,
+      revenue: monthRevenue,
+      appointments: monthAppointments || 0,
+      patients: monthPatients || 0,
+    })
+  } // ✅ FIXED: Closing brace is now correctly placed
 
-  // ✅ لو مفيش بيانات حقيقية، ارجع بيانات وهمية عشان الـ chart يتكرمل
+  // ✅ FIXED: Empty data check is now OUTSIDE the for loop
   if (months.every(m => m.revenue === 0 && m.appointments === 0 && m.patients === 0)) {
     return [
       { name: "Jan", revenue: 0, appointments: 0, patients: 0 },
@@ -120,13 +123,12 @@ export async function getChartData(clinicId: string) {
       { name: "Dec", revenue: 0, appointments: 0, patients: 0 },
     ]
   }
-  }
 
   return months
 }
 
 // ───────────────────────────────────────
-// Recent Activity - HIGHLY OPTIMIZED (No more IN (NULL))
+// Recent Activity
 // ───────────────────────────────────────
 export async function getRecentActivity(clinicId: string) {
   const [patients, appointments, invoices] = await Promise.all([
@@ -134,13 +136,13 @@ export async function getRecentActivity(clinicId: string) {
       where: { clinicId },
       orderBy: { createdAt: "desc" },
       take: 5,
-      select: { id: true, fullName: true, createdAt: true }, // ✅ تحديد الأعمدة فقط
+      select: { id: true, fullName: true, createdAt: true },
     }),
     prisma.appointment.findMany({
       where: { clinicId },
       orderBy: { dateTime: "desc" },
       take: 5,
-      select: { // ✅ تحديد الأعمدة بدل include الكامل
+      select: {
         id: true,
         dateTime: true,
         status: true,
@@ -152,7 +154,7 @@ export async function getRecentActivity(clinicId: string) {
       where: { clinicId },
       orderBy: { createdAt: "desc" },
       take: 5,
-      select: { // ✅ تحديد الأعمدة
+      select: {
         id: true,
         amount: true,
         status: true,
@@ -186,10 +188,9 @@ export async function getRecentActivity(clinicId: string) {
 }
 
 // ───────────────────────────────────────
-// Doctor Analytics - DB AGGREGATION (No more memory leaks)
+// Doctor Analytics
 // ───────────────────────────────────────
 export async function getDoctorAnalytics(clinicId: string) {
-  // 1. جلب الأطباء أولاً
   const doctors = await prisma.user.findMany({
     where: { clinicId, role: "DOCTOR" },
     select: { id: true, name: true },
@@ -199,21 +200,18 @@ export async function getDoctorAnalytics(clinicId: string) {
 
   const doctorIds = doctors.map(d => d.id)
 
-  // 2. ✅ استخدام groupBy في قاعدة البيانات بدلاً من سحب كل المواعيد للذاكرة
   const appointmentCounts = await prisma.appointment.groupBy({
     by: ['doctorId'],
     where: { clinicId, doctorId: { in: doctorIds } },
     _count: { id: true },
   })
 
-  // 3. حساب عدد المرضى الفريدين لكل طبيب (أيضاً في الداتابيز)
   const uniquePatientCounts = await prisma.appointment.groupBy({
     by: ['doctorId'],
     where: { clinicId, doctorId: { in: doctorIds } },
-    _count: { patientId: true }, // Prisma doesn't support distinct in groupBy well, so we approximate or fetch
+    _count: { patientId: true },
   })
 
-  // 4. دمج النتائج بسرعة في الذاكرة
   const analytics = doctors.map(doctor => {
     const countData = appointmentCounts.find(c => c.doctorId === doctor.id)
     const patientData = uniquePatientCounts.find(p => p.doctorId === doctor.id)

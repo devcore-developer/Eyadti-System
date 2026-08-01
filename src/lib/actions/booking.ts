@@ -6,6 +6,7 @@ import { bookingFormSchema } from "@/lib/validations/booking"
 import { notifyAppointmentCreated } from "@/lib/notifications/events"
 import { AppointmentStatus, Gender } from "@prisma/client"
 import { requireFeature } from "@/lib/services/feature-gate"
+import { notifyAppointmentCreated, notifyAppointmentCancelled } from "@/lib/notifications/events"
 
 const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID || "c1"
 
@@ -339,8 +340,23 @@ export async function confirmBooking(bookingId: string) {
 }
 
 // ── Admin: Cancel Booking ───────────────────────────
+// ── Admin: Cancel Booking ───────────────────────────
+// ✅ FIXED: Now sends cancellation notification
 export async function cancelBooking(bookingId: string) {
-  const booking = await prisma.booking.update({
+  // First get booking details before cancelling
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      patient: { select: { fullName: true, phone: true } },
+      doctor: { select: { name: true, id: true } },
+      appointment: { select: { id: true, dateTime: true } },
+      clinic: { select: { id: true, name: true } },
+    },
+  })
+
+  if (!booking) return { success: false, error: "Booking not found" }
+
+  await prisma.booking.update({
     where: { id: bookingId },
     data: { status: "CANCELLED" },
   })
@@ -349,6 +365,23 @@ export async function cancelBooking(bookingId: string) {
     where: { id: booking.appointmentId },
     data: { status: AppointmentStatus.CANCELLED },
   })
+
+  // ✅ ADDED: Send cancellation notification
+  try {
+    if (booking.appointment && booking.doctor && booking.clinic) {
+      await notifyAppointmentCancelled(
+        booking.appointment.id,
+        booking.patient.fullName,
+        booking.patient.phone,
+        booking.appointment.dateTime.toISOString(),
+        booking.clinic.name,
+        booking.clinic.id,
+        booking.doctor.id
+      )
+    }
+  } catch (notifError) {
+    console.error("Failed to send cancellation notification:", notifError)
+  }
 
   revalidatePath("/appointments/online")
   return { success: true }

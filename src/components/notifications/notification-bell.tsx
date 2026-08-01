@@ -28,13 +28,13 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [recent, setRecent] = useState<any[]>([])
   const prevUnreadCount = useRef(0)
+  const dropdownRef = useRef<HTMLDivElement>(null)  // ✅ ADDED: Ref for dropdown
   const router = useRouter()
 
   const loadUnreadCount = useCallback(async () => {
     try {
       const count = await getUnreadCount(userId, clinicId)
       
-      // ✨ إظهار التوست لو فيه إشعارات جديدة
       if (count > prevUnreadCount.current && prevUnreadCount.current !== 0) {
         const result = await getNotifications(userId, clinicId, 1)
         if (result.notifications.length > 0) {
@@ -56,7 +56,7 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
     } catch (error) {
       console.error("Failed to load unread count:", error)
     }
-  }, [userId, clinicId, router]) // ✅ قمنا بإزالة loadUnreadCount من هنا
+  }, [userId, clinicId, router])
 
   const loadRecent = useCallback(async () => {
     try {
@@ -67,7 +67,6 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
     }
   }, [userId, clinicId])
 
-  // ✅ التصحيح: الـ useEffect يعمل فقط عند تغيّر userId أو clinicId وليس عند كل تحديث للحالة
   useEffect(() => {
     loadUnreadCount()
   }, [userId, clinicId])
@@ -75,9 +74,23 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
   useEffect(() => {
     const interval = setInterval(() => {
       loadUnreadCount()
-    }, 120000) 
+    }, 120000)
     return () => clearInterval(interval)
   }, [loadUnreadCount])
+
+  // ✅ FIXED: Added Escape key handler
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape)
+    return () => document.removeEventListener("keydown", handleEscape)
+  }, [isOpen])  // ✅ Only runs when isOpen changes
 
   const handleOpen = () => {
     if (!isOpen) loadRecent()
@@ -102,11 +115,13 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button
-        type="button" // ✅ إضافة type="button" لمنع إرسال فورم
+        type="button"
         onClick={handleOpen}
         className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+        aria-expanded={isOpen}
+        aria-haspopup="true"
       >
         <Bell className="h-5 w-5 text-gray-600 dark:text-gray-300" />
         {unreadCount > 0 && (
@@ -119,7 +134,10 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-[#223247] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 overflow-hidden animate-scale-in">
+          <div 
+            className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-[#223247] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 overflow-hidden animate-scale-in"
+            role="menu"
+          >
             <div className="flex items-center justify-between p-4 border-b dark:border-white/10 bg-gray-50 dark:bg-[#1D2A3B]">
               <h3 className="font-semibold text-sm text-foreground">Notifications</h3>
               {unreadCount > 0 && (
@@ -143,6 +161,7 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
                     key={n.id}
                     onClick={() => handleNotificationClick(n)}
                     className={`p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer ${!n.isRead ? "bg-teal-50/50 dark:bg-teal-500/10" : ""}`}
+                    role="menuitem"
                   >
                     <div className="flex gap-3">
                       <div className={`mt-1.5 h-2.5 w-2.5 rounded-full shrink-0 ${typeColors[n.type] || "bg-gray-400"}`} />
@@ -162,6 +181,7 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
                             await loadRecent()
                           }}
                           className="shrink-0 p-1.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-md transition-colors"
+                          aria-label="Mark as read"
                         >
                           <Check className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>

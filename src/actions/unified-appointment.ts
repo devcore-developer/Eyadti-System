@@ -7,6 +7,7 @@ import { AppointmentType, AppointmentStatus, VisitStatus, Priority } from "@pris
 import type { ActionResult } from "@/types"
 import { revalidatePath } from "next/cache"
 import { auditLog } from "@/lib/services/audit"
+import { notifyAppointmentCreated, notifyEmergencyWalkIn } from "@/lib/notifications/events"  // ✅ ADDED
 
 // Helper: Generate Queue Number safely
 async function generateQueueNumber(clinicId: string): Promise<number> {
@@ -82,7 +83,7 @@ export async function createUnifiedAppointment(formData: FormData): Promise<Acti
         type: appointmentType,
       }
 
-      // Step 3: Handle Behavior based on Type (فقط للوكيت إن بوكينج أو مشي من أماكن تانية)
+      // Step 3: Handle Behavior based on Type
       if (appointmentType === AppointmentType.WALK_IN || appointmentType === AppointmentType.EMERGENCY) {
         appointmentData.status = AppointmentStatus.CONFIRMED 
         
@@ -106,15 +107,63 @@ export async function createUnifiedAppointment(formData: FormData): Promise<Acti
           }
         })
 
-        return appointment
+        return { appointment, patientId: currentPatientId }
       } else {
         // SCHEDULED: مجرد حجز موعد
         appointmentData.status = AppointmentStatus.SCHEDULED
-        return await tx.appointment.create({ data: appointmentData })
+        const appointment = await tx.appointment.create({ data: appointmentData })
+        return { appointment, patientId: currentPatientId }
       }
     })
 
-    await auditLog({ clinicId, userId, action: "CREATE", entityType: "APPOINTMENT", entityId: result.id, newValues: { type: appointmentType } })
+    // ✅ ADDED: Send notification after successful transaction
+    try {
+      const patient = await prisma.patient.findUnique({ 
+        where: { id: result.patientId }, 
+        select: { fullName: true, phone: true } 
+      })
+      const doctor = await prisma.user.findUnique({ 
+        where: { id: doctorId }, 
+        select: { name: true } 
+      })
+      const clinic = await prisma.clinic.findUnique({ 
+        where: { id: clinicId }, 
+        select: { name: true } 
+      })
+
+      if (patient && doctor) {
+        const doctorName = `Dr. ${doctor.name}`
+        const clinicName = clinic?.name || "The Clinic"
+
+        if (appointmentType === AppointmentType.EMERGENCY) {
+          // ✅ Emergency notification
+          await notifyEmergencyWalkIn(
+            result.appointment.id,
+            patient.fullName,
+            doctorName,
+            clinicId,
+            userId
+          )
+        } else {
+          // ✅ Standard appointment notification
+          await notifyAppointmentCreated(
+            result.appointment.id,
+            patient.fullName,
+            patient.phone,
+            doctorName,
+            new Date(dateTime).toISOString(),
+            clinicName,
+            clinicId,
+            userId
+          )
+        }
+      }
+    } catch (notifError) {
+      // Don't fail the main operation if notification fails
+      console.error("Failed to send notification:", notifError)
+    }
+
+    await auditLog({ clinicId, userId, action: "CREATE", entityType: "APPOINTMENT", entityId: result.appointment.id, newValues: { type: appointmentType } })
 
   } catch (error: any) {
     console.error(error)
@@ -159,7 +208,7 @@ export async function checkInAppointment(appointmentId: string): Promise<ActionR
           status: VisitStatus.WAITING,
           queueNumber,
           priority: Priority.MEDIUM,
-          checkedInAt: new Date(), // ✨ يبدأ العداد من هنا بالضبط
+          checkedInAt: new Date(),
           notes: appointment.notes,
         }
       })
