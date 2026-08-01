@@ -1,5 +1,3 @@
-// src/components/dashboard/date-filter.tsx
-
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
@@ -8,9 +6,9 @@ import { type FilterPeriod } from "@/lib/utils/date-filters"
 
 const periods: { label: string; value: FilterPeriod }[] = [
   { label: "Today", value: "today" },
-  { label: "This Week", value: "week" },
-  { label: "This Month", value: "month" },
-  { label: "This Year", value: "year" },
+  { label: "Week", value: "week" },
+  { label: "Month", value: "month" },
+  { label: "Year", value: "year" },
 ]
 
 export function DateFilter() {
@@ -25,18 +23,25 @@ export function DateFilter() {
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border bg-white p-1 shadow-sm">
-      {periods.map((period) => (
-        <Button
-          key={period.value}
-          variant={currentPeriod === period.value ? "default" : "ghost"}
-          size="sm"
-          onClick={() => handlePeriodChange(period.value)}
-          className="text-xs"
-        >
-          {period.label}
-        </Button>
-      ))}
+    <div className="inline-flex items-center gap-0.5 rounded-xl border border-gray-200/60 dark:border-white/[0.06] bg-white dark:bg-[#223247] p-1 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      {periods.map((period) => {
+        const isActive = currentPeriod === period.value
+        return (
+          <Button
+            key={period.value}
+            variant="ghost"
+            size="sm"
+            onClick={() => handlePeriodChange(period.value)}
+            className={`text-[12px] font-medium rounded-lg h-7 px-3 transition-all duration-150 ${
+              isActive
+                ? "bg-[#6B9CFF] text-white hover:bg-[#6B9CFF] hover:text-white shadow-sm"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.04]"
+            }`}
+          >
+            {period.label}
+          </Button>
+        )
+      })}
     </div>
   )
 }

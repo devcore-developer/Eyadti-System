@@ -31,59 +31,59 @@ export function Sidebar({
 
   return (
     <aside className={cn(
-      "flex flex-col text-sidebar-foreground print:hidden bg-gradient-to-b from-white to-[#F7FBFF] dark:from-[#1B2838] dark:to-[#1B2838]",
+      "flex flex-col text-sidebar-foreground print:hidden bg-white dark:bg-[#1B2838]",
       isMobile 
         ? "w-full h-full shadow-none border-none" 
-        : "w-[260px] shrink-0 h-full shadow-[2px_0_20px_rgba(15,23,42,0.04)] dark:shadow-[2px_0_20px_rgba(0,0,0,0.15)] border-r border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]"
+        : "w-[260px] shrink-0 h-full border-r border-gray-200/60 dark:border-white/[0.06]"
     )}>
       
       {!isMobile && (
-        <div className="flex h-20 items-center justify-center px-6 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">
+        <div className="flex h-[72px] items-center justify-center px-6 border-b border-gray-200/60 dark:border-white/[0.06]">
           <Link href="/dashboard">
             <img 
               src="/dashboard-logo.png" 
               alt="Dashboard Logo" 
-              className="h-24 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity" 
+              className="h-10 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity" 
             />
           </Link>
         </div>
       )}
 
       {isAdmin && branches.length > 0 && (
-        <div className="pb-2 px-3 pt-4">
+        <div className="px-3 pt-4 pb-1">
           <BranchSwitcher branches={branches} selectedBranchId={selectedBranchId} />
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto min-h-0 px-2 py-2 overscroll-contain hide-scrollbar">
+      <div className="flex-1 overflow-y-auto min-h-0 px-2.5 py-2 overscroll-contain hide-scrollbar">
         <SidebarNav isAdmin={isAdmin} />
       </div>
 
-      <div className="mt-auto border-t border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)] p-3 md:p-4">
+      <div className="mt-auto border-t border-gray-200/60 dark:border-white/[0.06] p-3">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 transition-all outline-none hover:bg-[rgba(107,156,255,0.06)] dark:hover:bg-[rgba(107,156,255,0.08)] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]">
+          <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-150 outline-none hover:bg-gray-50 dark:hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]">
             <div className="relative">
-              <div className="rounded-full p-[2px] bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF]">
-                <Avatar className="h-9 w-9 border-2 border-white dark:border-[#1B2838]">
-                  <AvatarFallback className="bg-slate-100 dark:bg-[#223247] text-[11px] font-bold text-[#6B9CFF]">
+              <div className="rounded-full p-[1.5px] bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF]">
+                <Avatar className="h-8 w-8 border-2 border-white dark:border-[#1B2838]">
+                  <AvatarFallback className="bg-gray-50 dark:bg-[#223247] text-[10px] font-bold text-[#6B9CFF]">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
               </div>
-              <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-white dark:border-[#1B2838]"></span>
+              <span className="absolute -bottom-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-white dark:border-[#1B2838]" />
             </div>
             <div className="flex-1 text-left min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-800 dark:text-white">
+              <p className="truncate text-[13px] font-semibold text-slate-800 dark:text-white">
                 {user?.name || "User"}
               </p>
-              <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[rgba(107,156,255,0.1)] text-[#6B9CFF] rounded-md">
+              <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#6B9CFF]/[0.08] text-[#6B9CFF] rounded-md">
                 {user?.role || "N/A"}
               </span>
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-56 mb-2 rounded-2xl p-2 shadow-[0_15px_35px_rgba(0,0,0,0.15)] dark:bg-[#223247] border-[rgba(255,255,255,0.06)]">
-            <div className="flex items-center gap-3 px-2 py-2 mb-1">
-              <Avatar className="h-9 w-9 border-2 border-white dark:border-[#223247] shadow-sm">
+          <DropdownMenuContent align="end" side="top" className="w-56 mb-2 rounded-xl p-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] dark:bg-[#223247] border-gray-200/60 dark:border-white/[0.06]">
+            <div className="flex items-center gap-3 px-2.5 py-2.5 mb-1">
+              <Avatar className="h-9 w-9 border-2 border-white dark:border-[#223247]">
                 <AvatarFallback className="bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] text-white text-xs font-bold">
                   {initials}
                 </AvatarFallback>
@@ -93,11 +93,11 @@ export function Sidebar({
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
-            <DropdownMenuSeparator className="bg-[rgba(148,163,184,0.1)] dark:bg-[rgba(255,255,255,0.06)]" />
+            <DropdownMenuSeparator className="bg-gray-100 dark:bg-white/[0.06]" />
             <form action="/api/auth/signout" method="POST">
               <input type="hidden" name="callbackUrl" value="/login" />
               <button type="submit" className="w-full">
-                <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-900/20 rounded-xl font-medium mt-1">
+                <DropdownMenuItem className="cursor-pointer text-red-500 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-900/20 rounded-lg font-medium mt-1">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>

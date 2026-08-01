@@ -23,7 +23,7 @@ import {
   CalendarCheck,
   TrendingUp,
   AlertCircle,
-  Menu, Bell, CalendarDays, Clock, UserPlus, FileText, Pill
+  CalendarDays, Clock, UserPlus, FileText, Pill
 } from "lucide-react"
 import { Suspense } from "react"
 import { MobileLayout, MobileBottomNav, MobileFab } from "./mobile-layout"
@@ -35,37 +35,36 @@ export const dynamic = "force-dynamic"
 
 function DashboardLoading() {
   return (
-    <div className="space-y-8 animate-pulse">
-      <div className="h-[240px] md:h-[280px] rounded-[24px] bg-muted/30" />
-      <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
+    <div className="space-y-5 animate-pulse">
+      <div className="h-[180px] md:h-[200px] rounded-[24px] bg-muted/20" />
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
           <CardSkeleton key={i} />
         ))}
       </div>
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2"><ChartSkeleton /></div>
-        <div className="space-y-6"><CardSkeleton /><CardSkeleton /></div>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2"><ChartSkeleton /></div>
+        <div className="space-y-5"><CardSkeleton /><CardSkeleton /></div>
       </div>
     </div>
   )
 }
 
-function PremiumKPICard({ title, value, subtitle, icon: Icon, accentColor, iconBg, lightBg, shadow, href, index = 0 }: any) {
+function PremiumKPICard({ title, value, subtitle, icon: Icon, accentColor, iconBg, tint, href, index = 0 }: any) {
   const content = (
     <div 
-      className={`group relative overflow-hidden p-5 md:p-6 rounded-2xl md:rounded-[20px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br ${lightBg} dark:from-[#223247] dark:to-[#1D2A3B] ${shadow} dark:shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(100,116,139,0.18)] animate-fade-in-up cursor-pointer h-full`}
-      style={{ animationDelay: `${index * 75}ms` }}
+      className="group relative overflow-hidden px-5 py-5 md:px-6 md:py-6 rounded-2xl border border-gray-100 dark:border-white/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:-translate-y-px active:translate-y-0 cursor-pointer h-full"
+      style={{ backgroundColor: tint, animationDelay: `${index * 50}ms` }}
     >
-      <div className="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-white/30 dark:bg-white/5 blur-2xl pointer-events-none" />
-      <div className="relative z-10 flex items-center justify-between mb-4">
-        <div className={`p-2.5 rounded-xl backdrop-blur-md border border-white/50 dark:border-white/10 shadow-sm ${iconBg}`}>
-          <Icon className={`h-5 w-5 ${accentColor}`} />
+      <div className="flex items-center justify-between mb-3.5">
+        <div className={`p-2.5 rounded-xl ${iconBg}`}>
+          <Icon className={`h-[18px] w-[18px] ${accentColor}`} />
         </div>
       </div>
-      <div className="relative z-10">
-        <h3 className="text-2xl md:text-[28px] font-extrabold text-foreground tracking-tight truncate">{value}</h3>
-        <p className="text-sm font-semibold text-foreground/80 mt-1 truncate">{title}</p>
-        <p className="text-xs text-muted-foreground mt-2 truncate">{subtitle}</p>
+      <div>
+        <h3 className="text-[1.625rem] md:text-[1.75rem] font-bold text-foreground tracking-tight tabular-nums leading-none truncate">{value}</h3>
+        <p className="text-[12px] font-semibold text-foreground/60 mt-1.5 truncate">{title}</p>
+        <p className="text-[11px] text-muted-foreground mt-1 truncate">{subtitle}</p>
       </div>
     </div>
   )
@@ -88,35 +87,50 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
 
   const doctorName = session.user.name || "Doctor"
 
-  // ━━━ EXTRACTING DESKTOP COMPONENTS AS NODES ━━━
-  const heroComponent = <HeroWelcome doctorName={doctorName} appointmentsCount={stats.todayAppointments} pendingInvoices={stats.unpaidInvoicesCount} />
-  const quickActionsComponent = <QuickActions />
-  
   const statsComponent = (
-    <div className="grid grid-cols-2 gap-3 md:gap-6 lg:gap-8 xl:grid-cols-4">
-      <PremiumKPICard title="Patients" value={stats.totalPatients.toLocaleString()} subtitle={`${stats.newPatients} new`} icon={Users} accentColor="text-[#5BC0BE]" iconBg="bg-[#5BC0BE]/10" lightBg="from-[#F5FFFF] to-[#EAFBF9]" shadow="shadow-[0_8px_24px_rgba(91,192,190,0.10)]" href="/patients" index={0} />
-      <PremiumKPICard title="Appointments" value={stats.todayAppointments.toString()} subtitle={`${stats.upcomingAppointments} upcoming`} icon={CalendarCheck} accentColor="text-[#6B9CFF]" iconBg="bg-[#6B9CFF]/10" lightBg="from-[#F8FFFF] to-[#EDF9FF]" shadow="shadow-[0_8px_24px_rgba(107,156,255,0.10)]" href="/appointments" index={1} />
-      <PremiumKPICard title="Revenue" value={formatCurrency(stats.monthlyRevenue)} subtitle={`${formatCurrency(stats.totalRevenue)} total`} icon={TrendingUp} accentColor="text-[#6B9CFF]" iconBg="bg-[#6B9CFF]/10" lightBg="from-[#F5F8FF] to-[#EEF3FF]" shadow="shadow-[0_8px_24px_rgba(100,116,139,0.08)]" href="/invoices" index={2} />
-      <PremiumKPICard title="Unpaid" value={stats.unpaidInvoicesCount.toString()} subtitle={formatCurrency(stats.unpaidInvoicesAmount)} icon={AlertCircle} accentColor="text-[#F4B860]" iconBg="bg-[#F4B860]/10" lightBg="from-[#FFF9EE] to-[#FFF4DD]" shadow="shadow-[0_8px_24px_rgba(100,116,139,0.08)]" href="/invoices?status=UNPAID" index={3} />
+    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:gap-5 xl:grid-cols-4">
+      <PremiumKPICard
+        title="Revenue" value={formatCurrency(stats.monthlyRevenue)} subtitle={`${formatCurrency(stats.totalRevenue)} total`}
+        icon={TrendingUp} accentColor="text-[#4ADE80]" iconBg="bg-[#4ADE80]/[0.08]"
+        tint="rgba(74,222,128,0.03)" href="/invoices" index={0}
+      />
+      <PremiumKPICard
+        title="Patients" value={stats.totalPatients.toLocaleString()} subtitle={`${stats.newPatients} new this period`}
+        icon={Users} accentColor="text-[#5BC0BE]" iconBg="bg-[#5BC0BE]/[0.08]"
+        tint="rgba(91,192,190,0.03)" href="/patients" index={1}
+      />
+      <PremiumKPICard
+        title="Appointments" value={stats.todayAppointments.toString()} subtitle={`${stats.upcomingAppointments} upcoming`}
+        icon={CalendarCheck} accentColor="text-[#6B9CFF]" iconBg="bg-[#6B9CFF]/[0.08]"
+        tint="rgba(107,156,255,0.03)" href="/appointments" index={2}
+      />
+      <PremiumKPICard
+        title="Unpaid" value={stats.unpaidInvoicesCount.toString()} subtitle={formatCurrency(stats.unpaidInvoicesAmount)}
+        icon={AlertCircle} accentColor="text-[#F4B860]" iconBg="bg-[#F4B860]/[0.08]"
+        tint="rgba(244,184,96,0.03)" href="/invoices?status=UNPAID" index={3}
+      />
     </div>
   )
 
+  const heroComponent = (
+    <HeroWelcome
+      doctorName={doctorName}
+      appointmentsCount={stats.todayAppointments}
+      pendingInvoices={stats.unpaidInvoicesCount}
+      monthlyRevenue={stats.monthlyRevenue}
+    />
+  )
+  
   const filterComponent = (
-    <div className="flex justify-center overflow-x-auto pb-1">
+    <div className="flex justify-end">
       <Suspense fallback={null}><DateFilter /></Suspense>
     </div>
   )
 
   const upcomingComponent = <UpcomingAppointments appointments={recentActivity.appointments.slice(0, 3)} />
-  
-  const chartComponent = (
-    <div className="w-full rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] p-4 md:p-6">
-      <AnalyticsCharts data={chartData} />
-    </div>
-  )
 
   const recentListsComponent = (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div className="lg:col-span-2">
         <RecentActivity patients={recentActivity.patients} appointments={recentActivity.appointments} invoices={recentActivity.invoices} />
       </div>
@@ -126,12 +140,9 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
 
   return (
     <>
-      {/* ━━━ PLATFORM ANNOUNCEMENTS BANNER ━━━ */}
       <AnnouncementBanner />
 
-      {/* ═══════════════════════════════════════════════════
-          📱 MOBILE LAYOUT
-         ═══════════════════════════════════════════════════ */}
+      {/* 📱 MOBILE */}
       <div className="block md:hidden">
         <MobileLayout>
           <MobileDashboard
@@ -161,26 +172,22 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
         ]} />
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════
-          🖥️ DESKTOP LAYOUT (Unmodified from original)
-         ═══════════════════════════════════════════════════════════════ */}
+      {/* 🖥️ DESKTOP */}
       <div className="hidden md:block">
-        <div className="space-y-6 md:space-y-8">
+        <div className="space-y-5">
           <SubscriptionBanner />
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {heroComponent}
-            <div className="flex justify-center sm:justify-end z-10 relative">
-              {filterComponent}
-            </div>
+            {filterComponent}
           </div>
           {statsComponent}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-            <div className="lg:col-span-2 space-y-6 md:space-y-8">
-              <div className="w-full rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] p-4 sm:p-6 md:p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="lg:col-span-2">
+              <div className="rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-white dark:bg-[#223247] shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">
                 <AnalyticsCharts data={chartData} />
               </div>
             </div>
-            <div className="space-y-6 md:space-y-8">
+            <div className="space-y-5">
               {upcomingComponent}
               <TopDoctors doctors={doctorAnalytics} />
             </div>

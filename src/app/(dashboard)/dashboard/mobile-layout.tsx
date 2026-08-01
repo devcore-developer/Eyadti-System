@@ -6,8 +6,8 @@ import { X, Plus } from "lucide-react"
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen" style={{ background: "#F5F7FB" }}>
-      <div className="px-5 pt-[76px] pb-[108px] space-y-7">{children}</div>
+    <div className="min-h-screen bg-[#F5F7FB]">
+      <div className="px-4 pt-[68px] pb-[100px] space-y-5">{children}</div>
     </div>
   )
 }
@@ -17,26 +17,26 @@ export function MobileBottomNav({ links }: { links: { label: string; href: strin
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-gray-100/60"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 border-t border-gray-100/80"
       style={{
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        boxShadow: "0 -4px 24px rgba(0,0,0,0.06)",
+        boxShadow: "0 -1px 12px rgba(0,0,0,0.04)",
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
       }}
     >
-      <div className="relative h-[80px] max-w-lg mx-auto flex items-center justify-around px-3">
+      <div className="relative h-[72px] max-w-lg mx-auto flex items-center justify-around px-2">
         {/* Sliding indicator */}
         <div
-          className="absolute bottom-3 left-3 right-3 rounded-2xl transition-all duration-300 ease-out pointer-events-none"
+          className="absolute bottom-2 left-2 right-2 rounded-[14px] transition-all duration-300 ease-out pointer-events-none"
           style={{
-            width: `calc(${100 / links.length}% - 8px)`,
-            left: `calc(${activeIndex * (100 / links.length)}% + 4px)`,
-            background: "linear-gradient(135deg, #3B82F6, #06B6D4)",
-            boxShadow: "0 4px 16px rgba(59,130,246,0.25)",
-            height: 40,
+            width: `calc(${100 / links.length}% - 6px)`,
+            left: `calc(${activeIndex * (100 / links.length)}% + 3px)`,
+            background: "linear-gradient(135deg, #5BC0BE, #6B9CFF)",
+            boxShadow: "0 2px 12px rgba(107,156,255,0.25)",
+            height: 36,
           }}
         />
 
@@ -46,14 +46,14 @@ export function MobileBottomNav({ links }: { links: { label: string; href: strin
             onClick={() => (window.location.href = item.href)}
             className="relative z-10 flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 active:scale-90"
           >
-            <div className="transition-colors duration-200" style={{ color: item.active ? "#3B82F6" : "#94A3B8", fontSize: 24, lineHeight: 1 }}>
+            <div className="transition-colors duration-200" style={{ color: item.active ? "#6B9CFF" : "#94A3B8" }}>
               {item.icon}
             </div>
             <span
-              className="mt-1 font-medium transition-colors duration-200"
+              className="mt-0.5 transition-colors duration-200"
               style={{
-                fontSize: 11,
-                color: item.active ? "#3B82F6" : "#94A3B8",
+                fontSize: 10,
+                color: item.active ? "#6B9CFF" : "#94A3B8",
                 fontWeight: item.active ? 600 : 500,
               }}
             >
@@ -74,30 +74,38 @@ export function MobileFab({ actions }: { actions: { label: string; href: string;
     <div
       className="fixed z-50"
       style={{
-        bottom: "calc(80px + 16px + env(safe-area-inset-bottom, 0px))",
-        right: 20,
+        bottom: "calc(72px + 12px + env(safe-area-inset-bottom, 0px))",
+        right: 16,
       }}
     >
+      {/* Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-[-1]" 
+          onClick={() => setIsOpen(false)} 
+        />
+      )}
+
       {/* Popup */}
       <div
-        className="absolute bottom-[76px] right-0 w-52 bg-white rounded-2xl border border-gray-100 overflow-hidden"
+        className="absolute bottom-[68px] right-0 w-48 bg-white rounded-2xl border border-gray-100/80 overflow-hidden"
         style={{
-          boxShadow: "0 20px 50px rgba(0,0,0,0.12)",
-          transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-          transform: isOpen ? "scale(1) translateY(0)" : "scale(0.9) translateY(8px)",
+          boxShadow: "0 16px 40px rgba(0,0,0,0.10)",
+          transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+          transform: isOpen ? "scale(1) translateY(0)" : "scale(0.95) translateY(8px)",
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? "auto" : "none",
           transformOrigin: "bottom right",
         }}
       >
-        {actions.map((action, i) => (
+        {actions.map((action) => (
           <button
             key={action.label}
             onClick={() => { router.push(action.href); setIsOpen(false) }}
-            className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 text-left transition-colors active:bg-gray-100"
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left transition-colors active:bg-gray-100"
           >
-            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500">{action.icon}</div>
-            <span className="text-sm font-medium text-gray-800">{action.label}</span>
+            <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500">{action.icon}</div>
+            <span className="text-[13px] font-medium text-gray-700">{action.label}</span>
           </button>
         ))}
       </div>
@@ -107,14 +115,14 @@ export function MobileFab({ actions }: { actions: { label: string; href: string;
         onClick={() => setIsOpen(!isOpen)}
         className="relative flex items-center justify-center active:scale-90 transition-transform duration-150"
         style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          background: "linear-gradient(135deg, #14B8A6, #3B82F6)",
-          boxShadow: "0 8px 32px rgba(20,184,166,0.4)",
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          background: "linear-gradient(135deg, #5BC0BE, #6B9CFF)",
+          boxShadow: "0 4px 20px rgba(107,156,255,0.35)",
         }}
       >
-        {isOpen ? <X className="w-6 h-6 text-white" strokeWidth={2.5} /> : <Plus className="w-7 h-7 text-white" strokeWidth={2.5} />}
+        {isOpen ? <X className="w-5 h-5 text-white" strokeWidth={2.5} /> : <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />}
       </button>
     </div>
   )

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TrendingUp, Activity, Users } from "lucide-react"
+import { TrendingUp, Activity, Users, BarChart3 } from "lucide-react"
 import { 
   AreaChart, 
   Area, 
@@ -20,10 +20,10 @@ interface AnalyticsChartsProps {
 const CustomTooltip = ({ active, payload, label, isCurrency = false }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="premium-card p-3 border dark:bg-[#223247] dark:border-[rgba(255,255,255,0.06)]">
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <div className="bg-white dark:bg-[#1E2D3D] px-3 py-2 rounded-[10px] shadow-[0_4px_16px_rgba(0,0,0,0.10)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.30)]">
+        <p className="text-[11px] font-medium text-muted-foreground mb-1">{label}</p>
         {payload.map((pld: any, index: number) => (
-          <p key={index} className="text-sm font-semibold" style={{ color: pld.color }}>
+          <p key={index} className="text-[13px] font-semibold tabular-nums" style={{ color: pld.color }}>
             {isCurrency ? formatCurrency(pld.value) : pld.value.toLocaleString()}
           </p>
         ))}
@@ -33,74 +33,91 @@ const CustomTooltip = ({ active, payload, label, isCurrency = false }: any) => {
   return null
 }
 
+function ChartEmptyState({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+      <BarChart3 className="h-7 w-7 text-muted-foreground/25" />
+      <p className="text-[13px] font-medium text-muted-foreground/50">No {title.toLowerCase()} data</p>
+    </div>
+  )
+}
+
 export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
   const [mounted, setMounted] = useState(false)
   
   useEffect(() => { setMounted(true) }, [])
 
+  const isEmpty = data.length > 0 && data.every(d => d.revenue === 0 && d.appointments === 0 && d.patients === 0)
+
   if (!mounted) {
     return (
-      <div className="grid grid-cols-1 gap-6 md:gap-8">
+      <div className="grid grid-cols-1 gap-5">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="p-6 md:p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-muted/30 animate-pulse h-[450px]" />
+          <div key={i} className="h-[240px] rounded-2xl bg-gray-50 dark:bg-white/[0.02] animate-pulse" />
         ))}
       </div>
     )
   }
 
   const chartsConfig = [
-    { title: "Revenue Trend", icon: TrendingUp, color: "#6B9CFF", dataKey: "revenue", isCurrency: true },
-    { title: "Patient Growth", icon: Users, color: "#5BC0BE", dataKey: "patients", isCurrency: false },
-    { title: "Appointments Activity", icon: Activity, color: "#89D6D2", dataKey: "appointments", isCurrency: false }
+    { title: "Revenue Trend", icon: TrendingUp, color: "#6B9CFF", dataKey: "revenue", isCurrency: true, isEmpty },
+    { title: "Patient Growth", icon: Users, color: "#5BC0BE", dataKey: "patients", isCurrency: false, isEmpty },
+    { title: "Appointments Activity", icon: Activity, color: "#89D6D2", dataKey: "appointments", isCurrency: false, isEmpty }
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:gap-8">
+    <div className="grid grid-cols-1 gap-5">
       {chartsConfig.map((chart, index) => (
-        <div 
-          key={index}
-          className="p-4 sm:p-6 md:p-8 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] animate-fade"
-        >
-          <div className="flex items-center gap-3 mb-6 md:mb-8">
-            <div className="p-2 rounded-xl" style={{ backgroundColor: `${chart.color}15` }}>
-              <chart.icon className="h-5 w-5" style={{ color: chart.color }} />
+        <div key={index} className="rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-white dark:bg-[#223247] px-5 py-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-1.5 rounded-[8px]" style={{ backgroundColor: `${chart.color}0A` }}>
+              <chart.icon className="h-3.5 w-3.5" style={{ color: chart.color }} />
             </div>
-            <h3 className="text-base md:text-xl font-semibold text-foreground">{chart.title}</h3>
+            <h3 className="text-[13px] font-semibold text-foreground">{chart.title}</h3>
           </div>
           
-          {/* Chart Container with Fixed Height */}
-          <div className="h-[320px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 35 }}>
-                <defs>
-                  <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chart.color} stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor={chart.color} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.1)" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fill: '#64748B' }} 
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fill: '#64748B' }} 
-                  width={40} 
-                />
-                <Tooltip content={<CustomTooltip isCurrency={chart.isCurrency} />} cursor={{ stroke: chart.color, strokeWidth: 1, strokeDasharray: '5 5' }} />
-                <Area 
-                  type="monotone" 
-                  dataKey={chart.dataKey} 
-                  stroke={chart.color} 
-                  strokeWidth={3} 
-                  fill={`url(#gradient-${index})`} 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="h-[220px] w-full">
+            {chart.isEmpty ? (
+              <ChartEmptyState title={chart.title} />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id={`g-${index}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={chart.color} stopOpacity={0.12}/>
+                      <stop offset="100%" stopColor={chart.color} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.06)" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 11, fill: '#94A3B8' }} 
+                    dy={8}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 11, fill: '#94A3B8' }} 
+                    width={40}
+                  />
+                  <Tooltip 
+                    content={<CustomTooltip isCurrency={chart.isCurrency} />} 
+                    cursor={{ stroke: chart.color, strokeWidth: 1, strokeDasharray: '4 4', strokeOpacity: 0.4 }} 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey={chart.dataKey} 
+                    stroke={chart.color} 
+                    strokeWidth={2} 
+                    fill={`url(#g-${index})`} 
+                    dot={false}
+                    activeDot={{ r: 4, fill: chart.color, stroke: 'white', strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       ))}

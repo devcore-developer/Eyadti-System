@@ -128,7 +128,7 @@ export async function getChartData(clinicId: string) {
 }
 
 // ───────────────────────────────────────
-// Recent Activity
+// Recent Activity - HIGHLY OPTIMIZED
 // ───────────────────────────────────────
 export async function getRecentActivity(clinicId: string) {
   const [patients, appointments, invoices] = await Promise.all([
@@ -175,7 +175,7 @@ export async function getRecentActivity(clinicId: string) {
       dateTime: a.dateTime,
       status: a.status,
       patientName: a.patient?.fullName || "Unknown",
-      doctorName: a.doctor?.name || "Unknown",
+      doctorName: a.doctor?.name ? `Dr. ${a.doctor.name}` : "Unknown",
     })),
     invoices: invoices.map(inv => ({
       id: inv.id,

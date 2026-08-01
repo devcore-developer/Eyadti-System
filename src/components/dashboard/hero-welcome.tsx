@@ -10,6 +10,7 @@ interface HeroWelcomeProps {
   branchName?: string
   appointmentsCount?: number
   pendingInvoices?: number
+  monthlyRevenue?: number
 }
 
 export function HeroWelcome({ 
@@ -17,7 +18,8 @@ export function HeroWelcome({
   clinicName = "Nexora Clinic",
   branchName = "Main Branch",
   appointmentsCount = 0, 
-  pendingInvoices = 0 
+  pendingInvoices = 0,
+  monthlyRevenue = 0
 }: HeroWelcomeProps) {
   const [greeting, setGreeting] = useState("Hello")
   const [date, setDate] = useState("")
@@ -32,7 +34,7 @@ export function HeroWelcome({
       else if (hour >= 17 && hour < 21) setGreeting("Good Evening")
       else setGreeting("Good Night")
 
-      setDate(now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
+      setDate(now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }))
     }
 
     updateTimeAndGreeting()
@@ -40,59 +42,75 @@ export function HeroWelcome({
     return () => clearInterval(interval)
   }, [])
 
+  const formatAmount = (n: number) => n.toLocaleString('en-US')
+
   return (
     <div 
-      className="relative overflow-hidden rounded-2xl md:rounded-[28px] p-5 sm:p-8 md:p-10 text-white shadow-[0_20px_50px_rgba(107,156,255,.20)] flex flex-col justify-between"
-      style={{ background: 'linear-gradient(135deg, #5BC0BE, #6B9CFF)' }}
+      className="relative overflow-hidden rounded-[24px] px-6 py-6 sm:px-8 sm:py-7 md:px-10 md:py-8 text-white"
+      style={{ 
+        background: 'linear-gradient(135deg, #2B9E99 0%, #5BC0BE 35%, #6B9CFF 100%)',
+        boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 4px 24px rgba(107,156,255,0.15), 0 12px 48px rgba(91,192,190,0.10)'
+      }}
     >
-      {/* Decorative Glass Elements */}
-      <div className="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-56 h-56 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-white/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl pointer-events-none" />
+      {/* Decorative */}
+      <div className="absolute top-0 right-0 w-[350px] h-[350px] bg-white/[0.06] rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[250px] h-[250px] bg-white/[0.04] rounded-full translate-y-1/3 -translate-x-1/4 blur-3xl pointer-events-none" />
       
-      <div className="relative z-10 flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+      <div className="relative z-10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight drop-shadow-sm truncate">
+          {/* Greeting */}
+          <h1 className="text-xl sm:text-2xl md:text-[1.75rem] font-bold tracking-[-0.02em] leading-tight">
             {greeting}, {doctorName}
           </h1>
           
-          <div className="flex items-center gap-2 mt-2 text-white/80">
-            <Building2 className="h-4 w-4 shrink-0" />
-            <span className="text-sm font-medium truncate">{clinicName} • {branchName}</span>
+          {/* Clinic */}
+          <div className="flex items-center gap-2 mt-1.5 text-white/60">
+            <Building2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-[13px] font-medium truncate">{clinicName}{branchName ? ` · ${branchName}` : ""}</span>
           </div>
 
-          <p className="mt-4 text-base sm:text-lg text-white/90 font-light">
-            Today you have <span className="font-semibold text-white drop-shadow-sm">{appointmentsCount} appointments</span> and <span className="font-semibold text-white drop-shadow-sm">{pendingInvoices} pending invoices</span>.
-          </p>
+          {/* Dynamic Summary */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-5">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl sm:text-2xl font-extrabold tabular-nums tracking-tight">
+                {appointmentsCount}
+              </span>
+              <span className="text-[13px] text-white/60 font-medium">today</span>
+            </div>
+            {monthlyRevenue > 0 && (
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl sm:text-2xl font-extrabold tabular-nums tracking-tight">
+                  {formatAmount(monthlyRevenue)}
+                </span>
+                <span className="text-[13px] text-white/60 font-medium">this month</span>
+              </div>
+            )}
+            {pendingInvoices > 0 && (
+              <div className="flex items-center gap-1.5 bg-white/[0.08] backdrop-blur-sm px-2.5 py-1 rounded-lg">
+                <span className="text-[13px] font-semibold tabular-nums">{pendingInvoices}</span>
+                <span className="text-[11px] text-white/50">pending</span>
+              </div>
+            )}
+          </div>
           
-          {/* Quick Action Buttons */}
-          <div className="flex flex-wrap gap-2 sm:gap-3 mt-6">
-            <Link href="/appointments/new" className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold border border-white/20 shadow-sm hover:shadow-md hover:-translate-y-0.5">
-              <CalendarDays className="h-4 w-4" /> New Appointment
+          {/* CTAs */}
+          <div className="flex flex-wrap gap-2 mt-5">
+            <Link href="/appointments/new" className="inline-flex items-center gap-1.5 bg-white/[0.12] hover:bg-white/[0.18] backdrop-blur-sm px-3.5 py-2 rounded-lg transition-all duration-150 text-[13px] font-medium border border-white/[0.1] hover:-translate-y-px active:translate-y-0">
+              <CalendarDays className="h-3.5 w-3.5" /> New Appointment
             </Link>
-            <Link href="/patients/new" className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold border border-white/20 shadow-sm hover:shadow-md hover:-translate-y-0.5">
-              <UserPlus className="h-4 w-4" /> New Patient
+            <Link href="/patients/new" className="inline-flex items-center gap-1.5 bg-white/[0.12] hover:bg-white/[0.18] backdrop-blur-sm px-3.5 py-2 rounded-lg transition-all duration-150 text-[13px] font-medium border border-white/[0.1] hover:-translate-y-px active:translate-y-0">
+              <UserPlus className="h-3.5 w-3.5" /> New Patient
             </Link>
-            <Link href="/invoices/new" className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-200 text-xs sm:text-sm font-semibold border border-white/20 shadow-sm hover:shadow-md hover:-translate-y-0.5">
-              <FileText className="h-4 w-4" /> Create Invoice
+            <Link href="/invoices/new" className="inline-flex items-center gap-1.5 bg-white/[0.12] hover:bg-white/[0.18] backdrop-blur-sm px-3.5 py-2 rounded-lg transition-all duration-150 text-[13px] font-medium border border-white/[0.1] hover:-translate-y-px active:translate-y-0">
+              <FileText className="h-3.5 w-3.5" /> Create Invoice
             </Link>
           </div>
         </div>
         
-        <div className="flex flex-row md:flex-col items-center md:items-end gap-2 sm:gap-3 shrink-0 w-full md:w-auto">
-          <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-white/20 shadow-sm flex-1 md:flex-none justify-center">
-            <CalendarDays className="h-4 w-4 shrink-0" />
-            <span className="text-xs sm:text-sm font-medium truncate">{date}</span>
-          </div>
-          
-          {/* ✨ جعل كارت الإشعارات قابل للنقر وموجه لصفحة الإشعارات */}
-          <Link 
-            href="/notifications" 
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-200 border border-white/10 shadow-sm hover:-translate-y-0.5 flex-1 md:flex-none justify-center cursor-pointer active:scale-95"
-          >
-            <Bell className="h-4 w-4 shrink-0" />
-            <span className="text-xs sm:text-sm font-medium">3 New Notifications</span>
-          </Link>
+        {/* Date Badge */}
+        <div className="flex items-center gap-2 bg-white/[0.1] backdrop-blur-sm px-3 py-2.5 rounded-lg border border-white/[0.08] shrink-0 self-start">
+          <CalendarDays className="h-3.5 w-3.5 text-white/50" />
+          <span className="text-[12px] font-medium text-white/70 truncate">{date}</span>
         </div>
       </div>
     </div>

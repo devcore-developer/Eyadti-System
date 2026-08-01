@@ -41,7 +41,6 @@ const adminNavigation = [
   { name: "Branches", href: "/settings/branches", icon: Building2 },
 ]
 
-// 🚀 Super Admin Navigation (Platform Level)
 const superAdminNavigation = [
   { name: "Platform Overview", href: "/super-admin", icon: BarChart3 },
   { name: "All Clinics", href: "/super-admin/clinics", icon: Building2 },
@@ -58,7 +57,7 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
   }
 
   return (
-    <nav className="flex-1 space-y-1 overflow-y-auto py-2 md:py-4">
+    <nav className="flex-1 space-y-0.5 overflow-y-auto py-2">
       {navigation.map((item) => {
         const active = isActive(item.href)
         return (
@@ -66,18 +65,18 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
             key={item.name}
             href={item.href}
             className={cn(
-              "sidebar-item group flex items-center gap-3 text-[0.8125rem] font-medium transition-colors duration-150",
+              "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
               active
                 ? "active"
-                : "text-sidebar-foreground/60 hover:bg-sidebar-accent/20 hover:text-sidebar-foreground"
+                : "text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-white"
             )}
           >
             <item.icon
               className={cn(
-                "h-4 w-4 shrink-0 transition-colors duration-150",
+                "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
                 active
                   ? "text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
+                  : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
               )}
             />
             <span className="truncate">{item.name}</span>
@@ -87,11 +86,11 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
 
       {isAdmin && (
         <>
-          <Separator className="my-3 bg-sidebar-border" />
-          <p className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-            Clinic Administration
+          <Separator className="my-3 bg-gray-100 dark:bg-white/[0.06]" />
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            Administration
           </p>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {adminNavigation.map((item) => {
               const active = isActive(item.href)
               return (
@@ -99,18 +98,18 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "sidebar-item group flex items-center gap-3 text-[0.8125rem] font-medium transition-colors duration-150",
+                    "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
                     active
                       ? "active"
-                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent/20 hover:text-sidebar-foreground"
+                      : "text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-white"
                   )}
                 >
                   <item.icon
                     className={cn(
-                      "h-4 w-4 shrink-0 transition-colors duration-150",
+                      "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
                       active
                         ? "text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
+                        : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
                     )}
                   />
                   <span className="truncate">{item.name}</span>
@@ -121,14 +120,13 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
         </>
       )}
 
-      {/* ─── SUPER ADMIN SECTION ─── */}
       {isSuperAdmin && (
         <>
-          <Separator className="my-3 bg-sidebar-border" />
-          <p className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-primary/80">
-            Platform Control
+          <Separator className="my-3 bg-gray-100 dark:bg-white/[0.06]" />
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-primary/70">
+            Platform
           </p>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {superAdminNavigation.map((item) => {
               const active = isActive(item.href)
               return (
@@ -136,16 +134,16 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "sidebar-item group flex items-center gap-3 text-[0.8125rem] font-medium transition-colors duration-150",
+                    "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
                     active
-                      ? "active text-primary bg-primary/10"
-                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent/20 hover:text-primary"
+                      ? "active text-primary bg-primary/[0.08]"
+                      : "text-slate-500 dark:text-slate-400 hover:bg-primary/[0.04] hover:text-primary"
                   )}
                 >
                   <item.icon
                     className={cn(
-                      "h-4 w-4 shrink-0 transition-colors duration-150",
-                      active ? "text-primary" : "text-sidebar-foreground/40 group-hover:text-primary/70"
+                      "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
+                      active ? "text-primary" : "text-slate-400 dark:text-slate-500 group-hover:text-primary/70"
                     )}
                   />
                   <span className="truncate">{item.name}</span>

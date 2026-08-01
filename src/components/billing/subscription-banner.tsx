@@ -1,5 +1,3 @@
-// src/components/billing/subscription-banner.tsx
-
 "use client";
 
 import { useSubscription } from "@/hooks/use-subscription";
@@ -9,53 +7,54 @@ import Link from "next/link";
 export function SubscriptionBanner() {
   const { isTrial, trialDaysRemaining, isExpired } = useSubscription();
 
-  // لو الاشتراك شغال وعادي مفيش بانر
   if (!isTrial && !isExpired) return null;
 
-  // لو التريال هينتهي خلال 7 أيام
   if (isTrial && trialDaysRemaining !== null && trialDaysRemaining <= 7) {
     return (
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 bg-[#F4B860]/[0.06] border border-[#F4B860]/20 rounded-xl">
         <div className="flex items-center gap-3">
-          <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="p-1.5 rounded-lg bg-[#F4B860]/[0.1]">
+            <Clock className="w-4 h-4 text-[#F4B860]" />
+          </div>
           <div>
-            <p className="text-sm font-semibold text-amber-800">
-              Your free trial expires in {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""}
+            <p className="text-[13px] font-semibold text-[#F4B860]">
+              Trial expires in {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""}
             </p>
-            <p className="text-xs text-amber-600">
-              Upgrade now to avoid losing access to your clinic data.
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Upgrade to keep your clinic data.
             </p>
           </div>
         </div>
         <Link href="/settings/billing">
-          <button className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-            Upgrade Plan
-            <ArrowUpRight className="w-4 h-4" />
+          <button className="flex items-center gap-1.5 px-3.5 py-2 bg-[#F4B860] hover:bg-[#e5a84d] text-white text-[12px] font-semibold rounded-lg transition-colors shadow-sm">
+            Upgrade
+            <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </Link>
       </div>
     );
   }
 
-  // لو الاشتراك منتهي
   if (isExpired) {
     return (
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-red-50 border border-red-200 rounded-xl mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 bg-[#EF6B6B]/[0.06] border border-[#EF6B6B]/20 rounded-xl">
         <div className="flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+          <div className="p-1.5 rounded-lg bg-[#EF6B6B]/[0.1]">
+            <AlertTriangle className="w-4 h-4 text-[#EF6B6B]" />
+          </div>
           <div>
-            <p className="text-sm font-semibold text-red-800">
-              Your subscription has expired
+            <p className="text-[13px] font-semibold text-[#EF6B6B]">
+              Subscription expired
             </p>
-            <p className="text-xs text-red-600">
-              Please renew your plan to continue using all features.
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Renew to continue using all features.
             </p>
           </div>
         </div>
         <Link href="/settings/billing">
-          <button className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-            Renew Plan
-            <ArrowUpRight className="w-4 h-4" />
+          <button className="flex items-center gap-1.5 px-3.5 py-2 bg-[#EF6B6B] hover:bg-[#e05e5e] text-white text-[12px] font-semibold rounded-lg transition-colors shadow-sm">
+            Renew
+            <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </Link>
       </div>
