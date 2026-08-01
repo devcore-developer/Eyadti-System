@@ -16,7 +16,7 @@ function getResourceType(fileName: string): "image" | "raw" {
 
 export async function POST(request: Request) {
   const session = await auth()
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !session.user.clinicId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -28,7 +28,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    // ✅ حد أقصى 50MB لملفات STL
     const MAX_SIZE = 50 * 1024 * 1024
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: "File too large. Maximum size is 50MB." }, { status: 400 })
@@ -38,12 +37,15 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(bytes)
     const resourceType = getResourceType(file.name)
 
+    // FIX: Scoped upload folder to the specific clinic to enforce tenant isolation
+    const clinicFolder = `clinic_${session.user.clinicId}`
+
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
           {
-            resource_type: resourceType, // ✅ "raw" لـ STL، "image" لـ الصور
-            folder: "clinic_uploads",
+            resource_type: resourceType,
+            folder: clinicFolder, 
             public_id: `${Date.now()}_${file.name.replace(/\.[^/.]+$/, "")}`,
           },
           (error, result) => {

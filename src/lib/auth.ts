@@ -1,8 +1,7 @@
-// src/lib/auth.ts
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
-import bcrypt from "bcryptjs";
+import { comparePassword } from "@/lib/password";
 import { SubscriptionStatus } from "@prisma/client";
 import { checkAndExpireTrials } from "./services/trial-system";
 
@@ -23,7 +22,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("البريد الإلكتروني وكلمة المرور مطلوبان");
+          throw new Error("Email and password are required.");
         }
 
         const email = credentials.email as string;
@@ -34,31 +33,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
 
         if (!user || !user.password) {
-          throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+          throw new Error("Incorrect email or password.");
         }
 
-        const isValidPassword = await bcrypt.compare(password, user.password);
+        // FIX #11: Use comparePassword from password.ts
+        const isValidPassword = await comparePassword(password, user.password);
 
         if (!isValidPassword) {
-          throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+          throw new Error("Incorrect email or password.");
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 🛡️ ACCOUNT STATUS GUARD (التحقق من حالة الحساب)
-        // ملاحظة: لو عندك حقل status في الـ Database، شيل علامة التعليق عن الأسطر اللي تحت
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        
-        /*
+        // FIX #6: Account status guard
         if (user.status === "SUSPENDED") {
-          throw new Error("تم تعليق هذا الحساب. يرجى التواصل مع الدعم الفني.");
+          throw new Error("This account has been suspended. Please contact support.");
         }
-        
+
         if (user.status === "INACTIVE") {
-          throw new Error("هذا الحساب غير مفعل بعد.");
+          throw new Error("This account is not active yet.");
         }
-        */
-        
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
         return {
           id: user.id,

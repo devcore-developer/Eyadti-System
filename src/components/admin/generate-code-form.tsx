@@ -13,7 +13,6 @@ interface GenerateCodeFormProps {
   plans: Plan[];
 }
 
-// تعريف بسيط للنتيجة (تأكد إن ActionResult في types/index.ts متضمن codes?: string[])
 interface ActionResultWithCodes {
   success: boolean;
   error?: string;
@@ -30,11 +29,15 @@ const DURATION_OPTIONS = [
 
 export function GenerateCodeForm({ plans }: GenerateCodeFormProps) {
   const [planId, setPlanId] = useState("")
+  // FIX #31: Add type selection
+  const [codeType, setCodeType] = useState<"SIGNUP" | "SUBSCRIPTION">("SUBSCRIPTION")
   const [durationDays, setDurationDays] = useState(30)
   const [quantity, setQuantity] = useState(10)
+  // FIX #32: Add expiration date option
+  const [expiresAt, setExpiresAt] = useState("")
   const [isPending, setIsPending] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [result, setResult] = useState<ActionResultWithCodes | null>(null) // ✅ State for storing full result
+  const [result, setResult] = useState<ActionResultWithCodes | null>(null)
   const [copied, setCopied] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,8 +49,10 @@ export function GenerateCodeForm({ plans }: GenerateCodeFormProps) {
 
     const res = await superAdminGenerateCodes({
       planId,
+      type: codeType,
       durationDays,
       quantity,
+      expiresAt: expiresAt || null,
     });
 
     if (res?.success) {
@@ -69,9 +74,9 @@ export function GenerateCodeForm({ plans }: GenerateCodeFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-      <h3 className="text-lg font-bold text-foreground">Generate Subscription Codes</h3>
+      <h3 className="text-lg font-bold text-foreground">Generate Activation Codes</h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Plan Select */}
         <div className="space-y-2">
           <Label htmlFor="plan">Target Plan</Label>
@@ -86,6 +91,20 @@ export function GenerateCodeForm({ plans }: GenerateCodeFormProps) {
             {plans.map((plan) => (
               <option key={plan.id} value={plan.id}>{plan.name}</option>
             ))}
+          </select>
+        </div>
+
+        {/* FIX #31: Type Select */}
+        <div className="space-y-2">
+          <Label htmlFor="codeType">Code Type</Label>
+          <select 
+            id="codeType"
+            value={codeType} 
+            onChange={(e) => setCodeType(e.target.value as "SIGNUP" | "SUBSCRIPTION")}
+            className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm"
+          >
+            <option value="SUBSCRIPTION">Subscription Code</option>
+            <option value="SIGNUP">Signup / Trial Code</option>
           </select>
         </div>
 
@@ -119,32 +138,40 @@ export function GenerateCodeForm({ plans }: GenerateCodeFormProps) {
         </div>
       </div>
 
+      {/* FIX #32: Expiration Date */}
+      <div className="space-y-2">
+        <Label htmlFor="expiresAt">Code Expiration Date (Optional)</Label>
+        <Input 
+          id="expiresAt"
+          type="datetime-local"
+          value={expiresAt}
+          onChange={(e) => setExpiresAt(e.target.value)}
+          className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm"
+        />
+        <p className="text-xs text-muted-foreground">Leave empty for no expiration.</p>
+      </div>
+
       {message && (
         <div className={`p-3 rounded-md text-sm font-medium ${message.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
           {message.text}
         </div>
       )}
 
-      {/* ✅ Display Generated Codes */}
       {result?.success && result?.codes && result.codes.length > 0 && (
         <div className="mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-4">
           <div className="flex justify-between items-center mb-3">
             <Label className="font-semibold text-foreground">Generated Codes ({result.codes.length})</Label>
             <Button 
-              type="button" // type="button" to prevent form submit
+              type="button"
               variant="outline" 
               size="sm" 
               onClick={handleCopy}
               className="text-xs"
             >
               {copied ? (
-                <>
-                  <Check className="h-3 w-3 mr-1" /> Copied
-                </>
+                <><Check className="h-3 w-3 mr-1" /> Copied</>
               ) : (
-                <>
-                  <Copy className="h-3 w-3 mr-1" /> Copy All
-                </>
+                <><Copy className="h-3 w-3 mr-1" /> Copy All</>
               )}
             </Button>
           </div>

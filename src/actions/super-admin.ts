@@ -5,7 +5,6 @@ import { auth } from "@/lib/auth";
 import { ActionResult } from "@/types";
 import { randomBytes } from "crypto";
 
-// ─── Helper ────────────────────────────────────────────────────────
 function generateRandomCode(length: number = 8): string {
   return randomBytes(Math.ceil(length / 2))
     .toString("hex")
@@ -16,34 +15,14 @@ function generateRandomCode(length: number = 8): string {
 // ─── PLATFORM STATS ─────────────────────────────────────────────────
 export async function getPlatformStats() {
   try {
-    console.log("🔴 STEP 1: Function Started");
-
     const session = await auth();
-    console.log("🔴 STEP 2: Session Retrieved", session?.user?.role);
-
     if (!session || session.user.role !== "SUPER_ADMIN") {
-      console.log("🔴 ❌ STOPPED: Not Super Admin");
-      // بدل ما نرجع null وتختفي البيانات، هنرجع بيانات وهمية عشان نعرف الصفحة شغالة
-      return {
-        totalClinics: 0,
-        activeClinics: 0,
-        totalUsers: 0,
-        totalDoctors: 0,
-        totalPatients: 0,
-        appointmentsToday: 0,
-        mrr: 0,
-        activeTrials: 0,
-        expiringSubs: 0,
-        failedPayments: 0
-      };
+      // FIX #15: Throw error instead of returning fake data
+      throw new Error("Unauthorized");
     }
-
-    console.log("🔴 STEP 3: Auth Passed. Preparing DB Queries");
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-
-    console.log("🔴 STEP 4: Executing Promise.all...");
 
     const [
       totalClinics,
@@ -62,25 +41,22 @@ export async function getPlatformStats() {
       prisma.user.count(),
       prisma.user.count({ where: { role: "DOCTOR" } }),
       prisma.patient.count(),
-      0, // appointmentsToday (commented out previously)
-      
-      prisma.invoice.aggregate({ 
-        where: { status: "PAID" }, 
-        _sum: { amount: true } 
+      0,
+      prisma.invoice.aggregate({
+        where: { status: "PAID" },
+        _sum: { amount: true },
       }),
       prisma.clinic.count({ where: { subscription: { status: "TRIAL" } } }),
-      prisma.clinic.count({ 
-        where: { 
-          subscription: { 
-            endDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, 
-            status: "ACTIVE" 
-          } 
-        } 
+      prisma.clinic.count({
+        where: {
+          subscription: {
+            endDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+            status: "ACTIVE"
+          }
+        }
       }),
       prisma.invoice.count({ where: { status: { not: "PAID" } } })
     ]);
-
-    console.log("🔴 STEP 5: All Queries Successful!");
 
     return {
       totalClinics,
@@ -95,7 +71,7 @@ export async function getPlatformStats() {
       failedPayments
     };
   } catch (error) {
-    console.error("💥 CRASH IN STATS FUNCTION:", error); // دي أهم حاجة
+    console.error("Error fetching platform stats:", error);
     return null;
   }
 }
@@ -111,7 +87,7 @@ export async function getAllClinics() {
       include: {
         subscription: true,
         _count: {
-          select: { users: true, branches: true, patients: true } 
+          select: { users: true, branches: true, patients: true }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -132,7 +108,7 @@ export async function getClinicDetails(clinicId: string) {
     const clinic = await prisma.clinic.findUnique({
       where: { id: clinicId },
       include: {
-        subscription: true, 
+        subscription: true,
         branches: { select: { id: true, name: true, city: true } },
         users: { select: { id: true, name: true, email: true, role: true } },
         _count: {
@@ -140,7 +116,7 @@ export async function getClinicDetails(clinicId: string) {
             patients: true,
             appointments: true,
             invoices: true,
-            users: true 
+            users: true
           }
         }
       }
@@ -196,7 +172,7 @@ export async function getPlatformBillingData() {
       where: { status: "ACTIVE" },
       include: { plan: true }
     });
-    
+
     const mrr = activeSubs.reduce((sum, sub) => {
       return sum + (sub.plan?.monthlyPrice ? Number(sub.plan.monthlyPrice) : 0);
     }, 0);
@@ -227,14 +203,18 @@ export async function getPlatformBillingData() {
 }
 
 // ─── GENERATE CODES ─────────────────────────────────────────────────
-export async function superAdminGenerateCodes({ 
-  planId, 
-  durationDays, 
-  quantity 
-}: { 
-  planId: string; 
-  durationDays: number; 
-  quantity: number; 
+export async function superAdminGenerateCodes({
+  planId,
+  type,
+  durationDays,
+  quantity,
+  expiresAt,
+}: {
+  planId: string;
+  type: "SIGNUP" | "SUBSCRIPTION";
+  durationDays: number;
+  quantity: number;
+  expiresAt?: string | null;
 }): Promise<ActionResult> {
   try {
     const session = await auth();
@@ -242,28 +222,41 @@ export async function superAdminGenerateCodes({
       return { success: false, error: "Unauthorized" };
     }
 
+    if (!planId) {
+      return { success: false, error: "Plan is required." };
+    }
+
     const plan = await prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) {
-      return { success: false, error: "Plan not found" };
+      return { success: false, error: "Plan not found." };
     }
+
+    const parsedExpiresAt = expiresAt ? new Date(expiresAt) : null;
 
     const codesToCreate = Array.from({ length: quantity }).map(() => ({
       code: generateRandomCode(8),
       planId: planId,
+      type: type,
       durationDays: durationDays,
+      expiresAt: parsedExpiresAt,
+      // FIX #14: Store who created the code
+      createdByUserId: session.user.id,
     }));
 
     await prisma.activationCode.createMany({
-      data: codesToCreate
+      data: codesToCreate,
     });
 
-    // ✅ استخراج الأكواد المنشئة عشان نرجعها للفرونت إند
     const generatedCodes = codesToCreate.map(c => c.code);
 
-    return { success: true, codes: generatedCodes, message: `${quantity} codes generated for ${plan.name}` };
+    return {
+      success: true,
+      codes: generatedCodes,
+      message: `${quantity} ${type} code(s) generated for ${plan.name}`,
+    };
   } catch (error: any) {
     console.error("Error generating codes:", error);
-    return { success: false, error: "Failed to generate codes" };
+    return { success: false, error: "Failed to generate codes." };
   }
 }
 
@@ -274,10 +267,10 @@ export async function toggleFeatureFlag(clinicId: string, feature: string, value
     if (!session || session.user.role !== "SUPER_ADMIN") {
       throw new Error("Unauthorized");
     }
-    
+
     return { success: true };
   } catch (error) {
-    return { success: false, error: "Failed to update feature flag" };
+    return { success: false, error: "Failed to update feature flag." };
   }
 }
 
@@ -287,22 +280,23 @@ export async function getAllClinicsWithFlags() {
     if (!session || session.user.role !== "SUPER_ADMIN") return [];
 
     const clinics = await prisma.clinic.findMany({
-      select: { id: true, name: true, subscription: { select: { status: true } } },
+      select: { id: true, name: true, subscription: { select: { status: true, plan: { select: { whatsappEnabled: true, onlineBookingEnabled: true } } } } },
       orderBy: { name: 'asc' }
     });
-    
+
     return clinics.map(c => ({
       ...c,
       features: {
-        whatsappEnabled: true,
-        onlineBookingEnabled: c.subscription?.status === 'ACTIVE',
-        smsNotifications: false
+        whatsappEnabled: c.subscription?.plan?.whatsappEnabled ?? false,
+        onlineBookingEnabled: c.subscription?.plan?.onlineBookingEnabled ?? false,
+        smsNotifications: false,
       }
     }));
   } catch (error) {
     return [];
   }
 }
+
 export async function getAllPlans() {
   try {
     const session = await auth();
@@ -311,8 +305,8 @@ export async function getAllPlans() {
     }
 
     return await prisma.plan.findMany({
-      where: { active: true }, // بنجيب الخطط الفعالة بس
-      orderBy: { monthlyPrice: 'asc' }
+      where: { active: true },
+      orderBy: { monthlyPrice: 'asc' },
     });
   } catch (error) {
     console.error("Error fetching plans:", error);

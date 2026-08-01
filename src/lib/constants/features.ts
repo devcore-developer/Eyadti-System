@@ -107,6 +107,10 @@ export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
 };
 
 // ── SaaS Plans Definitions ──────────────────────────
+// NOTE: This is a REFERENCE ONLY for seeding scripts.
+// The actual plan data lives in the database.
+// Use createTrialSubscription() from services/subscription.ts
+// which reads DEFAULT_TRIAL_PLAN_SLUG and TRIAL_DURATION_DAYS below.
 export const PLANS_CONFIG = {
   STARTER: {
     name: "Starter",

@@ -39,6 +39,10 @@ export async function createTrialSubscription(
   return subscription as any;
 }
 
+/**
+ * Get subscription for a clinic (READ ONLY — no side effects).
+ * Does NOT auto-expire. Use checkAndExpireTrials() for that.
+ */
 export async function getSubscription(
   clinicId: string
 ): Promise<SubscriptionType | null> {
@@ -49,35 +53,7 @@ export async function getSubscription(
 
   if (!subscription) return null;
 
-  // Auto-expire trial if ended
-  if (
-    subscription.status === SubscriptionStatus.TRIAL &&
-    subscription.trialEndsAt &&
-    new Date() > subscription.trialEndsAt
-  ) {
-    const updated = await prisma.subscription.update({
-      where: { id: subscription.id },
-      data: { status: SubscriptionStatus.EXPIRED },
-      include: { plan: true },
-    });
-    return updated as SubscriptionType;
-  }
-
-  // Auto-expire active subscription if end date passed
-  if (
-    subscription.status === SubscriptionStatus.ACTIVE &&
-    subscription.endDate &&
-    new Date() > subscription.endDate
-  ) {
-    const updated = await prisma.subscription.update({
-      where: { id: subscription.id },
-      data: { status: SubscriptionStatus.EXPIRED },
-      include: { plan: true },
-    });
-    return updated as SubscriptionType;
-  }
-
-  return subscription as any;
+  return subscription as unknown as SubscriptionType;
 }
 
 export async function isSubscriptionActive(clinicId: string): Promise<boolean> {
@@ -124,11 +100,13 @@ export async function activateSubscription(
         status: SubscriptionStatus.ACTIVE,
         startDate: now,
         endDate,
+        // FIX #39: Add currentPeriodEnd
+        currentPeriodEnd: endDate,
         cancelledAt: null,
       },
       include: { plan: true },
     });
-    return updated as SubscriptionType;
+    return updated as any;
   }
 
   const subscription = await prisma.subscription.create({
@@ -138,6 +116,8 @@ export async function activateSubscription(
       status: SubscriptionStatus.ACTIVE,
       startDate: now,
       endDate,
+      // FIX #39: Add currentPeriodEnd
+      currentPeriodEnd: endDate,
     },
     include: { plan: true },
   });
@@ -193,6 +173,8 @@ export async function reactivateSubscription(
       status: SubscriptionStatus.ACTIVE,
       startDate: now,
       endDate,
+      // FIX #39: Add currentPeriodEnd
+      currentPeriodEnd: endDate,
       cancelledAt: null,
     },
     include: { plan: true },

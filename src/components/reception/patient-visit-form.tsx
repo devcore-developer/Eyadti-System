@@ -50,8 +50,8 @@ export function PatientVisitForm({ clinicId, doctors, preselectedPatient }: Prop
   // ✨ بحث آمن باستخدام الـ Action الأصلي
   useEffect(() => {
     if (debouncedSearch && !selectedPatient) {
-      searchPatients(debouncedSearch, clinicId).then(results => {
-        setSearchResults(results as PatientOption[])
+      searchPatients(debouncedSearch).then(results => {
+        setSearchResults((results as any)?.data || [])
       }).catch(() => setSearchResults([]))
     } else {
       setSearchResults([])

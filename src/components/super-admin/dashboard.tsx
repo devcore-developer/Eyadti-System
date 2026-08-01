@@ -170,8 +170,11 @@ export function SuperAdminDashboard({
     setLoadingAction(clinicId)
     const result = await impersonateClinic(clinicId)
     setLoadingAction(null)
-    if (result.success) router.push("/super-admin")
-    else alert("❌ Failed: " + result.error)
+    if (result.success) {
+      router.push(`/super-admin/clinics/${clinicId}`)
+    } else {
+      alert("Failed: " + result.error)
+    }
   }
 
   const KPICard = ({

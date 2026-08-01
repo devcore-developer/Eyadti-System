@@ -30,7 +30,8 @@ export const signupSchema = z
       .trim()
       .min(2, { message: "Clinic name must be at least 2 characters" })
       .max(200, { message: "Clinic name must be at most 200 characters" }),
-    signupCode: z.string().min(1, "Activation code is required"),
+    // FIX: Added .trim() to prevent copy-paste errors from emails/PDFs
+    signupCode: z.string().trim().min(1, "Activation code is required"),
   })
   .strict();
 

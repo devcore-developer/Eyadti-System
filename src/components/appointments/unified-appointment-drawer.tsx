@@ -36,7 +36,7 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
 
   useEffect(() => {
     if (debouncedSearch && !selectedPatient && !isNewPatient) {
-      searchPatients(debouncedSearch, clinicId).then(results => setSearchResults(results as PatientOption[]))
+      searchPatients(debouncedSearch).then(results => setSearchResults((results as any)?.data || []))
     } else {
       setSearchResults([])
     }
@@ -44,8 +44,8 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
 
   useEffect(() => {
     if (isOpen && preselectedPatientId && !selectedPatient) {
-      searchPatients(preselectedPatientId, clinicId).then(results => {
-        const found = (results as PatientOption[]).find(p => p.id === preselectedPatientId)
+      searchPatients(preselectedPatientId).then(results => {
+        const found = ((results as any)?.data || []).find((p: any) => p.id === preselectedPatientId)
         if (found) setSelectedPatient(found)
       })
     }

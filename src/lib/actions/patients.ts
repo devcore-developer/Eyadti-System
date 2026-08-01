@@ -1,187 +1,161 @@
 "use server"
 
 import { allergySchema, medicalHistorySchema, surgicalHistorySchema } from "@/lib/validations/patient"
+import { patientCreateSchema, patientUpdateSchema } from "@/lib/validations/patient"
 import { Gender } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/permissions"
 import type { ActionResult } from "@/types"
 import { revalidatePath } from "next/cache"
 import { notifyPatientCreated } from "@/lib/notifications/events"
+import { enforceUsageLimit } from "@/lib/services/usage-limits"
 import { auditLog } from "@/lib/services/audit"
 
+// ─── Search Patient (For Reception) ───────────────────
+// FIX: Changed to use requireRole() to extract clinicId securely from session
+export async function searchPatients(query: string): Promise<ActionResult<{ id: string; phone: string; fullName: string; gender: string; dateOfBirth: Date }[]>> {
+  try {
+    const { clinicId } = await requireRole("ADMIN", "DOCTOR", "RECEPTIONIST")
+    
+    if (!query || query.length < 2) return { success: true, data: [] }
+    
+    const patients = await prisma.patient.findMany({
+      where: {
+        clinicId,
+        OR: [
+          { phone: { contains: query, mode: "insensitive" } },
+          { fullName: { contains: query, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true, fullName: true, phone: true, gender: true, dateOfBirth: true },
+      take: 5,
+    })
 
-// ── Create Patient ───────────────────────────────────
+    return { success: true, data: patients }
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
+    return { success: false, error: "Failed to search patients." }
+  }
+}
 
+// ─── Create Patient ──────────────────────────────────
 export async function createPatient(formData: FormData): Promise<ActionResult> {
-  let session
   try {
-    session = await requireRole("ADMIN", "RECEPTIONIST")
-  } catch (error) {
-    if ((error as any)?.name === "AuthenticationError") {
-      return { success: false, error: "Not authenticated" }
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR", "RECEPTIONIST")
+
+    const raw = {
+      fullName: formData.get("fullName") as string,
+      phone: (formData.get("phone") as string) || "",
+      email: (formData.get("email") as string) || "",
+      gender: (formData.get("gender") as string) || "",
+      dateOfBirth: (formData.get("dateOfBirth") as string) || "",
+      address: (formData.get("address") as string) || "",
     }
-    if ((error as any)?.name === "AuthorizationError") {
-      return { success: false, error: "Not authorized" }
+
+    const validated = patientCreateSchema.safeParse(raw)
+    if (!validated.success) {
+      return {
+        success: false,
+        error: "Validation failed",
+        fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]>,
+      }
     }
-    console.error(error)
-    return { success: false, error: "Something went wrong" }
-  }
 
-  const raw = {
-    fullName: formData.get("fullName") as string,
-    phone: formData.get("phone") as string,
-    email: (formData.get("email") as string) || null,
-    gender: formData.get("gender") as string,
-    dateOfBirth: formData.get("dateOfBirth") as string,
-    address: (formData.get("address") as string) || null,
-  }
+    await enforceUsageLimit(clinicId, "PATIENTS")
 
-  if (!raw.fullName || !raw.phone || !raw.gender || !raw.dateOfBirth) {
-    return { success: false, error: "Missing required fields" }
-  }
-
-  try {
     const patient = await prisma.patient.create({
       data: {
-        fullName: raw.fullName,
-        phone: raw.phone,
-        email: raw.email,
-        gender: raw.gender as Gender,
-        dateOfBirth: new Date(raw.dateOfBirth),
-        address: raw.address,
-        clinicId: session.clinicId,
+        fullName: validated.data.fullName.trim(),
+        phone: validated.data.phone.trim(),
+        email: validated.data.email?.trim() || null,
+        gender: validated.data.gender as Gender,
+        dateOfBirth: new Date(validated.data.dateOfBirth),
+        address: validated.data.address?.trim() || null,
+        clinicId: clinicId,
       },
     })
 
-    // ← إرسال إشعار بإنشاء مريض جديد
     if (patient) {
-      await notifyPatientCreated(
-        patient.id,
-        patient.fullName,
-        session.clinicId,
-        session.userId
-      )
+      await notifyPatientCreated(patient.id, patient.fullName, clinicId, userId)
+      await auditLog({ clinicId, userId, action: "CREATE", entityType: "PATIENT", entityId: patient.id, newValues: patient })
     }
-
-    revalidatePath("/patients")
-    return { success: true }
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
     console.error(error)
-    return { success: false, error: "Failed to create patient" }
+    return { success: false, error: error.message || "Failed to create patient." }
   }
+
+  revalidatePath("/patients")
+  return { success: true }
 }
 
-// ── Update Patient ───────────────────────────────────
-
+// ─── Update Patient ──────────────────────────────────
 export async function updatePatient(patientId: string, formData: FormData): Promise<ActionResult> {
-  let session
   try {
-    session = await requireRole("ADMIN", "DOCTOR")
-  } catch (error) {
-    if ((error as any)?.name === "AuthenticationError") {
-      return { success: false, error: "Not authenticated" }
-    }
-    if ((error as any)?.name === "AuthorizationError") {
-      return { success: false, error: "Not authorized" }
-    }
-    console.error(error)
-    return { success: false, error: "Something went wrong" }
-  }
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR")
 
-  const raw = {
-    fullName: formData.get("fullName") as string,
-    phone: formData.get("phone") as string,
-    email: (formData.get("email") as string) || null,
-    gender: formData.get("gender") as string,
-    dateOfBirth: formData.get("dateOfBirth") as string,
-    address: (formData.get("address") as string) || null,
-  }
+    const existing = await prisma.patient.findFirst({ where: { id: patientId, clinicId: clinicId } })
+    if (!existing) return { success: false, error: "Patient not found" }
 
-  if (!raw.fullName || !raw.phone || !raw.gender || !raw.dateOfBirth) {
-    return { success: false, error: "Missing required fields" }
-  }
-
-  try {
-    const existing = await prisma.patient.findFirst({
-      where: { id: patientId, clinicId: session.clinicId },
-    })
-    if (!existing) {
-      return { success: false, error: "Patient not found" }
+    const raw = {
+      fullName: formData.get("fullName") as string,
+      phone: (formData.get("phone") as string) || "",
+      email: (formData.get("email") as string) || "",
+      gender: (formData.get("gender") as string) || "",
+      dateOfBirth: (formData.get("dateOfBirth") as string) || "",
+      address: (formData.get("address") as string) || "",
     }
 
-    await prisma.patient.update({
+    const validated = patientUpdateSchema.safeParse(raw)
+    if (!validated.success) {
+      return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]> }
+    }
+
+    const updatedPatient = await prisma.patient.update({
       where: { id: patientId },
       data: {
-        fullName: raw.fullName,
-        phone: raw.phone,
-        email: raw.email,
-        gender: raw.gender as Gender,
-        dateOfBirth: new Date(raw.dateOfBirth),
-        address: raw.address,
+        fullName: validated.data.fullName.trim(),
+        phone: validated.data.phone.trim(),
+        email: validated.data.email?.trim() || null,
+        gender: validated.data.gender as Gender,
+        dateOfBirth: new Date(validated.data.dateOfBirth),
+        address: validated.data.address?.trim() || null,
       },
     })
 
-    revalidatePath("/patients")
-    revalidatePath(`/patients/${patientId}`)
-    return { success: true }
-  } catch (error) {
+    await auditLog({ clinicId, userId, action: "UPDATE", entityType: "PATIENT", entityId: patientId, oldValues: existing, newValues: updatedPatient })
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
     console.error(error)
-    return { success: false, error: "Failed to update patient" }
+    return { success: false, error: "Failed to update patient." }
   }
+
+  revalidatePath("/patients")
+  revalidatePath(`/patients/${patientId}`)
+  return { success: true }
 }
 
-// ── Delete Patient ───────────────────────────────────
-
+// ─── Delete Patient ──────────────────────────────────
 export async function deletePatient(patientId: string): Promise<ActionResult> {
-  let session
   try {
-    session = await requireRole("ADMIN")
-  } catch (error) {
-    if ((error as any)?.name === "AuthenticationError") {
-      return { success: false, error: "Not authenticated" }
-    }
-    if ((error as any)?.name === "AuthorizationError") {
-      return { success: false, error: "Not authorized" }
-    }
-    console.error(error)
-    return { success: false, error: "Something went wrong" }
-  }
+    const { clinicId, userId } = await requireRole("SUPER_ADMIN", "ADMIN")
 
-  try {
-    const patient = await prisma.patient.findFirst({
-      where: { id: patientId, clinicId: session.clinicId },
-    })
-    if (!patient) {
-      return { success: false, error: "Patient not found" }
-    }
+    const existing = await prisma.patient.findFirst({ where: { id: patientId, clinicId: clinicId } })
+    if (!existing) return { success: false, error: "Patient not found" }
 
     await prisma.patient.delete({ where: { id: patientId } })
 
-    revalidatePath("/patients")
-    return { success: true }
-  } catch (error) {
+    await auditLog({ clinicId, userId, action: "DELETE", entityType: "PATIENT", entityId: patientId, oldValues: existing })
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
     console.error(error)
-    return { success: false, error: "Failed to delete patient" }
+    return { success: false, error: "Cannot delete patient." }
   }
-}
-// ... الكود القديم بتاعك (createPatient, updatePatient, deletePlayer) فضل موجود ...
 
-// ── Search Patient (For Reception) ───────────────────
-export async function searchPatients(query: string, clinicId: string) {
-  if (!query || query.length < 2) return []
-  
-  return prisma.patient.findMany({
-    where: {
-      clinicId,
-      OR: [
-        { phone: { contains: query, mode: "insensitive" } },
-        { fullName: { contains: query, mode: "insensitive" } },
-      ],
-    },
-    select: { id: true, fullName: true, phone: true, gender: true, dateOfBirth: true },
-    take: 5,
-  })
+  revalidatePath("/patients")
+  return { success: true }
 }
+
 // ─── Add Allergy ──────────────────────────────────
 export async function addAllergy(patientId: string, formData: FormData): Promise<ActionResult> {
   try {
@@ -200,10 +174,7 @@ export async function addAllergy(patientId: string, formData: FormData): Promise
     const validated = allergySchema.safeParse(raw)
     if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as any }
 
-    const allergy = await prisma.patientAllergy.create({
-      data: { ...validated.data, patientId }
-    })
-
+    const allergy = await prisma.patientAllergy.create({ data: { ...validated.data, patientId } })
     await auditLog({ clinicId, userId, action: "CREATE", entityType: "ALLERGY", entityId: allergy.id, newValues: allergy })
   } catch (error: any) {
     if (error.name === "AuthorizationError") return { success: false, error: error.message }

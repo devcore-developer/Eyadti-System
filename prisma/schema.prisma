@@ -217,7 +217,10 @@ model User {
 
   emailVerified DateTime?
   image         String?
+  status          String   @default("ACTIVE")
 
+  usedActivationCodes   ActivationCode[] @relation("CodeUser")
+  createdActivationCodes ActivationCode[] @relation("CodeCreator")
   accounts Account[]
   sessions Session[]
   announcements          Announcement[]       @relation("AnnouncementCreator")
@@ -431,19 +434,26 @@ model ActivationCode {
   type           CodeType  @default(SUBSCRIPTION)
   durationDays   Int       @default(30)
   isUsed         Boolean   @default(false)
+  status         String    @default("AVAILABLE")
   usedByClinicId String?
+  usedByUserId   String?
+  usedByEmail    String?
+  createdByUserId String?
   usedAt         DateTime?
+  expiresAt      DateTime?
   planId         String?
   createdAt      DateTime  @default(now())
 
   usedByClinic   Clinic?   @relation(fields: [usedByClinicId], references: [id], onDelete: SetNull)
+  usedByUser     User?     @relation("CodeUser", fields: [usedByUserId], references: [id], onDelete: SetNull)
+  createdByUser  User?     @relation("CodeCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   plan           Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)  
 
   @@index([code])
   @@index([isUsed])
+  @@index([status])
   @@map("activation_codes")
 }
-
 // ── Auth Models ─────────────────────────────────────────
 
 model Account {

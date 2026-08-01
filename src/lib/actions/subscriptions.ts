@@ -15,15 +15,16 @@ import {
   reactivateSubscription,
 } from "@/lib/services/subscription";
 import { checkUsageLimit } from "@/lib/services/usage-limits";
-import { auditLog } from "@/lib/services/audit"; // ← جديد
+import { auditLog } from "@/lib/services/audit";
 
 export async function subscribeToPlan(
   formData: unknown
 ): Promise<ActionResult> {
   try {
     const session = await auth();
-    if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "OWNER")) {
-      return { success: false, error: "Only admins can manage subscriptions" };
+    // FIX #42: Remove dead OWNER role check
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { success: false, error: "Only admins can manage subscriptions." };
     }
 
     const validated = createSubscriptionSchema.parse(formData);
@@ -32,41 +33,43 @@ export async function subscribeToPlan(
       where: { id: validated.planId },
     });
     if (!newPlan || !newPlan.active) {
-      return { success: false, error: "Selected plan is not available" };
+      return { success: false, error: "Selected plan is not available." };
     }
 
     const currentSub = await getSubscription(validated.clinicId);
-    
-    // تحديد هل العملية ترقية أم降غة (Upgrade or Downgrade)
+
     let action: "CREATE" | "UPGRADE" | "DOWNGRADE" = "CREATE";
     let oldPlanName = "Free";
 
     if (currentSub) {
       const oldPlan = await prisma.plan.findUnique({ where: { id: currentSub.planId } });
       oldPlanName = oldPlan?.name || "Unknown";
-      
+
       if (newPlan.monthlyPrice > (oldPlan?.monthlyPrice || 0)) {
         action = "UPGRADE";
       } else if (newPlan.monthlyPrice < (oldPlan?.monthlyPrice || 0)) {
         action = "DOWNGRADE";
       } else {
-        action = "UPGRADE"; // نفس السعر يعتبر ترقية (لحدود أعلى مثلاً)
+        action = "UPGRADE";
       }
 
-      const resources: Array<"DOCTORS" | "USERS" | "PATIENTS" | "BRANCHES"> = [
-        "DOCTORS", "USERS", "PATIENTS", "BRANCHES",
+      // FIX #43: Add MONTHLY_VISITS to downgrade check
+      const resources: Array<"DOCTORS" | "USERS" | "PATIENTS" | "BRANCHES" | "MONTHLY_VISITS"> = [
+        "DOCTORS", "USERS", "PATIENTS", "BRANCHES", "MONTHLY_VISITS",
       ];
 
       for (const resource of resources) {
         const usage = await checkUsageLimit(validated.clinicId, resource);
         const newLimit = resource === "DOCTORS" ? newPlan.maxDoctors :
                          resource === "USERS" ? newPlan.maxUsers :
-                         resource === "PATIENTS" ? newPlan.maxPatients : newPlan.maxBranches;
-                         
-        if (newLimit !== null && usage.current > newLimit) {
+                         resource === "PATIENTS" ? newPlan.maxPatients :
+                         resource === "BRANCHES" ? newPlan.maxBranches :
+                         newPlan.maxMonthlyVisits;
+
+        if (newLimit !== null && newLimit !== -1 && usage.current > newLimit) {
           return {
             success: false,
-            error: `Current ${resource.toLowerCase()} usage (${usage.current}) exceeds the new plan limit (${newLimit}). Please remove ${resource.toLowerCase()} before downgrading.`,
+            error: `Current ${resource.toLowerCase()} usage (${usage.current}) exceeds the new plan limit (${newLimit}). Please reduce before downgrading.`,
           };
         }
       }
@@ -78,7 +81,6 @@ export async function subscribeToPlan(
       validated.billingCycle
     );
 
-    // ← Audit Log: تسجيل تغيير الاشتراك
     await auditLog({
       clinicId: validated.clinicId,
       userId: session.user.id,
@@ -94,7 +96,7 @@ export async function subscribeToPlan(
     revalidatePath("/dashboard");
     return { success: true, error: undefined };
   } catch (error: any) {
-    return { success: false, error: error.message || "Failed to subscribe" };
+    return { success: false, error: error.message || "Failed to subscribe." };
   }
 }
 
@@ -103,8 +105,9 @@ export async function cancelMySubscription(
 ): Promise<ActionResult> {
   try {
     const session = await auth();
-    if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "OWNER")) {
-      return { success: false, error: "Only admins can cancel subscriptions" };
+    // FIX #42: Remove dead OWNER role check
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { success: false, error: "Only admins can cancel subscriptions." };
     }
 
     const validated = cancelSubscriptionSchema.parse(formData);
@@ -114,12 +117,11 @@ export async function cancelMySubscription(
     });
 
     if (!sub) {
-      return { success: false, error: "Subscription not found" };
+      return { success: false, error: "Subscription not found." };
     }
 
     await cancelSubscription(validated.subscriptionId);
 
-    // ← Audit Log: تسجيل إلغاء الاشتراك
     await auditLog({
       clinicId: session.user.clinicId,
       userId: session.user.id,
@@ -137,7 +139,7 @@ export async function cancelMySubscription(
   } catch (error: any) {
     return {
       success: false,
-      error: error.message || "Failed to cancel subscription",
+      error: error.message || "Failed to cancel subscription.",
     };
   }
 }
@@ -149,13 +151,13 @@ export async function reactivateMySubscription(
 ): Promise<ActionResult> {
   try {
     const session = await auth();
-    if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "OWNER")) {
-      return { success: false, error: "Only admins can manage subscriptions" };
+    // FIX #42: Remove dead OWNER role check
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { success: false, error: "Only admins can manage subscriptions." };
     }
 
     await reactivateSubscription(subscriptionId, planId, billingCycle);
 
-    // ← Audit Log: تسجيل إعادة تفعيل الاشتراك
     await auditLog({
       clinicId: session.user.clinicId,
       userId: session.user.id,
@@ -172,7 +174,7 @@ export async function reactivateMySubscription(
   } catch (error: any) {
     return {
       success: false,
-      error: error.message || "Failed to reactivate subscription",
+      error: error.message || "Failed to reactivate subscription.",
     };
   }
 }

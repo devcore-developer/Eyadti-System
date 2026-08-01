@@ -1,7 +1,7 @@
-// src/lib/services/usage-limits.ts
 import { prisma } from "@/lib/db";
-import { RESOURCE_CONFIG, type ResourceKey, type UsageCheckResult, type UsageStat } from "@/lib/constants/features"; // ← التعديل هنا
+import { RESOURCE_CONFIG, type ResourceKey, type UsageCheckResult, type UsageStat } from "@/lib/constants/features";
 import { getSubscription } from "./subscription";
+import { SubscriptionStatus } from "@prisma/client";
 
 async function getCurrentUsage(clinicId: string, resource: ResourceKey): Promise<number> {
   switch (resource) {
@@ -37,13 +37,21 @@ function getPlanLimit(plan: any, resource: ResourceKey): number | null {
     MONTHLY_VISITS: plan.maxMonthlyVisits,
   };
   const val = map[resource];
-  if (val === -1 || val === null || val === undefined) return null; 
+  if (val === -1 || val === null || val === undefined) return null;
   return val;
 }
 
 export async function checkUsageLimit(clinicId: string, resource: ResourceKey): Promise<UsageCheckResult> {
   const subscription = await getSubscription(clinicId);
   if (!subscription) {
+    return { allowed: false, current: 0, limit: 0, remaining: 0 };
+  }
+
+  // FIX #40: Check subscription status before allowing anything
+  if (
+    subscription.status !== SubscriptionStatus.TRIAL &&
+    subscription.status !== SubscriptionStatus.ACTIVE
+  ) {
     return { allowed: false, current: 0, limit: 0, remaining: 0 };
   }
 

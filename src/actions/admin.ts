@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db"
 import { requireRole, AuthenticationError, AuthorizationError } from "@/lib/permissions"
 import { createUserSchema, updateUserSchema, updateClinicSchema } from "@/lib/validations/admin"
 import type { ActionResult } from "@/types"
-import { hash } from "bcryptjs"
+import { hashPassword } from "@/lib/password"
 import { revalidatePath } from "next/cache"
 import { Role } from "@prisma/client"
 
@@ -49,7 +49,8 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Clinic not found. Please log out and log in again to refresh your session." }
     }
 
-    const hashedPassword = await hash(validated.data.password, 10)
+    // FIX #25: Use hashPassword for consistent salt rounds (12)
+    const hashedPassword = await hashPassword(validated.data.password)
 
     const newUser = await prisma.user.create({
       data: {
@@ -64,7 +65,6 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       },
     })
 
-    // ✅ FIX: ربط المستخدم بالفروع
     if (validated.data.branchIds && validated.data.branchIds.length > 0) {
       if (validated.data.role === Role.DOCTOR) {
         await prisma.doctorBranch.createMany({
@@ -138,7 +138,8 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
     }
 
     if (validated.data.password && validated.data.password.trim() !== "") {
-      updateData.password = await hash(validated.data.password, 10)
+      // FIX #25: Use hashPassword for consistent salt rounds (12)
+      updateData.password = await hashPassword(validated.data.password)
     }
 
     await prisma.user.update({
@@ -146,7 +147,6 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       data: updateData,
     })
 
-    // ✅ FIX: تحديث ربط المستخدم بالفروع
     if (validated.data.branchIds) {
       if (validated.data.role === Role.DOCTOR) {
         await prisma.$transaction([
@@ -202,10 +202,19 @@ export async function updateClinicSettings(formData: FormData): Promise<ActionRe
       }
     }
 
+    // FIX #26: Generate slug from name when name changes
+    const newSlug = validated.data.name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      + "-" + session.clinicId.substring(0, 6)
+
     await prisma.clinic.update({
       where: { id: session.clinicId },
       data: {
         name: validated.data.name.trim(),
+        slug: newSlug,
         phone: validated.data.phone?.trim() || null,
         address: validated.data.address?.trim() || null,
       },

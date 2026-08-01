@@ -129,7 +129,12 @@ export async function getPlatformStats() {
       prisma.patient.count(),
       // تم التعليق مؤقتاً بسبب اختلاف اسم الحقل في السكيمة
       // prisma.appointment.count({ where: { start: { gte: todayStart } } }),
-      0 as number, 
+      prisma.appointment.count({
+        where: {
+          dateTime: { gte: todayStart },
+          status: { not: "CANCELLED" },
+        },
+      }),
       
       prisma.invoice.aggregate({ where: { status: "PAID" }, _sum: { amount: true } }),
       prisma.clinic.count({ where: { subscription: { status: "TRIAL" } } }),
@@ -173,27 +178,33 @@ export async function getAllClinics() {
   }
 }
 
-export async function impersonateClinic(clinicId: string) {
+export async function impersonateClinic(clinicId: string): Promise<ActionResult> {
   try {
     const session = await auth()
     if (!session || session.user.role !== "SUPER_ADMIN") {
       throw new Error("Unauthorized")
     }
 
-    // ✅ تم إضافة الحقول المطلوبة entityType و entityId
     await prisma.auditLog.create({
       data: {
         action: "SUPPORT_MODE_LOGIN",
         userId: session.user.id,
         clinicId: clinicId,
         entityType: "CLINIC",
-        entityId: clinicId
-      }
+        entityId: clinicId,
+      },
     })
 
-    return { success: true }
+    // NOTE: Full impersonation requires session swapping infrastructure
+    // (e.g., storing impersonatedClinicId in JWT, middleware to inject it).
+    // For now, this logs the action and redirects to the clinic details page.
+    return {
+      success: true,
+      message: "Support mode access logged. Redirecting to clinic details...",
+      redirectTo: `/super-admin/clinics/${clinicId}`,
+    }
   } catch (error) {
-    return { success: false, error: "Failed to enter support mode" }
+    return { success: false, error: "Failed to enter support mode." }
   }
 }
 
@@ -276,16 +287,28 @@ export async function getPlatformBillingData() {
 
 // ─── FEATURE FLAGS ──────────────────────────────────────────────
 
+// NOTE: Feature flags require a dedicated FeatureFlag model in the database
+// to store per-clinic overrides. Current implementation uses plan-based
+// feature gates via feature-gate.ts which is the correct approach.
+// This function is a placeholder for future per-clinic overrides.
 export async function toggleFeatureFlag(clinicId: string, feature: string, value: boolean) {
   try {
     await requireRole("SUPER_ADMIN")
-    
-    // Mock Implementation
-    // await prisma.auditLog.create({ ... })
 
-    return { success: true }
+    await prisma.auditLog.create({
+      data: {
+        action: "FEATURE_FLAG_TOGGLE",
+        userId: (await requireRole("SUPER_ADMIN")).userId,
+        clinicId,
+        entityType: "FEATURE_FLAG",
+        entityId: feature,
+        newValues: { feature, value },
+      },
+    })
+
+    return { success: true, message: `Feature flag "${feature}" toggle logged. (Per-clinic overrides require schema changes.)` }
   } catch (error) {
-    return { success: false, error: "Failed to update feature flag" }
+    return { success: false, error: "Failed to update feature flag." }
   }
 }
 
@@ -321,6 +344,12 @@ export async function getActivationCodes() {
         usedByClinic: {
           select: { id: true, name: true }
         },
+        usedByUser: {
+          select: { id: true, name: true, email: true }
+        },
+        createdByUser: {
+          select: { id: true, name: true, email: true }
+        },
         plan: {
           select: { id: true, name: true, slug: true }
         }
@@ -333,7 +362,6 @@ export async function getActivationCodes() {
     return []
   }
 }
-
 export async function generateActivationCode(data: {
   code?: string
   type: "SIGNUP" | "SUBSCRIPTION"
@@ -381,6 +409,178 @@ export async function deleteActivationCode(codeId: string): Promise<ActionResult
     return handleAuthError(error)
   }
 }
+
+// ─── REVOKE ACTIVATION CODE ──────────────────────────────────────
+
+export async function revokeActivationCode(codeId: string): Promise<ActionResult> {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const code = await prisma.activationCode.findUnique({ where: { id: codeId } })
+    if (!code) return { success: false, error: "Code not found." }
+
+    if (code.status === "USED") {
+      return { success: false, error: "Cannot revoke a code that has already been used." }
+    }
+
+    if (code.status === "REVOKED") {
+      return { success: false, error: "This code is already revoked." }
+    }
+
+    await prisma.activationCode.update({
+      where: { id: codeId },
+      data: { status: "REVOKED" },
+    })
+
+    revalidatePath("/admin/activation-codes")
+    return { success: true, message: "Code revoked successfully." }
+  } catch (error) {
+    return handleAuthError(error)
+  }
+}
+
+// ─── REGENERATE ACTIVATION CODE ──────────────────────────────────
+
+export async function regenerateActivationCode(codeId: string): Promise<ActionResult> {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const oldCode = await prisma.activationCode.findUnique({
+      where: { id: codeId },
+      include: { plan: true },
+    })
+
+    if (!oldCode) return { success: false, error: "Code not found." }
+
+    if (oldCode.status === "USED") {
+      return { success: false, error: "Cannot regenerate a code that has already been used." }
+    }
+
+    // Generate new code with same specifications
+    const { randomBytes } = await import("crypto")
+    const newCodeValue = randomBytes(4).toString("hex").slice(0, 8).toUpperCase()
+
+    // Use transaction: delete old, create new
+    await prisma.$transaction([
+      prisma.activationCode.delete({ where: { id: codeId } }),
+      prisma.activationCode.create({
+        data: {
+          code: newCodeValue,
+          type: oldCode.type,
+          durationDays: oldCode.durationDays,
+          planId: oldCode.planId,
+          expiresAt: oldCode.expiresAt,
+          status: "AVAILABLE",
+          isUsed: false,
+          createdByUserId: oldCode.createdByUserId,
+        },
+      }),
+    ])
+
+    revalidatePath("/admin/activation-codes")
+    return { success: true, message: "Code regenerated successfully.", codes: [newCodeValue] }
+  } catch (error) {
+    return handleAuthError(error)
+  }
+}
+
+// ─── EXPORT ACTIVATION CODES (CSV) ──────────────────────────────
+
+export async function exportActivationCodes(): Promise<ActionResult<{
+  filename: string;
+  content: string;
+  mimeType: string;
+}>> {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    const codes = await prisma.activationCode.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        usedByClinic: { select: { name: true } },
+        usedByUser: { select: { name: true, email: true } },
+        createdByUser: { select: { name: true, email: true } },
+        plan: { select: { name: true, slug: true } },
+      },
+    })
+
+    const headers = [
+      "Code",
+      "Type",
+      "Status",
+      "Plan",
+      "Duration (Days)",
+      "Expires At",
+      "Created At",
+      "Used At",
+      "Created By",
+      "Created By Email",
+      "Used By Clinic",
+      "Used By User",
+      "Used By Email",
+    ]
+
+    const rows = codes.map((c) => [
+      c.code,
+      c.type,
+      c.status,
+      c.plan?.name || "N/A",
+      c.durationDays.toString(),
+      c.expiresAt ? c.expiresAt.toISOString() : "N/A",
+      c.createdAt.toISOString(),
+      c.usedAt ? c.usedAt.toISOString() : "N/A",
+      c.createdByUser?.name || "N/A",
+      c.createdByUser?.email || "N/A",
+      c.usedByClinic?.name || "N/A",
+      c.usedByUser?.name || "N/A",
+      c.usedByUser?.email || "N/A",
+    ])
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => {
+          const str = String(cell)
+          // Escape commas and quotes in CSV
+          if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+            return `"${str.replace(/"/g, '""')}"`
+          }
+          return str
+        }).join(",")
+      ),
+    ].join("\n")
+
+    // Return base64 encoded CSV so the client can download it
+    const base64 = Buffer.from(csvContent, "utf-8").toString("base64")
+
+    return {
+      success: true,
+      data: {
+        filename: `activation-codes-${new Date().toISOString().split("T")[0]}.csv`,
+        content: base64,
+        mimeType: "text/csv",
+      },
+    }
+  } catch (error) {
+    return handleAuthError(error) as any
+  }
+}
+
+// ─── HELPER: Get active plans for code generation ────────────────
+export async function getActivePlansForCodes() {
+  try {
+    await requireRole("SUPER_ADMIN")
+    return await prisma.plan.findMany({
+      where: { active: true },
+      select: { id: true, name: true, slug: true, monthlyPrice: true },
+      orderBy: { name: "asc" },
+    })
+  } catch (error) {
+    console.error("Error fetching plans for codes:", error)
+    return []
+  }
+}
+
 export async function recordPayment(invoiceId: string, amount: number, method: string) {
   try {
     const session = await auth()
