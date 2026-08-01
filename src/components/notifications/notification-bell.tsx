@@ -28,7 +28,7 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [recent, setRecent] = useState<any[]>([])
   const prevUnreadCount = useRef(0)
-  const dropdownRef = useRef<HTMLDivElement>(null)  // ✅ ADDED: Ref for dropdown
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
   const loadUnreadCount = useCallback(async () => {
@@ -78,9 +78,15 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
     return () => clearInterval(interval)
   }, [loadUnreadCount])
 
-  // ✅ FIXED: Added Escape key handler
+  // ✅ FIXED: Robust outside click + Escape key
   useEffect(() => {
     if (!isOpen) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -88,9 +94,14 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
       }
     }
 
+    document.addEventListener("mousedown", handleClickOutside)
     document.addEventListener("keydown", handleEscape)
-    return () => document.removeEventListener("keydown", handleEscape)
-  }, [isOpen])  // ✅ Only runs when isOpen changes
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [isOpen])
 
   const handleOpen = () => {
     if (!isOpen) loadRecent()
@@ -132,76 +143,69 @@ export function NotificationBell({ userId, clinicId }: NotificationBellProps) {
       </button>
 
       {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div 
-            className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-[#223247] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 overflow-hidden animate-scale-in"
-            role="menu"
-          >
-            <div className="flex items-center justify-between p-4 border-b dark:border-white/10 bg-gray-50 dark:bg-[#1D2A3B]">
-              <h3 className="font-semibold text-sm text-foreground">Notifications</h3>
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllRead}
-                  className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 flex items-center gap-1 transition-colors"
-                >
-                  <CheckCheck className="h-3 w-3" /> Mark all read
-                </button>
-              )}
-            </div>
-
-            <div className="max-h-[400px] overflow-y-auto divide-y dark:divide-white/5 hide-scrollbar">
-              {recent.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  No notifications yet
-                </div>
-              ) : (
-                recent.map((n: any) => (
-                  <div
-                    key={n.id}
-                    onClick={() => handleNotificationClick(n)}
-                    className={`p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer ${!n.isRead ? "bg-teal-50/50 dark:bg-teal-500/10" : ""}`}
-                    role="menuitem"
-                  >
-                    <div className="flex gap-3">
-                      <div className={`mt-1.5 h-2.5 w-2.5 rounded-full shrink-0 ${typeColors[n.type] || "bg-gray-400"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{n.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.message}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
-                          {format(new Date(n.createdAt), "MMM d, h:mm a")}
-                        </p>
-                      </div>
-                      {!n.isRead && (
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation()
-                            await markAsRead(n.id)
-                            await loadUnreadCount()
-                            await loadRecent()
-                          }}
-                          className="shrink-0 p-1.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-md transition-colors"
-                          aria-label="Mark as read"
-                        >
-                          <Check className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="p-3 border-t dark:border-white/10 bg-gray-50 dark:bg-[#1D2A3B]">
-              <a
-                href="/notifications"
-                className="block text-center text-sm font-medium text-teal-600 dark:text-teal-400 hover:text-teal-700 transition-colors"
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-[#223247] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 overflow-hidden animate-scale-in">
+          <div className="flex items-center justify-between p-4 border-b dark:border-white/10 bg-gray-50 dark:bg-[#1D2A3B]">
+            <h3 className="font-semibold text-sm text-foreground">Notifications</h3>
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 flex items-center gap-1 transition-colors"
               >
-                View All Notifications
-              </a>
-            </div>
+                <CheckCheck className="h-3 w-3" /> Mark all read
+              </button>
+            )}
           </div>
-        </>
+
+          <div className="max-h-[400px] overflow-y-auto divide-y dark:divide-white/5 hide-scrollbar">
+            {recent.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No notifications yet
+              </div>
+            ) : (
+              recent.map((n: any) => (
+                <div
+                  key={n.id}
+                  onClick={() => handleNotificationClick(n)}
+                  className={`p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer ${!n.isRead ? "bg-teal-50/50 dark:bg-teal-500/10" : ""}`}
+                >
+                  <div className="flex gap-3">
+                    <div className={`mt-1.5 h-2.5 w-2.5 rounded-full shrink-0 ${typeColors[n.type] || "bg-gray-400"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{n.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.message}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
+                        {format(new Date(n.createdAt), "MMM d, h:mm a")}
+                      </p>
+                    </div>
+                    {!n.isRead && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          await markAsRead(n.id)
+                          await loadUnreadCount()
+                          await loadRecent()
+                        }}
+                        className="shrink-0 p-1.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-md transition-colors"
+                        aria-label="Mark as read"
+                      >
+                        <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="p-3 border-t dark:border-white/10 bg-gray-50 dark:bg-[#1D2A3B]">
+            <a
+              href="/notifications"
+              className="block text-center text-sm font-medium text-teal-600 dark:text-teal-400 hover:text-teal-700 transition-colors"
+            >
+              View All Notifications
+            </a>
+          </div>
+        </div>
       )}
     </div>
   )
