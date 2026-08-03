@@ -160,7 +160,7 @@ export function ClinicLifecycleActions({ clinicId, clinicName, currentSubStatus,
           <span className="text-xs font-semibold">{loading === "archive" ? "Archiving..." : "Archive"}</span>
         </Button>
 
-        {/* Permanent Delete */}
+        {/* Permanent Delete — إصلاح: يطلب اسم العيادة بدلاً من "DELETE" */}
         <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 border-[#EF6B6B]/30 hover:bg-[#EF6B6B]/10 hover:text-[#EF6B6B] transition-all">
@@ -181,14 +181,26 @@ export function ClinicLifecycleActions({ clinicId, clinicName, currentSubStatus,
               <p>• Patients: <span className="text-foreground font-medium">Will be deleted</span></p>
               <p>• Medical Records: <span className="text-foreground font-medium">Will be deleted</span></p>
               <p>• Invoices & Payments: <span className="text-foreground font-medium">Will be deleted</span></p>
+              <p>• Audit Logs: <span className="text-foreground font-medium">Will be deleted</span></p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Type <span className="font-bold text-[#EF6B6B]">DELETE</span> to confirm:</label>
-              <Input value={deleteInput} onChange={e => setDeleteInput(e.target.value)} placeholder="DELETE" className="border-[#EF6B6B]/30 focus-visible:ring-[#EF6B6B]" />
+              <label className="text-sm font-medium">
+                Type the clinic name <span className="font-bold text-[#EF6B6B]">{clinicName}</span> to confirm:
+              </label>
+              <Input 
+                value={deleteInput} 
+                onChange={e => setDeleteInput(e.target.value)} 
+                placeholder={clinicName} 
+                className="border-[#EF6B6B]/30 focus-visible:ring-[#EF6B6B]" 
+              />
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => { setIsDeleteOpen(false); setDeleteInput("") }}>Cancel</Button>
-              <Button variant="destructive" disabled={deleteInput !== "DELETE" || loading === "delete"} onClick={() => handleAction(() => permanentDeleteClinic(clinicId), setIsDeleteOpen)}>
+              <Button 
+                variant="destructive" 
+                disabled={deleteInput.toLowerCase() !== clinicName.toLowerCase() || loading === "delete"} 
+                onClick={() => handleAction(() => permanentDeleteClinic(clinicId, deleteInput), setIsDeleteOpen)}
+              >
                 {loading === "delete" ? "Deleting..." : "Permanently Delete Clinic"}
               </Button>
             </DialogFooter>

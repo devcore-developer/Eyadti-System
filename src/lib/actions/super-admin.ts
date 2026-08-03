@@ -103,28 +103,115 @@ export async function getRealSystemHealth() {
   try {
     await requireRole("SUPER_ADMIN")
 
-    const startTime = Date.now()
-    await prisma.$queryRaw`SELECT 1`
-    const dbLatency = Date.now() - startTime
+    const results: Record<string, { 
+      status: "operational" | "degraded" | "down" | "not_configured"; 
+      load: number; 
+      label: string 
+    }> = {}
 
-    const [totalAttachments, failedReminders, pendingAppointments, unpaidInvoices] = await Promise.all([
-      prisma.attachment.count(),
-      prisma.reminder.count({ where: { status: "FAILED" } }),
-      prisma.appointment.count({ where: { status: "SCHEDULED" } }),
-      prisma.invoice.count({ where: { status: { not: "PAID" } } })
-    ])
-
-    return {
-      api: { 
-        status: dbLatency < 300 ? "operational" as const : dbLatency < 1000 ? "degraded" as const : "down" as const, 
-        load: dbLatency, 
-        label: `${dbLatency}ms` 
-      },
-      db: { status: dbLatency < 100 ? "operational" as const : "degraded" as const, load: pendingAppointments, label: `${pendingAppointments} Pending Tasks` },
-      storage: { status: totalAttachments > 500 ? "degraded" as const : "operational" as const, load: totalAttachments, label: `${totalAttachments} Files Stored` },
-      jobs: { status: (failedReminders + unpaidInvoices) > 20 ? "degraded" as const : "operational" as const, load: failedReminders + unpaidInvoices, label: `${failedReminders + unpaidInvoices} Issues` }
+    // 1. API Gateway — نقيس وقت الاستجابة الفعلي
+    const apiStart = Date.now()
+    try {
+      await prisma.$queryRaw`SELECT 1`
+      const apiLatency = Date.now() - apiStart
+      results.api = {
+        status: apiLatency < 300 ? "operational" : apiLatency < 1000 ? "degraded" : "down",
+        load: apiLatency,
+        label: `${apiLatency}ms response time`
+      }
+    } catch {
+      results.api = { status: "down", load: 0, label: "Cannot connect" }
     }
-  } catch (error) { return null }
+
+    // 2. Database Cluster — اختبار أعمق
+    const dbStart = Date.now()
+    try {
+      await prisma.$queryRaw`SELECT 1`
+      const dbLatency = Date.now() - dbStart
+      const pendingTasks = await prisma.appointment.count({ where: { status: "SCHEDULED" } })
+      results.db = {
+        status: dbLatency < 100 ? "operational" : dbLatency < 500 ? "degraded" : "down",
+        load: dbLatency,
+        label: `${dbLatency}ms · ${(pendingTasks as any)?.count || 0} pending`
+      }
+    } catch {
+      results.db = { status: "down", load: 0, label: "Connection failed" }
+    }
+
+    // 3. Object Storage — نتأكد إن الـ Attachments شغالة
+    try {
+      const attachmentCount = await prisma.attachment.count()
+      results.storage = {
+        status: "operational",
+        load: attachmentCount,
+        label: `${attachmentCount} files stored`
+      }
+    } catch {
+      results.storage = { status: "down", load: 0, label: "Storage check failed" }
+    }
+
+    // 4. Background Jobs — نチェック الـ Reminders الفاشلة
+    try {
+      const [failedReminders, overdueReminders] = await Promise.all([
+        prisma.reminder.count({ where: { status: "FAILED" } }),
+        prisma.reminder.count({ where: { status: "PENDING", scheduledFor: { lte: new Date() } } })
+      ])
+      results.jobs = {
+        status: (failedReminders > 5 || overdueReminders > 20) ? "degraded" : "operational",
+        load: failedReminders,
+        label: `${failedReminders} failed · ${overdueReminders} overdue`
+      }
+    } catch {
+      results.jobs = { status: "not_configured", load: 0, label: "No job processor" }
+    }
+
+    // 5. Email Service — مش متوفر لسه
+    results.email = {
+      status: "not_configured",
+      load: 0,
+      label: "SMTP not configured"
+    }
+
+    // 6. SMS Provider — مش متوفر لسه
+    results.sms = {
+      status: "not_configured",
+      load: 0,
+      label: "SMS provider not configured"
+    }
+
+    // 7. WhatsApp API — مؤجل (كما مذكور في الكود)
+    results.whatsapp = {
+      status: "not_configured",
+      load: 0,
+      label: "UltraMsg API deferred"
+    }
+
+    // 8. Authentication System — نتأكد إن NEXTAUTH_SECRET موجود
+    results.auth = {
+      status: process.env.NEXTAUTH_SECRET ? "operational" : "down",
+      load: 0,
+      label: process.env.NEXTAUTH_SECRET ? "NextAuth configured" : "NEXTAUTH_SECRET missing"
+    }
+
+    // 9. Image Processing — ن_CHECK uploads اليوم
+    try {
+      const todayUploads = await prisma.attachment.count({
+        where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }
+      })
+      results.upload = {
+        status: "operational",
+        load: todayUploads,
+        label: `${todayUploads} uploads today`
+      }
+    } catch {
+      results.upload = { status: "down", load: 0, label: "Upload check failed" }
+    }
+
+    return results
+  } catch (error) {
+    console.error("Health check failed:", error)
+    return null
+  }
 }
 
 export async function getAllClinics() {
@@ -341,13 +428,15 @@ export async function getAllClinicsWithFlags() {
 
 export async function toggleFeatureFlag(clinicId: string, feature: string, value: boolean) {
   try {
-    const session = await requireRole("SUPER_ADMIN")
+    const session = await auth()
+    if (!session?.user || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
     
+    // ✅ FIX: هذا كان صحيح أصلاً، لكن أضفنا التحقق من الـ session
     await prisma.auditLog.create({
       data: {
-        clinicId,
+        clinicId,  // ✅ صحيح
         action: `TOGGLE_FEATURE_${value ? 'ON' : 'OFF'}`,
-        userId: session.userId,
+        userId: session.user.id,  // ✅ FIX: كان session.userId (غلط)
         entityType: "FEATURE_FLAG",
         entityId: feature,
       }
@@ -680,11 +769,29 @@ export async function archiveClinic(clinicId: string) {
   try {
     const session = await auth()
     if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
-    await prisma.subscription.updateMany({ where: { clinicId }, data: { status: "CANCELLED" as any } })
-    await prisma.auditLog.create({ data: { clinicId: "SYSTEM", userId: session.user.id, action: "CLINIC_ARCHIVED", entityType: "CLINIC", entityId: clinicId } })
+    
+    await prisma.subscription.updateMany({ 
+      where: { clinicId }, 
+      data: { status: "CANCELLED" as any } 
+    })
+    
+    // ✅ FIX: استخدام clinicId الفعلي
+    await prisma.auditLog.create({ 
+      data: { 
+        clinicId,  // ✅ بدلاً من "SYSTEM"
+        userId: session.user.id, 
+        action: "CLINIC_ARCHIVED", 
+        entityType: "CLINIC", 
+        entityId: clinicId 
+      } 
+    })
+    
+    await notifySuperAdmin("CLINIC_ARCHIVED", "Clinic Archived", `Clinic ${clinicId} was archived.`, clinicId, `/super-admin/clinics/${clinicId}`)
     revalidatePath("/super-admin")
     return { success: true }
-  } catch (error: any) { return { success: false, error: error.message } }
+  } catch (error: any) { 
+    return { success: false, error: error.message } 
+  }
 }
 
 export async function controlSubscription(clinicId: string, action: "SUSPENDED" | "ACTIVE" | "EXPIRED", reason?: string) {
@@ -698,44 +805,176 @@ export async function controlSubscription(clinicId: string, action: "SUSPENDED" 
       newStatus = (sub?.endDate && new Date(sub.endDate) > new Date()) ? "ACTIVE" : "EXPIRED"
     }
 
-    // استخدام as any لتجاوز مشكلة الـ Enum في Typescript
-    await prisma.subscription.updateMany({ where: { clinicId }, data: { status: action as any } })
+    // تحديث الاشتراك
+    await prisma.subscription.updateMany({ 
+      where: { clinicId }, 
+      data: { status: action as any } 
+    })
     
+    // ✅ FIX: استخدام clinicId الفعلي بدلاً من "SYSTEM"
     await prisma.auditLog.create({
-      data: { clinicId: "SYSTEM", userId: session.user.id, action: `SUBSCRIPTION_${action}`, entityType: "SUBSCRIPTION", entityId: clinicId }
+      data: { 
+        clinicId,  // ✅ هذا هو الإصلاح الحقيقي
+        userId: session.user.id, 
+        action: `SUBSCRIPTION_${action}`, 
+        entityType: "SUBSCRIPTION", 
+        entityId: clinicId 
+      }
     })
 
-    await notifySuperAdmin(`SUBSCRIPTION_${action}`, `Clinic ${action.toLowerCase()}`, reason || `Status changed to ${newStatus}`, clinicId, `/super-admin/clinics/${clinicId}`)
+    await notifySuperAdmin(
+      `SUBSCRIPTION_${action}`, 
+      `Clinic ${action.toLowerCase()}`, 
+      reason || `Status changed to ${newStatus}`, 
+      clinicId, 
+      `/super-admin/clinics/${clinicId}`
+    )
+    
     revalidatePath("/super-admin")
     return { success: true, newStatus }
-  } catch (error: any) { return { success: false, error: error.message } }
+  } catch (error: any) { 
+    console.error("controlSubscription error:", error)
+    return { success: false, error: error.message } 
+  }
 }
-
 export async function permanentDeleteClinic(clinicId: string, typedName?: string) {
   try {
     const session = await auth()
     if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
 
-    // لو الـ UI القديم مش بيرسل اسم العيادة، نوقف العملية آمناً
-    if (!typedName) return { success: false, error: "Clinic name confirmation is required for deletion." }
+    if (!typedName) return { success: false, error: "Clinic name confirmation is required." }
 
-    const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } })
+    const clinic = await prisma.clinic.findUnique({ 
+      where: { id: clinicId },
+      include: {
+        _count: {
+          select: {
+            users: true, branches: true, patients: true, 
+            appointments: true, invoices: true, subscriptions: true,
+            auditLogs: true, notifications: true, attachments: true
+          }
+        }
+      }
+    })
+    
     if (!clinic) return { success: false, error: "Clinic not found" }
     
     if (clinic.name.toLowerCase() !== typedName.toLowerCase()) {
       return { success: false, error: "Clinic name does not match. Deletion cancelled." }
     }
 
+    // ✅ إنشاء Audit Log قبل الحذف (باستخدام clinicId الفعلي)
     await prisma.auditLog.create({
-      data: { clinicId: "SYSTEM", userId: session.user.id, action: "CLINIC_PERMANENTLY_DELETED", entityType: "CLINIC", entityId: clinicId }
+      data: { 
+        clinicId,  // ✅ الإصلاح
+        userId: session.user.id, 
+        action: "CLINIC_PERMANENTLY_DELETED", 
+        entityType: "CLINIC", 
+        entityId: clinicId,
+        oldValues: { 
+          name: clinic.name, 
+          counts: clinic._count 
+        }
+      }
     })
 
-    await prisma.clinic.delete({ where: { id: clinicId } })
-    await notifySuperAdmin("CLINIC_DELETED", `${clinic.name} Deleted`, "Clinic and all data were permanently erased.", clinicId, "/super-admin/clinics")
+    // ✅ حذف آمن مع Transaction
+    await prisma.$transaction(async (tx) => {
+      // حذف الإشعارات المرتبطة
+      await tx.notification.deleteMany({ where: { clinicId } })
+      await tx.superAdminNotification.deleteMany({ where: { clinicId } })
+      
+      // حذف الـ Reminders المرتبطة بالمواعيد
+      const appointmentIds = await tx.appointment.findMany({
+        where: { clinicId },
+        select: { id: true }
+      })
+      if (appointmentIds.length > 0) {
+        await tx.reminder.deleteMany({
+          where: { appointmentId: { in: appointmentIds.map(a => a.id) } }
+        })
+      }
+      
+      
+      // حذف الـ Prescriptions
+      const visitIds = await tx.visit.findMany({
+        where: { clinicId },
+        select: { id: true }
+      })
+      if (visitIds.length > 0) {
+        await tx.prescriptionItem.deleteMany({
+          where: { prescription: { visitId: { in: visitIds.map(v => v.id) } } }
+        })
+        await tx.prescription.deleteMany({
+          where: { visitId: { in: visitIds.map(v => v.id) } }
+        })
+      }
+      
+      // حذف الـ Visits
+      await tx.visit.deleteMany({ where: { clinicId } })
+      
+      // حذف الـ Invoice Items ثم الـ Invoices
+      const invoiceIds = await tx.invoice.findMany({
+        where: { clinicId },
+        select: { id: true }
+      })
+      if (invoiceIds.length > 0) {
+        await tx.invoiceItem.deleteMany({
+          where: { invoiceId: { in: invoiceIds.map(i => i.id) } }
+        })
+        await tx.payment.deleteMany({
+          where: { invoiceId: { in: invoiceIds.map(i => i.id) } }
+        })
+      }
+      await tx.invoice.deleteMany({ where: { clinicId } })
+      
+      // حذف الـ Appointments
+      await tx.appointment.deleteMany({ where: { clinicId } })
+      
+      // حذف الـ Patients والبيانات المرتبطة بهم
+      const patientIds = await tx.patient.findMany({
+        where: { clinicId },
+        select: { id: true }
+      })
+      if (patientIds.length > 0) {
+        await tx.patient.deleteMany({ where: { clinicId } })
+      }
+      
+      // حذف الـ Branches
+      await tx.branch.deleteMany({ where: { clinicId } })
+      
+      // حذف الـ Subscription
+      await tx.subscription.deleteMany({ where: { clinicId } })
+      
+      // حذف الـ Notification Settings
+      await tx.notificationSettings.deleteMany({
+        where: { userId: { in: (await tx.user.findMany({ where: { clinicId }, select: { id: true } })).map(u => u.id) } }
+      })
+      
+      // حذف الـ Users
+      await tx.user.deleteMany({ where: { clinicId } })
+      
+      // حذف الـ Audit Logs للعيادة
+      await tx.auditLog.deleteMany({ where: { clinicId } })
+      
+      // أخيراً حذف العيادة نفسها
+      await tx.clinic.delete({ where: { id: clinicId } })
+    })
+
+    await notifySuperAdmin(
+      "CLINIC_DELETED", 
+      `${clinic.name} Deleted`, 
+      "Clinic and all data were permanently erased.", 
+      undefined,  // لا يوجد clinicId بعد الحذف
+      "/super-admin/clinics"
+    )
     
     revalidatePath("/super-admin/clinics")
     return { success: true }
-  } catch (error: any) { return { success: false, error: error.message } }
+  } catch (error: any) { 
+    console.error("permanentDeleteClinic error:", error)
+    return { success: false, error: error.message } 
+  }
 }
 
 export async function renewSubscription(clinicId: string, daysToAdd: number) {
@@ -873,10 +1112,19 @@ export async function createAnnouncement(data: {
       } 
     })
 
-    // استخدام "SYSTEM" كـ clinicId لأن السوبر أدمن لا يتبع لعيادة محددة
-    await prisma.auditLog.create({
-      data: { clinicId: "SYSTEM", userId: session.user.id, action: "ANNOUNCEMENT_CREATED", entityType: "ANNOUNCEMENT", entityId: announcement.id }
-    })
+    // ✅ للـ System-level actions، نستخدم أول clinicID من targetClinicIds أو null
+    const auditClinicId = data.targetClinicIds?.[0] || null
+    if (auditClinicId) {
+      await prisma.auditLog.create({
+        data: { 
+          clinicId: auditClinicId,  // ✅ بدلاً من "SYSTEM"
+          userId: session.user.id, 
+          action: "ANNOUNCEMENT_CREATED", 
+          entityType: "ANNOUNCEMENT", 
+          entityId: announcement.id 
+        }
+      })
+    }
 
     revalidatePath("/super-admin")
     revalidatePath("/dashboard")

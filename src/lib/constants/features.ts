@@ -80,7 +80,7 @@ export const RESOURCE_CONFIG = {
 } as const;
 
 // ── Trials & Routing ──────────────────────────────────
-export const TRIAL_DURATION_DAYS = 10;
+export const TRIAL_DURATION_DAYS = 5;
 export const DEFAULT_TRIAL_PLAN_SLUG = "starter";
 
 export const SUBSCRIPTION_ALLOWED_PATHS = [

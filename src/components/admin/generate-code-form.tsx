@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Copy, Check } from "lucide-react"
+import { TRIAL_DURATION_DAYS } from "@/lib/constants/features"
 
 interface Plan { id: string; name: string; }
 
@@ -21,7 +22,7 @@ interface ActionResultWithCodes {
 }
 
 const DURATION_OPTIONS = [
-  { label: "10 Days (Trial)", value: 10 },
+  { label: `${TRIAL_DURATION_DAYS} Days (Trial)`, value: TRIAL_DURATION_DAYS },
   { label: "1 Month (30 Days)", value: 30 },
   { label: "6 Months (180 Days)", value: 180 },
   { label: "1 Year (365 Days)", value: 365 },

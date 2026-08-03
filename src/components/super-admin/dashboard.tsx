@@ -33,7 +33,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts"
 import { getAllPlans, impersonateClinic, globalSearch } from "@/lib/actions/super-admin"
-
+import { SuperAdminNotificationBell } from "@/components/super-admin/super-admin-notification-bell"
 // ─── TYPES ───────────────────────────────────────────────────────
 interface PlatformStats {
   totalClinics: number; activeClinics: number; totalUsers: number; totalDoctors: number
@@ -320,15 +320,42 @@ export function SuperAdminDashboard({
           </div>
 
           <div className="flex items-center gap-2">
-            {initialHealth && (
-              <div className={cn("hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold", initialHealth.api?.status === "operational" ? "bg-[#6BCB77]/10 text-[#6BCB77]" : "bg-[#F4B860]/10 text-[#F4B860]")}>
-                <CircleDot className="h-3 w-3" />
-                Systems {initialHealth.api?.status === "operational" ? "OK" : "Degraded"}
-              </div>
-            )}
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => router.push('/notifications')}>
-              <Bell className="h-4 w-4" />
-            </Button>
+            {/* ✅ PART 1 — System Status Badge يفحص كل الخدمات */}
+            {initialHealth && (() => {
+              const statuses = Object.values(initialHealth).map((s: any) => s.status)
+              const hasDown = statuses.includes("down")
+              const hasDegraded = statuses.includes("degraded")
+              const configuredServices = statuses.filter(s => s !== "not_configured")
+              const allConfiguredOperational = configuredServices.length > 0 && configuredServices.every(s => s === "operational")
+              
+              let statusConfig: { bg: string; text: string; label: string }
+              if (hasDown) {
+                statusConfig = { bg: "bg-[#EF6B6B]/10", text: "text-[#EF6B6B]", label: "Systems Down" }
+              } else if (hasDegraded) {
+                statusConfig = { bg: "bg-[#F4B860]/10", text: "text-[#F4B860]", label: "Systems Degraded" }
+              } else if (allConfiguredOperational) {
+                statusConfig = { bg: "bg-[#6BCB77]/10", text: "text-[#6BCB77]", label: "Systems OK" }
+              } else {
+                statusConfig = { bg: "bg-gray-500/10", text: "text-gray-500", label: "Partially Configured" }
+              }
+              
+              return (
+                <button
+                  onClick={() => router.push('/super-admin/system-health')}
+                  className={cn(
+                    "hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity cursor-pointer",
+                    statusConfig.bg, statusConfig.text
+                  )}
+                >
+                  <CircleDot className="h-3 w-3" />
+                  {statusConfig.label}
+                </button>
+              )
+            })()}
+
+            {/* ✅ PART 2 — Super Admin Notification Bell */}
+            <SuperAdminNotificationBell initialNotifications={[]} />
+
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => router.push('/super-admin/audit-logs')}>
               <Activity className="h-4 w-4" />
             </Button>

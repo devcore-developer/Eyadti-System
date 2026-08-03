@@ -38,12 +38,13 @@ const infrastructureChecks = [
 export function HealthDashboardClient({ initialHealth, initialUsage, initialStats }: { 
   initialHealth: HealthData | null, initialUsage: UsageData | null, initialStats: StatsData | null 
 }) {
+// ✅ تمت إضافة حالة not_configured
   const getStatusColor = (status: string) => {
     if (status === "operational") return { text: "text-[#6BCB77]", bg: "bg-[#6BCB77]", badgeBg: "bg-[#6BCB77]/10 border-[#6BCB77]/20 text-[#6BCB77]" }
     if (status === "degraded") return { text: "text-[#F4B860]", bg: "bg-[#F4B860]", badgeBg: "bg-[#F4B860]/10 border-[#F4B860]/20 text-[#F4B860]" }
+    if (status === "not_configured") return { text: "text-gray-400", bg: "bg-gray-400", badgeBg: "bg-gray-400/10 border-gray-400/20 text-gray-400" }
     return { text: "text-[#EF6B6B]", bg: "bg-[#EF6B6B]", badgeBg: "bg-[#EF6B6B]/10 border-[#EF6B6B]/20 text-[#EF6B6B]" }
   }
-
   return (
     <div className="space-y-6">
       {/* Infrastructure Status Grid */}
@@ -71,7 +72,8 @@ export function HealthDashboardClient({ initialHealth, initialUsage, initialStat
                   </div>
                   <Badge variant="outline" className={cn("text-[10px] font-bold", colors.badgeBg)}>
                     <span className={cn("mr-1.5 h-1.5 w-1.5 rounded-full inline-block", colors.bg)} />
-                    {serviceData.status === "operational" ? "Healthy" : serviceData.status === "degraded" ? "Warning" : "Down"}
+                    // ✅ تمت إضافة حالة not_configured
+{serviceData.status === "operational" ? "Healthy" : serviceData.status === "degraded" ? "Warning" : serviceData.status === "not_configured" ? "Not Configured" : "Down"}
                   </Badge>
                 </div>
               )
