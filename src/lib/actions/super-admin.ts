@@ -849,9 +849,12 @@ export async function permanentDeleteClinic(clinicId: string, typedName?: string
       include: {
         _count: {
           select: {
-            users: true, branches: true, patients: true, 
-            appointments: true, invoices: true, subscriptions: true,
-            auditLogs: true, notifications: true, attachments: true
+            users: true, 
+            branches: true, 
+            patients: true, 
+            appointments: true, 
+            invoices: true, 
+            auditLogs: true
           }
         }
       }
