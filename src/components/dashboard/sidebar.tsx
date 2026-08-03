@@ -38,13 +38,19 @@ export function Sidebar({
     )}>
       
       {!isMobile && (
-        <div className="flex h-[72px] items-center justify-center px-6 border-b border-gray-200/60 dark:border-white/[0.06]">
-          <Link href="/dashboard">
+        <div className="flex items-center px-6 h-16 border-b border-gray-200/60 dark:border-white/[0.06]">
+          <Link href="/dashboard" className="flex items-center gap-1">
             <img 
               src="/dashboard-logo.png" 
-              alt="Dashboard Logo" 
-              className="h-10 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity" 
+              alt="Nexora" 
+              className="h-10 w-10 object-contain"
             />
+            <span 
+              className="text-[20px] font-bold tracking-[-0.02em] text-[#111827] dark:text-white leading-none"
+              style={{ fontFamily: "'Inter', 'Geist', 'Manrope', system-ui, sans-serif" }}
+            >
+              Nexora Pro
+            </span>
           </Link>
         </div>
       )}

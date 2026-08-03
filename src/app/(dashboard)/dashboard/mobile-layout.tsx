@@ -7,7 +7,7 @@ import { X, Plus } from "lucide-react"
 export function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#F5F7FB]">
-      <div className="px-4 pt-14 pb-[80px] space-y-5">{children}</div>
+      <div className="px-4 pt-[20px] pb-[80px] space-y-5">{children}</div>
     </div>
   )
 }

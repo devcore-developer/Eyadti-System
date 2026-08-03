@@ -4,9 +4,10 @@ import * as React from "react"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Menu, Stethoscope } from "lucide-react"
+import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 export function MobileNav({ 
   clinicName,
@@ -32,13 +33,11 @@ export function MobileNav({
           </Button>
         </SheetTrigger>
         
-        {/* ✨ تحسينات الـ Sheet للموبايل */}
         <SheetContent 
           side="left" 
           className={cn(
             "w-[85vw] max-w-[320px] p-0 bg-white dark:bg-[#1B2838]",
             "border-r-0 shadow-[10px_0_40px_rgba(0,0,0,0.15)] dark:shadow-[10px_0_40px_rgba(0,0,0,0.4)]",
-            // منع الـ Scroll للخلفية
             "data-[state=open]:animate-slide-in-from-left"
           )}
         >
@@ -47,24 +46,28 @@ export function MobileNav({
           </SheetHeader>
 
           <div className="flex flex-col h-full">
-            <div className="flex h-14 items-center gap-2.5 px-6 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_4px_12px_rgba(107,156,255,0.25)]">
-                <Stethoscope className="h-4 w-4" />
-              </div>
-              <span className="text-base font-bold tracking-tight">Nexora</span>
+            <div className="flex items-center px-5 py-4 border-b border-[rgba(148,163,184,0.12)] dark:border-[rgba(255,255,255,0.06)]">
+              <Link href="/dashboard" className="flex items-center gap-3">
+                <img 
+                  src="/dashboard-logo.png" 
+                  alt="Nexora" 
+                  className="h-[30px] w-[30px] object-contain"
+                />
+                <span 
+                  className="text-[14px] font-bold tracking-[-0.02em] text-[#111827] dark:text-white"
+                  style={{ fontFamily: "'Inter', 'Geist', 'Manrope', system-ui, sans-serif" }}
+                >
+                  Nexora
+                </span>
+              </Link>
             </div>
             
-            {/* ✨ إضافة overscroll-contain لمنع سحب الصفحة الخلفية على iOS */}
             <div className="flex-1 overflow-y-auto overscroll-contain hide-scrollbar">
               {children}
             </div>
           </div>
         </SheetContent>
       </Sheet>
-
-      <div className="flex-1 text-center min-w-0 px-2">
-        <h1 className="text-sm font-semibold text-foreground truncate">{clinicName}</h1>
-      </div>
     </>
   )
 }

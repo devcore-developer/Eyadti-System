@@ -108,12 +108,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="flex flex-1 flex-col overflow-hidden min-w-0 print:overflow-visible">
           
           {/* ── Mobile Top Navbar ── */}
-          <header className="lg:hidden print:hidden sticky top-0 z-40 h-14 border-b border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-white/80 dark:bg-[#17212F]/80 backdrop-blur-xl px-3 flex items-center justify-between">
+          <header className="lg:hidden print:hidden sticky top-0 z-40 h-16 border-b border-gray-200 dark:border-white/[0.06] bg-white px-4 flex items-center">
             <MobileNav clinicName={clinic?.name || "Nexora Clinic"}>
               <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} isMobile />
             </MobileNav>
             
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2 ml-3 min-w-0">
+              <img 
+                src="/dashboard-logo.png" 
+                alt="Nexora" 
+                className="h-[22px] w-[22px] object-contain shrink-0"
+              />
+              <h1 className="text-[16px] font-semibold text-gray-900 dark:text-white truncate">{clinic?.name || "Nexora Clinic"}</h1>
+            </div>
+
+            <div className="flex items-center gap-3 ml-auto shrink-0">
               {session.user.id && session.user.clinicId && (
                 <NotificationBell userId={session.user.id} clinicId={session.user.clinicId} />
               )}
