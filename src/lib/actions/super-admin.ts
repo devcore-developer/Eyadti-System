@@ -5,6 +5,7 @@ import { requireRole, AuthenticationError, AuthorizationError } from "@/lib/perm
 import { auth } from "@/lib/auth"
 import { cookies, headers } from "next/headers"
 import { revalidatePath } from "next/cache"
+import { notifySuperAdmin } from "@/lib/notifications/super-admin-notifier"
 
 function handleAuthError(error: unknown) {
   if (error instanceof AuthenticationError) return { success: false, error: error.message }
@@ -205,6 +206,33 @@ export async function getRealSystemHealth() {
       }
     } catch {
       results.upload = { status: "down", load: 0, label: "Upload check failed" }
+    }
+
+    // ✅ إرسال إشعارات عند اكتشاف مشاكل
+    const { notifySystemWarning, notifySystemCritical } = await import("@/lib/notifications/super-admin-notifier")
+    
+    if (results.db?.status === "down") {
+      await notifySystemCritical("Database", results.db.label)
+    } else if (results.db?.status === "degraded") {
+      await notifySystemWarning("Database", "degraded", results.db.label)
+    }
+
+    if (results.api?.status === "down") {
+      await notifySystemCritical("API Gateway", results.api.label)
+    } else if (results.api?.status === "degraded") {
+      await notifySystemWarning("API Gateway", "degraded", results.api.label)
+    }
+
+    if (results.storage?.status === "down") {
+      await notifySystemCritical("Object Storage", results.storage.label)
+    }
+
+    if (results.auth?.status === "down") {
+      await notifySystemCritical("Authentication", "NEXTAUTH_SECRET is missing!")
+    }
+
+    if (results.jobs?.status === "degraded") {
+      await notifySystemWarning("Background Jobs", "degraded", results.jobs.label)
     }
 
     return results
@@ -750,12 +778,6 @@ async function getRequestMetadata() {
   return { ip, userAgent }
 }
 
-async function notifySuperAdmin(type: string, title: string, message: string, clinicId?: string, actionUrl?: string) {
-  await prisma.superAdminNotification.create({
-    data: { type, title, message, clinicId, actionUrl }
-  })
-}
-
 // الدوال الاحتياطية عشان لا نكسر ملفات الـ UI القديمة (clinics-client و clinic-lifecycle)
 export async function suspendClinic(clinicId: string, reason?: string) {
   return controlSubscription(clinicId, "SUSPENDED", reason)
@@ -866,23 +888,16 @@ export async function permanentDeleteClinic(clinicId: string, typedName?: string
       return { success: false, error: "Clinic name does not match. Deletion cancelled." }
     }
 
-    // ✅ إنشاء Audit Log قبل الحذف (باستخدام clinicId الفعلي)
-    await prisma.auditLog.create({
-      data: { 
-        clinicId,  // ✅ الإصلاح
-        userId: session.user.id, 
-        action: "CLINIC_PERMANENTLY_DELETED", 
-        entityType: "CLINIC", 
-        entityId: clinicId,
-        oldValues: { 
-          name: clinic.name, 
-          counts: clinic._count 
-        }
-      }
-    })
+    // لا ننشئ audit log هنا — سيتم حذفه مع الـ transaction
 
     // ✅ حذف آمن مع Transaction
     await prisma.$transaction(async (tx) => {
+      // ✅ FIX: إزالة الـ ownerId الأول عشان نقدر نحذف الـ Users
+      await tx.clinic.update({
+        where: { id: clinicId },
+        data: { ownerId: null }
+      })
+
       // حذف الإشعارات المرتبطة
       await tx.notification.deleteMany({ where: { clinicId } })
       await tx.superAdminNotification.deleteMany({ where: { clinicId } })
@@ -957,6 +972,20 @@ export async function permanentDeleteClinic(clinicId: string, typedName?: string
       // حذف الـ Users
       await tx.user.deleteMany({ where: { clinicId } })
       
+      // ✅ إنشاء Audit Log هنا داخل الـ transaction (هيتم حذفه مع العيادة، بس ده آمن)
+      try {
+        await tx.auditLog.create({
+          data: { 
+            clinicId, 
+            userId: session.user.id, 
+            action: "CLINIC_PERMANENTLY_DELETED", 
+            entityType: "CLINIC", 
+            entityId: clinicId,
+            oldValues: { name: clinic.name }
+          }
+        })
+      } catch { /* ignore — سيتم حذفه مع العيادة */ }
+
       // حذف الـ Audit Logs للعيادة
       await tx.auditLog.deleteMany({ where: { clinicId } })
       
@@ -1149,12 +1178,16 @@ export async function updateAnnouncement(id: string, data: {
     const existing = await prisma.announcement.findUnique({ where: { id } })
     if (!existing || existing.status !== "ACTIVE") return { success: false, error: "Can only edit active announcements" }
 
-    await prisma.announcement.update({ where: { id }, data })
+    await prisma.announcement.update({ where: { id }, data: data })
     
-    await prisma.auditLog.create({
-      data: { clinicId: "SYSTEM", userId: session.user.id, action: "ANNOUNCEMENT_EDITED", entityType: "ANNOUNCEMENT", entityId: id }
-    })
-    
+    // ✅ FIX: استخدام أول targetClinicId صالح
+    const auditClinicId = data.targetClinicIds?.[0] || existing.targetClinicIds?.[0]
+    if (auditClinicId) {
+      await prisma.auditLog.create({
+        data: { clinicId: auditClinicId, userId: session.user.id, action: "ANNOUNCEMENT_EDITED", entityType: "ANNOUNCEMENT", entityId: id }
+      })
+    }
+
     revalidatePath("/super-admin")
     revalidatePath("/dashboard")
     return { success: true }
@@ -1168,10 +1201,15 @@ export async function archiveAnnouncement(id: string) {
     const session = await auth()
     if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
     
+    const existing = await prisma.announcement.findUnique({ where: { id } })
     await prisma.announcement.update({ where: { id }, data: { status: "ARCHIVED" } })
-    await prisma.auditLog.create({
-      data: { clinicId: "SYSTEM", userId: session.user.id, action: "ANNOUNCEMENT_ARCHIVED", entityType: "ANNOUNCEMENT", entityId: id }
-    })
+    
+    const auditClinicId = existing?.targetClinicIds?.[0]
+    if (auditClinicId) {
+      await prisma.auditLog.create({
+        data: { clinicId: auditClinicId, userId: session.user.id, action: "ANNOUNCEMENT_ARCHIVED", entityType: "ANNOUNCEMENT", entityId: id }
+      })
+    }
     
     revalidatePath("/super-admin"); revalidatePath("/dashboard")
     return { success: true }
@@ -1185,10 +1223,15 @@ export async function restoreAnnouncement(id: string) {
     const session = await auth()
     if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
     
+    const existing = await prisma.announcement.findUnique({ where: { id } })
     await prisma.announcement.update({ where: { id }, data: { status: "ACTIVE" } })
-    await prisma.auditLog.create({
-      data: { clinicId: "SYSTEM", userId: session.user.id, action: "ANNOUNCEMENT_RESTORED", entityType: "ANNOUNCEMENT", entityId: id }
-    })
+    
+    const auditClinicId = existing?.targetClinicIds?.[0]
+    if (auditClinicId) {
+      await prisma.auditLog.create({
+        data: { clinicId: auditClinicId, userId: session.user.id, action: "ANNOUNCEMENT_RESTORED", entityType: "ANNOUNCEMENT", entityId: id }
+      })
+    }
     
     revalidatePath("/super-admin"); revalidatePath("/dashboard")
     return { success: true }
@@ -1202,10 +1245,15 @@ export async function deleteAnnouncement(id: string) {
     const session = await auth()
     if (!session || session.user.role !== "SUPER_ADMIN") throw new Error("Unauthorized")
     
+    const existing = await prisma.announcement.findUnique({ where: { id } })
     await prisma.announcement.delete({ where: { id } })
-    await prisma.auditLog.create({
-      data: { clinicId: "SYSTEM", userId: session.user.id, action: "ANNOUNCEMENT_DELETED", entityType: "ANNOUNCEMENT", entityId: id }
-    })
+    
+    const auditClinicId = existing?.targetClinicIds?.[0]
+    if (auditClinicId) {
+      await prisma.auditLog.create({
+        data: { clinicId: auditClinicId, userId: session.user.id, action: "ANNOUNCEMENT_DELETED", entityType: "ANNOUNCEMENT", entityId: id }
+      })
+    }
     
     revalidatePath("/super-admin"); revalidatePath("/dashboard")
     return { success: true }

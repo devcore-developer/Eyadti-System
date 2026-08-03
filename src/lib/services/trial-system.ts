@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { notifyTrialExpired } from "@/lib/notifications/super-admin-notifier";
 
 /**
  * Check and update expired trials and active subscriptions.
@@ -7,6 +8,9 @@ import { prisma } from "@/lib/db";
 export async function checkAndExpireTrials(clinicId: string): Promise<boolean> {
   const subscription = await prisma.subscription.findUnique({
     where: { clinicId },
+    include: {
+      clinic: { select: { name: true } }
+    }
   });
 
   if (!subscription) return false;
@@ -21,6 +25,10 @@ export async function checkAndExpireTrials(clinicId: string): Promise<boolean> {
       where: { id: subscription.id },
       data: { status: "EXPIRED" },
     });
+
+    // ✅ إرسال إشعار للسوبر أدمن
+    await notifyTrialExpired(clinicId, subscription.clinic.name);
+
     return true;
   }
 
@@ -34,6 +42,7 @@ export async function checkAndExpireTrials(clinicId: string): Promise<boolean> {
       where: { id: subscription.id },
       data: { status: "EXPIRED" },
     });
+
     return true;
   }
 

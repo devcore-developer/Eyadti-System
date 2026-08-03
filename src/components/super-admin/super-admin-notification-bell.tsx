@@ -23,12 +23,34 @@ interface SuperAdminNotificationBellProps {
 }
 
 const typeColors: Record<string, string> = {
+  // الاشتراكات
   SUBSCRIPTION_SUSPENDED: "bg-red-500",
   SUBSCRIPTION_ACTIVE: "bg-green-500",
   SUBSCRIPTION_EXPIRED: "bg-amber-500",
+  SUBSCRIPTION_RENEWED: "bg-emerald-500",
+  
+  // دورة حياة العيادة
+  CLINIC_REGISTERED: "bg-blue-500",
   CLINIC_DELETED: "bg-red-600",
   CLINIC_ARCHIVED: "bg-gray-500",
+  
+  // التجربة
+  TRIAL_EXPIRED: "bg-orange-500",
+  
+  // المدفوعات
+  PAYMENT_FAILED: "bg-red-500",
+  
+  // النظام
+  SYSTEM_WARNING: "bg-amber-500",
+  SYSTEM_CRITICAL: "bg-red-600",
+  
+  // الأمان
+  SUSPICIOUS_ACTIVITY: "bg-purple-600",
+  
+  // الإعلانات
   ANNOUNCEMENT_CREATED: "bg-blue-500",
+  
+  // افتراضي
   SYSTEM: "bg-gray-400",
 }
 

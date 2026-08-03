@@ -322,11 +322,11 @@ export function SuperAdminDashboard({
           <div className="flex items-center gap-2">
             {/* ✅ PART 1 — System Status Badge يفحص كل الخدمات */}
             {initialHealth && (() => {
-              const statuses = Object.values(initialHealth).map((s: any) => s.status)
-              const hasDown = statuses.includes("down")
-              const hasDegraded = statuses.includes("degraded")
-              const configuredServices = statuses.filter(s => s !== "not_configured")
-              const allConfiguredOperational = configuredServices.length > 0 && configuredServices.every(s => s === "operational")
+              const allStatuses = Object.values(initialHealth).map((s: any) => s.status)
+              const configuredStatuses = allStatuses.filter(s => s !== "not_configured")
+              const hasDown = configuredStatuses.includes("down")
+              const hasDegraded = configuredStatuses.includes("degraded")
+              const allConfiguredOperational = configuredStatuses.length > 0 && configuredStatuses.every(s => s === "operational")
               
               let statusConfig: { bg: string; text: string; label: string }
               if (hasDown) {

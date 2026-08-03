@@ -37,8 +37,10 @@ export default async function SystemHealthPage() {
 
   if (!health) return <div className="p-8 text-center text-muted-foreground">Failed to load health metrics.</div>
 
-  const hasIssues = Object.values(health).some(s => s.status !== "operational")
-  const hasCritical = Object.values(health).some(s => s.status === "down")
+  // ✅ FIX: لا نعتبر "not_configured" مشكلة — الخدمة مش موجودة أصلاً
+  const configuredStatuses = Object.values(health).map((s: any) => s.status).filter(s => s !== "not_configured")
+  const hasIssues = configuredStatuses.some(s => s !== "operational")
+  const hasCritical = configuredStatuses.some(s => s === "down")
 
   const getStatusColor = (status: string) => {
     if (status === "operational") return { text: "text-[#6BCB77]", bg: "bg-[#6BCB77]", badgeBg: "bg-[#6BCB77]/10 border-[#6BCB77]/20 text-[#6BCB77]" }

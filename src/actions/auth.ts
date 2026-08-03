@@ -13,7 +13,6 @@ import { headers } from "next/headers";
 import type { ActionResult } from "@/types";
 
 
-
 // ─── Signup Action ──────────────────────────────────────────────────────────
 
 export async function signupAction(values: SignupInput): Promise<ActionResult> {
@@ -158,6 +157,10 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
           usedAt: new Date(),
         },
       });
+
+      // ✅ إشعار السوبر أدمن: عيادة جديدة (داخل الـ transaction عشان نقدر نوصل لـ clinic.id)
+      const { notifyNewClinicRegistered } = await import("@/lib/notifications/super-admin-notifier")
+      await notifyNewClinicRegistered(clinic.id, clinicName, name);
     });
   } catch (error: any) {
     if (
