@@ -716,25 +716,48 @@ export async function getSystemMetrics() {
     await prisma.$queryRaw`SELECT 1`
     const dbLatency = Date.now() - startTime
 
-    const totalAttachments = await prisma.attachment.count()
-
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-    const [dau, wau, mau] = await Promise.all([
+    const [dau, wau, mau, attachmentCount, attachmentSize, galleryCount, logoCount] = await Promise.all([
       prisma.auditLog.groupBy({ by: ['userId'], where: { createdAt: { gte: todayStart } } }),
       prisma.auditLog.groupBy({ by: ['userId'], where: { createdAt: { gte: weekAgo } } }),
       prisma.auditLog.groupBy({ by: ['userId'], where: { createdAt: { gte: monthAgo } } }),
+      
+      // ✅ المرفقات الطبية (مرتبطة بالمرضى)
+      prisma.attachment.count(),
+      
+      // ✅ حجم المرفقات بالـ bytes
+      prisma.attachment.aggregate({ _sum: { fileSize: true } }),
+      
+      // ✅ صور Before/After (Gallery)
+      prisma.galleryItem.count(),
+      
+      // ✅ شعارات العيادات
+      prisma.clinic.count({ where: { logoUrl: { not: null } } }),
     ])
 
     const totalLogs = await prisma.auditLog.count()
     const errorLogs = await prisma.auditLog.count({ where: { action: { contains: 'ERROR' } } })
 
+    // حساب الحجم بالـ MB
+    const totalBytes = attachmentSize._sum.fileSize || 0
+    const totalMB = parseFloat((totalBytes / (1024 * 1024)).toFixed(2))
+    const avgFileSizeBytes = attachmentCount > 0 ? Math.round(totalBytes / attachmentCount) : 0
+
     return {
       dbLatency,
-      storageUsed: totalAttachments,
+      // ✅ إحصائية تخزين شاملة
+      storageUsed: attachmentCount + galleryCount + logoCount,
+      storageDetails: {
+        medicalAttachments: attachmentCount,
+        galleryImages: galleryCount,
+        clinicLogos: logoCount,
+        totalSizeMB: totalMB,
+        avgFileSizeKB: parseFloat((avgFileSizeBytes / 1024).toFixed(1)),
+      },
       dau: dau.length,
       wau: wau.length,
       mau: mau.length,
@@ -1243,14 +1266,36 @@ export async function deleteAnnouncement(id: string) {
 export async function getPlatformUsageMetrics() {
   try {
     await requireRole("SUPER_ADMIN")
-    const totalAttachments = await prisma.attachment.count()
-    const totalAppointments = await prisma.appointment.count()
+    
+    const [attachmentCount, galleryCount, logoCount, attachmentSize, totalAppointments] = await Promise.all([
+      prisma.attachment.count(),
+      prisma.galleryItem.count(),
+      prisma.clinic.count({ where: { logoUrl: { not: null } } }),
+      prisma.attachment.aggregate({ _sum: { fileSize: true } }),
+      prisma.appointment.count(),
+    ])
+    
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const dailyActiveUsers = (await prisma.auditLog.groupBy({
       by: ['userId'], where: { createdAt: { gte: yesterday } }
     })).length
 
-    return { storageUsed: totalAttachments, totalAppointments, dailyActiveUsers, dbSize: "Calculated", bandwidth: "N/A" }
+    const totalBytes = attachmentSize._sum.fileSize || 0
+    const totalMB = parseFloat((totalBytes / (1024 * 1024)).toFixed(2))
+
+    return { 
+      storageUsed: attachmentCount + galleryCount + logoCount,
+      storageDetails: {
+        medicalAttachments: attachmentCount,
+        galleryImages: galleryCount,
+        clinicLogos: logoCount,
+        totalSizeMB: totalMB,
+      },
+      totalAppointments, 
+      dailyActiveUsers,
+      dbSize: "Calculated", 
+      bandwidth: "N/A" 
+    }
   } catch (error) {
     return null
   }

@@ -22,9 +22,13 @@ export function BillingClient({ data }: { data: BillingData }) {
           <h2 className="text-3xl font-bold tracking-tight">Financials</h2>
           <p className="text-muted-foreground mt-1">Revenue metrics, subscriptions, and payment health.</p>
         </div>
-        <Button variant="outline" size="sm" className="w-fit" onClick={() => alert("Exporting...")}>
-          <CreditCard className="mr-2 h-4 w-4" /> Export CSV
-        </Button>
+        <a
+          href="/api/super-admin/export?type=revenue"
+          download
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
+          <CreditCard className="h-4 w-4" /> Export CSV
+        </a>
       </div>
 
       {/* KPI Cards */}

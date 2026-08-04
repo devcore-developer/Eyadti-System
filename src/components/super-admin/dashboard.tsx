@@ -66,7 +66,19 @@ interface PriorityAlert {
 }
 
 interface SystemMetrics {
-  dbLatency: number; storageUsed: number; dau: number; wau: number; mau: number; errorRate: number
+  dbLatency: number
+  storageUsed: number
+  storageDetails?: {
+    medicalAttachments: number
+    galleryImages: number
+    clinicLogos: number
+    totalSizeMB: number
+    avgFileSizeKB: number
+  }
+  dau: number
+  wau: number
+  mau: number
+  errorRate: number
 }
 
 interface AuditLog {
@@ -268,7 +280,7 @@ export function SuperAdminDashboard({
     { icon: SlidersHorizontal, label: "Manage Plans", href: "/admin/plans", color: "text-[#A78BFA]", bg: "bg-[#A78BFA]/10", hoverBg: "hover:bg-[#A78BFA]/20" },
     { icon: Megaphone, label: "Announcement", href: "#", color: "text-[#F4B860]", bg: "bg-[#F4B860]/10", hoverBg: "hover:bg-[#F4B860]/20", onClick: () => setIsAnnouncementOpen(true) },    { icon: HeadphonesIcon, label: "Support Mode", href: "#", color: "text-[#6B9CFF]", bg: "bg-[#6B9CFF]/10", hoverBg: "hover:bg-[#6B9CFF]/20" },
     { icon: BarChart3, label: "Revenue Report", href: "/super-admin/billing", color: "text-[#6BCB77]", bg: "bg-[#6BCB77]/10", hoverBg: "hover:bg-[#6BCB77]/20" },
-    { icon: FileDown, label: "Export Reports", href: "#", color: "text-[#5BC0BE]", bg: "bg-[#5BC0BE]/10", hoverBg: "hover:bg-[#5BC0BE]/20" },
+    { icon: FileDown, label: "Export Reports", href: "/api/super-admin/export?type=full", color: "text-[#5BC0BE]", bg: "bg-[#5BC0BE]/10", hoverBg: "hover:bg-[#5BC0BE]/20", download: true },
     { icon: Wrench, label: "System Settings", href: "/super-admin/features", color: "text-muted-foreground", bg: "bg-muted", hoverBg: "hover:bg-muted/80" },
   ]
 
@@ -560,7 +572,7 @@ export function SuperAdminDashboard({
           <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#F4B860]" /><h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Quick Actions</h3></div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {quickActions.map((action) => (
-              <button key={action.label} className="premium-card p-4 flex flex-col items-center gap-3 text-center transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-none group" onClick={() => { if (action.onClick) { action.onClick() } else if (action.href && action.href !== "#") { router.push(action.href) } }}>
+              <button key={action.label} className="premium-card p-4 flex flex-col items-center gap-3 text-center transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-none group" onClick={() => { if (action.onClick) { action.onClick() } else if (action.download && action.href) { window.open(action.href, '_blank') } else if (action.href && action.href !== "#") { router.push(action.href) } }}>
                 <div className={cn("p-3 rounded-xl transition-colors", action.bg, action.hoverBg)}><action.icon className={cn("h-5 w-5", action.color)} /></div>
                 <span className="text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors">{action.label}</span>
               </button>
@@ -588,7 +600,22 @@ export function SuperAdminDashboard({
             {systemMetrics && (
             <Card className="premium-card border-none"><CardHeader className="pb-3"><div className="flex items-center gap-3"><div className="p-2 rounded-xl bg-[#6B9CFF]/10"><Cpu className="h-5 w-5 text-[#6B9CFF]" /></div><CardTitle className="text-base font-bold">System Metrics</CardTitle></div></CardHeader><CardContent className="space-y-3">
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30"><span className="text-xs text-muted-foreground">DB Latency</span><span className={cn("text-xs font-bold", systemMetrics.dbLatency < 100 ? "text-[#6BCB77]" : systemMetrics.dbLatency < 300 ? "text-[#F4B860]" : "text-[#EF6B6B]")}>{systemMetrics.dbLatency}ms</span></div>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30"><span className="text-xs text-muted-foreground">Storage</span><span className="text-xs font-bold text-foreground">{systemMetrics.storageUsed} files</span></div>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30">
+                <span className="text-xs text-muted-foreground">Total Files</span>
+                <span className="text-xs font-bold text-foreground">{systemMetrics.storageUsed}</span>
+              </div>
+              {/* ✅ تفصيل التخزين */}
+              {"storageDetails" in systemMetrics && systemMetrics.storageDetails && (
+                <div className="pl-3 space-y-1.5 border-l-2 border-[#6B9CFF]/20">
+                  <div className="flex justify-between text-[10px]"><span className="text-muted-foreground">Medical Files</span><span className="font-semibold">{systemMetrics.storageDetails.medicalAttachments}</span></div>
+                  <div className="flex justify-between text-[10px]"><span className="text-muted-foreground">Gallery Images</span><span className="font-semibold">{systemMetrics.storageDetails.galleryImages}</span></div>
+                  <div className="flex justify-between text-[10px]"><span className="text-muted-foreground">Clinic Logos</span><span className="font-semibold">{systemMetrics.storageDetails.clinicLogos}</span></div>
+                  <div className="flex justify-between text-[10px]"><span className="text-muted-foreground">Total Size</span><span className="font-semibold text-[#6B9CFF]">{systemMetrics.storageDetails.totalSizeMB} MB</span></div>
+                  {systemMetrics.storageDetails.avgFileSizeKB > 0 && (
+                    <div className="flex justify-between text-[10px]"><span className="text-muted-foreground">Avg File Size</span><span className="font-semibold">{systemMetrics.storageDetails.avgFileSizeKB} KB</span></div>
+                  )}
+                </div>
+              )}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30"><span className="text-xs text-muted-foreground">Error Rate</span><span className={cn("text-xs font-bold", systemMetrics.errorRate < 1 ? "text-[#6BCB77]" : systemMetrics.errorRate < 5 ? "text-[#F4B860]" : "text-[#EF6B6B]")}>{systemMetrics.errorRate}%</span></div>
               <div className="grid grid-cols-3 gap-2 pt-2">
                 <div className="text-center p-2 rounded-lg bg-[#6B9CFF]/5"><p className="text-sm font-extrabold text-[#6B9CFF]">{systemMetrics.dau}</p><p className="text-[9px] font-semibold text-muted-foreground uppercase">DAU</p></div>
