@@ -111,7 +111,7 @@ export default async function SystemHealthPage() {
                   </div>
                   <Badge variant="outline" className={cn("text-[10px] font-bold", colors.badgeBg)}>
                     <span className={cn("mr-1.5 h-1.5 w-1.5 rounded-full inline-block", colors.bg)} />
-                    {serviceData.status === "operational" ? "Healthy" : serviceData.status === "degraded" ? "Warning" : "Down"}
+                  {serviceData.status === "operational" ? "Healthy" : serviceData.status === "degraded" ? "Warning" : serviceData.status === "not_configured" ? "Not Configured" : "Down"}
                   </Badge>
                 </div>
               )

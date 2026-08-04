@@ -37,13 +37,17 @@ export function ClinicLifecycleActions({ clinicId, clinicName, currentSubStatus,
   const [isSuspendOpen, setIsSuspendOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
-  const handleAction = async (action: () => Promise<any>, dialogSetter?: (v: boolean) => void) => {
+  const handleAction = async (action: () => Promise<any>, dialogSetter?: (v: boolean) => void, redirectTo?: string) => {
     setLoading(action.name)
     const res = await action()
     setLoading(null)
     if (res?.success) {
       dialogSetter?.(false)
-      router.refresh()
+      if (redirectTo) {
+        router.push(redirectTo)
+      } else {
+        router.refresh()
+      }
     } else {
       alert(res?.error || "Action failed")
     }
@@ -196,11 +200,7 @@ export function ClinicLifecycleActions({ clinicId, clinicName, currentSubStatus,
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => { setIsDeleteOpen(false); setDeleteInput("") }}>Cancel</Button>
-              <Button 
-                variant="destructive" 
-                disabled={deleteInput.toLowerCase() !== clinicName.toLowerCase() || loading === "delete"} 
-                onClick={() => handleAction(() => permanentDeleteClinic(clinicId, deleteInput), setIsDeleteOpen)}
-              >
+              <Button variant="destructive" disabled={deleteInput.toLowerCase() !== clinicName.toLowerCase() || loading === "delete"} onClick={() => handleAction(() => permanentDeleteClinic(clinicId, deleteInput), setIsDeleteOpen, "/super-admin/clinics")}>
                 {loading === "delete" ? "Deleting..." : "Permanently Delete Clinic"}
               </Button>
             </DialogFooter>

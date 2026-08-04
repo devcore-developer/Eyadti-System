@@ -110,107 +110,85 @@ export async function getRealSystemHealth() {
       label: string 
     }> = {}
 
-    // 1. API Gateway — نقيس وقت الاستجابة الفعلي
-    const apiStart = Date.now()
-    try {
-      await prisma.$queryRaw`SELECT 1`
-      const apiLatency = Date.now() - apiStart
-      results.api = {
-        status: apiLatency < 300 ? "operational" : apiLatency < 1000 ? "degraded" : "down",
-        load: apiLatency,
-        label: `${apiLatency}ms response time`
-      }
-    } catch {
-      results.api = { status: "down", load: 0, label: "Cannot connect" }
+    // ✅ تشغيل كل الفحوصات بالتوازي بدل الترتيب
+    const [apiLatency, pendingTasks, attachmentCount, failedReminders, overdueReminders, todayUploads, authSecret] = await Promise.all([
+      // 1. API + DB في فحص واحد
+      (async () => {
+        const start = Date.now()
+        await prisma.$queryRaw`SELECT 1`
+        return Date.now() - start
+      })(),
+
+      // 2. Pending tasks
+      prisma.appointment.count({ where: { status: "SCHEDULED" } }),
+      
+      // 3. Attachments
+      prisma.attachment.count(),
+      
+      // 4. Failed reminders
+      prisma.reminder.count({ where: { status: "FAILED" } }),
+      
+      // 5. Overdue reminders
+      prisma.reminder.count({ where: { status: "PENDING", scheduledFor: { lte: new Date() } } }),
+      
+      // 6. Today uploads
+      prisma.attachment.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
+      
+      // 7. Auth secret check (sync, no await needed)
+      Promise.resolve(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET),
+    ])
+
+    // 1. API Gateway
+    results.api = {
+      status: apiLatency < 300 ? "operational" : apiLatency < 1000 ? "degraded" : "down",
+      load: apiLatency,
+      label: `${apiLatency}ms response time`
     }
 
-    // 2. Database Cluster — اختبار أعمق
-    const dbStart = Date.now()
-    try {
-      await prisma.$queryRaw`SELECT 1`
-      const dbLatency = Date.now() - dbStart
-      const pendingTasks = await prisma.appointment.count({ where: { status: "SCHEDULED" } })
-      results.db = {
-        status: dbLatency < 100 ? "operational" : dbLatency < 500 ? "degraded" : "down",
-        load: dbLatency,
-        label: `${dbLatency}ms · ${(pendingTasks as any)?.count || 0} pending`
-      }
-    } catch {
-      results.db = { status: "down", load: 0, label: "Connection failed" }
+    // 2. Database (نفس الفحص لكن نعرضه مختلف)
+    results.db = {
+      status: apiLatency < 100 ? "operational" : apiLatency < 500 ? "degraded" : "down",
+      load: apiLatency,
+      label: `${apiLatency}ms · ${pendingTasks} pending`
     }
 
-    // 3. Object Storage — نتأكد إن الـ Attachments شغالة
-    try {
-      const attachmentCount = await prisma.attachment.count()
-      results.storage = {
-        status: "operational",
-        load: attachmentCount,
-        label: `${attachmentCount} files stored`
-      }
-    } catch {
-      results.storage = { status: "down", load: 0, label: "Storage check failed" }
+    // 3. Object Storage
+    results.storage = {
+      status: "operational",
+      load: attachmentCount,
+      label: `${attachmentCount} files stored`
     }
 
-    // 4. Background Jobs — نチェック الـ Reminders الفاشلة
-    try {
-      const [failedReminders, overdueReminders] = await Promise.all([
-        prisma.reminder.count({ where: { status: "FAILED" } }),
-        prisma.reminder.count({ where: { status: "PENDING", scheduledFor: { lte: new Date() } } })
-      ])
-      results.jobs = {
-        status: (failedReminders > 5 || overdueReminders > 20) ? "degraded" : "operational",
-        load: failedReminders,
-        label: `${failedReminders} failed · ${overdueReminders} overdue`
-      }
-    } catch {
-      results.jobs = { status: "not_configured", load: 0, label: "No job processor" }
+    // 4. Background Jobs
+    results.jobs = {
+      status: (failedReminders > 5 || overdueReminders > 20) ? "degraded" : "operational",
+      load: failedReminders,
+      label: `${failedReminders} failed · ${overdueReminders} overdue`
     }
 
-    // 5. Email Service — مش متوفر لسه
-    results.email = {
-      status: "not_configured",
-      load: 0,
-      label: "SMTP not configured"
-    }
+    // 5-7. External services — NEVER down, only not_configured or warning
+    results.email = { status: "not_configured", load: 0, label: "SMTP not configured" }
+    results.sms = { status: "not_configured", load: 0, label: "SMS provider not configured" }
+    results.whatsapp = { status: "not_configured", load: 0, label: "UltraMsg API deferred" }
 
-    // 6. SMS Provider — مش متوفر لسه
-    results.sms = {
-      status: "not_configured",
-      load: 0,
-      label: "SMS provider not configured"
-    }
-
-    // 7. WhatsApp API — مؤجل (كما مذكور في الكود)
-    results.whatsapp = {
-      status: "not_configured",
-      load: 0,
-      label: "UltraMsg API deferred"
-    }
-
-    // 8. Authentication System — نتأكد إن NEXTAUTH_SECRET موجود
+    // 8. Authentication
     results.auth = {
-      status: process.env.NEXTAUTH_SECRET ? "operational" : "down",
+      status: authSecret ? "operational" : "down",
       load: 0,
-      label: process.env.NEXTAUTH_SECRET ? "NextAuth configured" : "NEXTAUTH_SECRET missing"
+      label: authSecret ? "NextAuth configured" : "AUTH_SECRET / NEXTAUTH_SECRET missing"
     }
 
-    // 9. Image Processing — ن_CHECK uploads اليوم
-    try {
-      const todayUploads = await prisma.attachment.count({
-        where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }
-      })
-      results.upload = {
-        status: "operational",
-        load: todayUploads,
-        label: `${todayUploads} uploads today`
-      }
-    } catch {
-      results.upload = { status: "down", load: 0, label: "Upload check failed" }
+    // 9. Image Processing
+    results.upload = {
+      status: "operational",
+      load: todayUploads,
+      label: `${todayUploads} uploads today`
     }
 
-    // ✅ إرسال إشعارات عند اكتشاف مشاكل
+    // ✅ إرسال إشعارات — فقط للخدمات الأساسية
     const { notifySystemWarning, notifySystemCritical } = await import("@/lib/notifications/super-admin-notifier")
     
+    // خدمات أساسية — Critical
     if (results.db?.status === "down") {
       await notifySystemCritical("Database", results.db.label)
     } else if (results.db?.status === "degraded") {
@@ -223,17 +201,16 @@ export async function getRealSystemHealth() {
       await notifySystemWarning("API Gateway", "degraded", results.api.label)
     }
 
-    if (results.storage?.status === "down") {
-      await notifySystemCritical("Object Storage", results.storage.label)
-    }
-
     if (results.auth?.status === "down") {
-      await notifySystemCritical("Authentication", "NEXTAUTH_SECRET is missing!")
+      await notifySystemCritical("Authentication", "AUTH_SECRET is missing!")
     }
 
+    // خدمات ثانوية — Warning فقط (مو Critical)
     if (results.jobs?.status === "degraded") {
       await notifySystemWarning("Background Jobs", "degraded", results.jobs.label)
     }
+
+    // ✅ External services — لا ترسل إشعارات أبداً لأنها not_configured مش down
 
     return results
   } catch (error) {
