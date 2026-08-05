@@ -1,5 +1,3 @@
-// src/components/settings/working-hours-form.tsx
-
 "use client"
 
 import { useState } from "react"
@@ -10,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Save, Clock } from "lucide-react"
+import { showSuccess, showError } from "@/components/shared/feedback-toast" // ⭐
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
@@ -38,9 +37,9 @@ export function WorkingHoursForm({ clinicId, initialData, isReadOnly }: WorkingH
     setIsSubmitting(true)
     const result = await updateWorkingHours(clinicId, hours)
     if (result.success) {
-      alert("Working hours saved successfully!")
+      showSuccess("Working hours saved successfully")
     } else {
-      alert(result.error || "Failed to save")
+      showError("Failed to save", result.error || "Something went wrong")
     }
     setIsSubmitting(false)
   }

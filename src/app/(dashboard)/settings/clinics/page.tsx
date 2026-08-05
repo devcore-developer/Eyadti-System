@@ -1,7 +1,6 @@
-// src/app/(dashboard)/settings/clinics/page.tsx
-
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
+import { prisma } from "@/lib/db"
 import { getClinicSettings, getWorkingHours, getClinicDoctors } from "@/lib/actions/settings"
 import { ClinicSettingsForm } from "@/components/settings/clinic-settings-form"
 import { ClinicLogoUpload } from "@/components/settings/clinic-logo-upload"
@@ -17,13 +16,17 @@ export default async function ClinicSettingsPage() {
 
   const clinicId = session.user.clinicId
   
-  // ✅ أضفنا SUPER_ADMIN لللستة عشان يقدر يعدل
-  const isReadOnly = !["SUPER_ADMIN", "ADMIN", "CLINIC_OWNER", "SUPER_ADMIN"].includes(session.user.role)
+  const isReadOnly = !["SUPER_ADMIN", "ADMIN", "CLINIC_OWNER"].includes(session.user.role)
 
-  const [settings, workingHours, doctors] = await Promise.all([
+  const [settings, workingHours, doctors, branches] = await Promise.all([
     getClinicSettings(clinicId),
     getWorkingHours(clinicId),
     getClinicDoctors(clinicId),
+    prisma.branch.findMany({
+      where: { clinicId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ])
 
   return (
@@ -56,7 +59,7 @@ export default async function ClinicSettingsPage() {
 
         <WorkingHoursForm clinicId={clinicId} initialData={workingHours as any} isReadOnly={isReadOnly} />
 
-        <DoctorScheduleForm doctors={doctors as any} isReadOnly={isReadOnly} />
+        <DoctorScheduleForm doctors={doctors as any} branches={branches} isReadOnly={isReadOnly} />
       </div>
     </div>
   )

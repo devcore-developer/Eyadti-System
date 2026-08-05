@@ -20,12 +20,18 @@ interface Doctor {
   maxDailyAppointments?: number | null
 }
 
+interface Branch {
+  id: string
+  name: string
+}
+
 interface DoctorScheduleFormProps {
   doctors: Doctor[]
+  branches?: Branch[] // ⭐ أضفنا branches
   isReadOnly: boolean
 }
 
-export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormProps) {
+export function DoctorScheduleForm({ doctors, branches = [], isReadOnly }: DoctorScheduleFormProps) {
   const [selectedDoctor, setSelectedDoctor] = useState<string>(doctors[0]?.id || "")
   const [schedules, setSchedules] = useState<DoctorScheduleInput[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -34,7 +40,6 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
   const [duration, setDuration] = useState<number>(30)
   const [maxAppointments, setMaxAppointments] = useState<number>(20)
 
-  // ✨ استخراج بيانات الدكتور المختار عشان نعرض اسمه بشكل صحيح في الـ Trigger
   const selectedDoctorData = doctors.find(d => d.id === selectedDoctor)
 
   useEffect(() => {
@@ -90,7 +95,7 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
           </div>
           <div>
             <h2 className="text-card-title text-foreground">Doctor Schedules</h2>
-            <p className="text-body text-muted-foreground">Manage individual doctor availability.</p>
+            <p className="text-body text-muted-foreground">Manage individual doctor availability and branch assignment.</p>
           </div>
         </div>
       </div>
@@ -100,7 +105,6 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
           <Label className="text-sm font-semibold">Select Doctor</Label>
           <Select value={selectedDoctor} onValueChange={(val) => setSelectedDoctor(val || "")}>
             <SelectTrigger className="w-full md:w-1/3 mt-2 rounded-xl h-11">
-              {/* ✨ الحل: عرض اسم الدكتور صراحة بدل ما نعتمد على الـ Radix Auto-extract */}
               <SelectValue placeholder="Choose a doctor...">
                 {selectedDoctorData ? `Dr. ${selectedDoctorData.name}` : "Choose a doctor..."}
               </SelectValue>
@@ -115,7 +119,6 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
           </Select>
         </div>
 
-        {/* Premium KPIs for Schedule Settings */}
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 rounded-2xl bg-[#F5FFFF] dark:bg-[#1D2A3B]/50 border border-[rgba(91,192,190,0.1)] transition-colors">
             <div className="flex items-center gap-2 mb-2">
@@ -154,12 +157,11 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
         ) : (
           <div className="space-y-3">
             {schedules.map((day, index) => (
-              <div key={day.dayOfWeek} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-white dark:bg-[#223247]/50 border border-[rgba(148,163,184,0.05)] hover:shadow-sm transition-all">
+              <div key={day.dayOfWeek} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white dark:bg-[#223247]/50 border border-[rgba(148,163,184,0.05)] hover:shadow-sm transition-all">
                 <div className="w-24 shrink-0">
                   <Label className="font-semibold text-sm">{DAYS[day.dayOfWeek]}</Label>
                 </div>
                 
-                {/* ✨ استبدال الـ Checkbox بـ Premium Switch */}
                 <div className="flex items-center gap-2">
                   <Switch
                     id={`dayoff-${day.dayOfWeek}`}
@@ -172,23 +174,45 @@ export function DoctorScheduleForm({ doctors, isReadOnly }: DoctorScheduleFormPr
                 </div>
 
                 {day.isAvailable ? (
-                  <div className="flex items-center gap-2 sm:ml-auto">
-                    <Input
-                      type="time"
-                      value={day.startTime}
-                      onChange={(e) => handleChange(index, "startTime", e.target.value)}
-                      disabled={isReadOnly}
-                      className="w-32 rounded-xl h-10"
-                    />
-                    <span className="text-muted-foreground text-xs font-medium">to</span>
-                    <Input
-                      type="time"
-                      value={day.endTime}
-                      onChange={(e) => handleChange(index, "endTime", e.target.value)}
-                      disabled={isReadOnly}
-                      className="w-32 rounded-xl h-10"
-                    />
-                  </div>
+                  <>
+                    {/* ⭐ Branch Selector — PART 4 */}
+                    {branches.length > 0 && (
+                      <Select
+                        value={(day as any).branchId || ""}
+                        onValueChange={(val) => handleChange(index, "branchId" as any, val || null)}
+                        disabled={isReadOnly}
+                      >
+                        <SelectTrigger className="w-[140px] h-10 rounded-xl text-xs">
+                          <SelectValue placeholder="Branch..." />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {branches.map((b) => (
+                            <SelectItem key={b.id} value={b.id} className="rounded-lg cursor-pointer">
+                              {b.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    <div className="flex items-center gap-2 sm:ml-auto">
+                      <Input
+                        type="time"
+                        value={day.startTime}
+                        onChange={(e) => handleChange(index, "startTime", e.target.value)}
+                        disabled={isReadOnly}
+                        className="w-32 rounded-xl h-10"
+                      />
+                      <span className="text-muted-foreground text-xs font-medium">to</span>
+                      <Input
+                        type="time"
+                        value={day.endTime}
+                        onChange={(e) => handleChange(index, "endTime", e.target.value)}
+                        disabled={isReadOnly}
+                        className="w-32 rounded-xl h-10"
+                      />
+                    </div>
+                  </>
                 ) : (
                   <p className="sm:ml-auto text-xs text-[#EF6B6B] font-semibold bg-[#EF6B6B]/10 px-3 py-1 rounded-full">Day Off</p>
                 )}

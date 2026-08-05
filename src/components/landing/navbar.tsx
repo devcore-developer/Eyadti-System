@@ -15,6 +15,14 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  const handleNavClick = (href: string) => {
+    setIsMobileMenuOpen(false)
+    const el = document.querySelector(href)
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" })
+    }
+  }
+
   return (
     <motion.nav 
       initial={{ y: -100 }}
@@ -29,20 +37,19 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2 text-foreground">
-            {/* ✅ اللوجو */}
             <img 
               src="/icon.png" 
               alt="Nexora Logo" 
               className="h-9 w-auto object-contain" 
             />
-            {/* ✅ اسم السيستم */}
             <span className="text-xl font-bold tracking-tight">Nexora Clinic System</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-            <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</a>
+            <a href="#features" onClick={(e) => { e.preventDefault(); handleNavClick("#features") }} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
+            <a href="#pricing" onClick={(e) => { e.preventDefault(); handleNavClick("#pricing") }} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
+            <a href="#testimonials" onClick={(e) => { e.preventDefault(); handleNavClick("#testimonials") }} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonials</a>
+            <a href="#faq" onClick={(e) => { e.preventDefault(); handleNavClick("#faq") }} className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</a>
           </div>
 
           <div className="hidden md:flex items-center gap-3">
@@ -72,9 +79,10 @@ export function Navbar() {
             className="md:hidden bg-background/95 backdrop-blur-xl border-b border-border"
           >
             <div className="px-4 py-4 space-y-3">
-              <a href="#features" className="block text-sm text-muted-foreground hover:text-foreground">Features</a>
-              <a href="#pricing" className="block text-sm text-muted-foreground hover:text-foreground">Pricing</a>
-              <a href="#faq" className="block text-sm text-muted-foreground hover:text-foreground">FAQ</a>
+              <a href="#features" onClick={(e) => { e.preventDefault(); handleNavClick("#features") }} className="block text-sm text-muted-foreground hover:text-foreground">Features</a>
+              <a href="#pricing" onClick={(e) => { e.preventDefault(); handleNavClick("#pricing") }} className="block text-sm text-muted-foreground hover:text-foreground">Pricing</a>
+              <a href="#testimonials" onClick={(e) => { e.preventDefault(); handleNavClick("#testimonials") }} className="block text-sm text-muted-foreground hover:text-foreground">Testimonials</a>
+              <a href="#faq" onClick={(e) => { e.preventDefault(); handleNavClick("#faq") }} className="block text-sm text-muted-foreground hover:text-foreground">FAQ</a>
               <Link href="/login" className="block text-sm font-medium text-foreground">Sign in</Link>
               <Link href="/signup" className="block text-center text-sm font-semibold text-white px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF]">
                 Start Free Trial

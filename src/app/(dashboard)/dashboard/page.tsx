@@ -30,6 +30,8 @@ import { MobileLayout, MobileBottomNav, MobileFab } from "./mobile-layout"
 import { MobileDashboard } from "./mobile-dashboard"
 import { prisma } from "@/lib/db"
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner"
+import { AttendanceKPIs } from "@/components/dashboard/attendance-kpis"
+import { getAttendanceStats } from "@/lib/actions/attendance"
 
 export const dynamic = "force-dynamic"
 
@@ -77,12 +79,13 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
   if (!session?.user?.clinicId) redirect("/login")
   const clinicId = session.user.clinicId
 
-  const [stats, chartData, recentActivity, doctorAnalytics, clinic] = await Promise.all([
+  const [stats, chartData, recentActivity, doctorAnalytics, clinic, attendanceStats] = await Promise.all([
     getDashboardStats(clinicId, period),
     getChartData(clinicId),
     getRecentActivity(clinicId),
     getDoctorAnalytics(clinicId),
     prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } }),
+    getAttendanceStats(clinicId),
   ])
 
   const doctorName = session.user.name || "Doctor"
@@ -181,6 +184,9 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
             {filterComponent}
           </div>
           {statsComponent}
+          {attendanceStats.totalDoctors > 0 && (
+            <AttendanceKPIs stats={attendanceStats} />
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2">
               <div className="rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-white dark:bg-[#223247] shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">

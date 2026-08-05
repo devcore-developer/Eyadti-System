@@ -28,6 +28,7 @@ enum PaymentMethod {
   BANK_TRANSFER
   INSURANCE
   OTHER
+  REFUND  
 }
 
 enum SubscriptionStatus {
@@ -151,6 +152,7 @@ model Branch {
   doctorSchedules DoctorSchedule[]
   userBranches    UserBranch[]
   doctorBranches  DoctorBranch[]
+  doctorAttendances  DoctorAttendance[]  
 
   @@unique([clinicId, code])
   @@index([clinicId])
@@ -214,6 +216,7 @@ model User {
   doctorBookings       Booking[]             @relation("DoctorBookings")
   userBranches         UserBranch[]
   doctorBranches       DoctorBranch[]
+  doctorAttendances  DoctorAttendance[]  
 
   emailVerified DateTime?
   image         String?
@@ -224,6 +227,7 @@ model User {
   accounts Account[]
   sessions Session[]
   announcements          Announcement[]       @relation("AnnouncementCreator")
+  createdTestimonials  Testimonial[]       @relation("TestimonialCreator")  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -255,6 +259,7 @@ model Clinic {
   superAdminNotifications  SuperAdminNotification[]
   bookings      Booking[]
   auditLogs     AuditLog[]
+  doctorAttendances  DoctorAttendance[]
   branches      Branch[]
   galleryItems GalleryItem[]
   usedActivationCodes ActivationCode[]
@@ -1078,4 +1083,46 @@ model SuperAdminNotification {
   
   @@index([isRead])
   @@map("super_admin_notifications")
+}
+// ── Testimonials ───────────────────────────────────────
+
+model Testimonial {
+  id            String   @id @default(cuid())
+  name          String
+  clinicName     String
+  position      String?
+  photoUrl       String?
+  review        String
+  rating        Int      @default(5)
+  displayOrder   Int      @default(0)
+  isPublished   Boolean @default(false)
+  createdById   String?
+  createdByUser User?  @relation("TestimonialCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("testimonials")
+}
+
+model DoctorAttendance {
+  id           String    @id @default(cuid())
+  clinicId     String
+  branchId     String?
+  doctorId     String
+  date         DateTime  @db.Date
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  status       String    @default("ABSENT")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  doctor  User    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, date])
+  @@index([clinicId, date])
+  @@index([branchId, date])
+  @@map("doctor_attendance")
 }

@@ -1,8 +1,23 @@
 import { Navbar } from "./navbar"
 import { Hero } from "./hero"
 import { MotionWrapper } from "./motion-wrapper"
-import PricingSection from "./pricing-section" // سنستخدم صفحة الباقات التي بنيناها مسبقاً
+import PricingSection from "./pricing-section"
 import Link from "next/link"
+import { FAQSection } from "./faq-section"
+import { TestimonialsSection } from "./testimonials-section"
+import { Users, CalendarDays, Clock, Globe, FileText, Receipt, Building2, BarChart3, Bell } from "lucide-react"
+
+const features = [
+  { title: "Patient Management", description: "Comprehensive records, medical history, and attachments for every patient.", icon: Users },
+  { title: "Smart Appointments", description: "Intelligent scheduling with conflict detection and reminders.", icon: CalendarDays },
+  { title: "Waiting Room Queue", description: "Real-time queue management and TV display support.", icon: Clock },
+  { title: "Online Booking", description: "Let patients book 24/7 via your custom booking link.", icon: Globe },
+  { title: "Invoices & Billing", description: "Generate invoices, track payments, and manage taxes easily.", icon: Receipt },
+  { title: "Prescriptions", description: "Create, print, and share digital prescriptions instantly.", icon: FileText },
+  { title: "Branch Management", description: "Manage multiple clinics and branches from one dashboard.", icon: Building2 },
+  { title: "Analytics Dashboard", description: "Actionable insights on revenue, patients, and doctor performance.", icon: BarChart3 },
+  { title: "WhatsApp Notifications", description: "Automated reminders and follow-ups via WhatsApp & SMS.", icon: Bell },
+]
 
 export function LandingPage() {
   return (
@@ -40,9 +55,19 @@ export function LandingPage() {
 
       {/* Pricing Section */}
       <section id="pricing" className="py-24 md:py-32 bg-muted/30">
-         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <PricingSection /> 
-         </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <PricingSection />
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <TestimonialsSection />
+
+      {/* FAQ Section */}
+      <section id="faq" className="py-24 md:py-32">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FAQSection />
+        </div>
       </section>
 
       {/* CTA Section */}
@@ -72,38 +97,62 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* ✅ Footer مع اللوجو الحقيقي والروابط */}
       <footer className="border-t border-border py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 text-foreground">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] flex items-center justify-center">
-              {/* Logo icon */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            {/* Brand */}
+            <div className="md:col-span-2">
+              <Link href="/" className="flex items-center gap-2.5 text-foreground mb-4">
+                <img src="/icon.png" alt="Nexora" className="h-9 w-auto object-contain" />
+                <span className="text-xl font-bold tracking-tight">Nexora</span>
+              </Link>
+              <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+                Professional clinic management system. Streamline appointments, billing, and patient records.
+              </p>
             </div>
-            <span className="font-bold">Nexora</span>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Product</h4>
+              <div className="space-y-2">
+                <a href="#features" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
+                <a href="#pricing" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
+                <a href="#faq" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</a>
+                <a href="#testimonials" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonials</a>
+              </div>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Legal</h4>
+              <div className="space-y-2">
+                <Link href="/privacy" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link>
+                <Link href="/terms" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">Terms & Conditions</Link>
+              </div>
+            </div>
+
+            {/* Contact */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Contact</h4>
+              <div className="space-y-2">
+                <a href="mailto:support@nexora.app" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">support@nexora.app</a>
+                <a href="https://wa.me/201275976195" target="_blank" rel="noopener noreferrer" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">WhatsApp Support</a>
+              </div>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Nexora. All rights reserved.
-          </p>
-          <div className="flex gap-6">
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</a>
+
+          <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} Nexora. All rights reserved.
+            </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Built with</span>
+              <span className="font-semibold text-foreground">Next.js</span>
+            </div>
           </div>
         </div>
       </footer>
     </main>
   )
 }
-
-// Data for features
-import { Users, CalendarDays, Clock, Globe, FileText, Receipt, Building2, BarChart3, Bell } from "lucide-react"
-const features = [
-  { title: "Patient Management", description: "Comprehensive records, medical history, and attachments for every patient.", icon: Users },
-  { title: "Smart Appointments", description: "Intelligent scheduling with conflict detection and reminders.", icon: CalendarDays },
-  { title: "Waiting Room Queue", description: "Real-time queue management and TV display support.", icon: Clock },
-  { title: "Online Booking", description: "Let patients book 24/7 via your custom booking link.", icon: Globe },
-  { title: "Invoices & Billing", description: "Generate invoices, track payments, and manage taxes easily.", icon: Receipt },
-  { title: "Prescriptions", description: "Create, print, and share digital prescriptions instantly.", icon: FileText },
-  { title: "Branch Management", description: "Manage multiple clinics and branches from one dashboard.", icon: Building2 },
-  { title: "Analytics Dashboard", description: "Actionable insights on revenue, patients, and doctor performance.", icon: BarChart3 },
-  { title: "WhatsApp Notifications", description: "Automated reminders and follow-ups via WhatsApp & SMS.", icon: Bell },
-]

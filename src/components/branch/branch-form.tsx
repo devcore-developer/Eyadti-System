@@ -1,5 +1,3 @@
-// src/components/branch/branch-form.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -42,17 +40,17 @@ export function BranchForm({ branch, mode }: BranchFormProps) {
   }
 
   return (
-    <Card className="max-w-2xl border-white/10 bg-white/[0.02]">
+    <Card className="max-w-2xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-teal-400" />
+          <Building2 className="h-5 w-5 text-teal-600" />
           {mode === "create" ? "Create New Branch" : "Edit Branch"}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
+            <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm">
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
               <div>{error}</div>
             </div>
@@ -60,70 +58,64 @@ export function BranchForm({ branch, mode }: BranchFormProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Branch Name <span className="text-red-400">*</span></Label>
+              <Label>Branch Name <span className="text-red-500">*</span></Label>
               <Input 
                 name="name" 
                 defaultValue={branch?.name || ""} 
                 required 
                 placeholder="e.g. Alexandria Branch"
-                className="bg-white/5 border-white/10 text-white placeholder:text-slate-600"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Branch Code <span className="text-red-400">*</span></Label>
+              <Label>Branch Code <span className="text-red-500">*</span></Label>
               <Input 
                 name="code" 
                 defaultValue={branch?.code || ""} 
                 required 
                 placeholder="e.g. ALEX"
-                className="bg-white/5 border-white/10 text-white placeholder:text-slate-600 uppercase"
+                className="uppercase"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-slate-300">Address</Label>
+            <Label>Address</Label>
             <Input 
               name="address" 
               defaultValue={branch?.address || ""} 
               placeholder="Street, Building..."
-              className="bg-white/5 border-white/10 text-white placeholder:text-slate-600"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-slate-300">City</Label>
+              <Label>City</Label>
               <Input 
                 name="city" 
                 defaultValue={branch?.city || ""} 
                 placeholder="e.g. Alexandria"
-                className="bg-white/5 border-white/10 text-white placeholder:text-slate-600"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Phone</Label>
+              <Label>Phone</Label>
               <Input 
                 name="phone" 
                 defaultValue={branch?.phone || ""} 
                 placeholder="e.g. 01278280555"
-                className="bg-white/5 border-white/10 text-white placeholder:text-slate-600"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-slate-300">Email</Label>
+            <Label>Email</Label>
             <Input 
               name="email" 
               type="email" 
               defaultValue={branch?.email || ""} 
               placeholder="branch@clinic.com"
-              className="bg-white/5 border-white/10 text-white placeholder:text-slate-600"
             />
           </div>
 
-          {/* Hidden input to ensure managerId is sent as empty string if not selected */}
           <input type="hidden" name="managerId" value="" />
 
           <div className="flex gap-3 pt-4">
@@ -139,7 +131,6 @@ export function BranchForm({ branch, mode }: BranchFormProps) {
               type="button" 
               variant="outline" 
               onClick={() => router.back()}
-              className="border-white/10 text-slate-400 hover:bg-white/5"
             >
               Cancel
             </Button>

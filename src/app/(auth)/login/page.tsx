@@ -134,6 +134,11 @@ export default function LoginPage() {
 
             {/* Password */}
             <div className="space-y-2">
+            <div className="flex justify-end">
+              <a href="/forgot-password" className="text-sm text-primary hover:underline">
+                Forgot password?
+              </a>
+            </div>  
               <label htmlFor="password" className="text-sm font-medium text-foreground">
                 Password
               </label>

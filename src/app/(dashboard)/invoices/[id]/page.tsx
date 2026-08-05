@@ -10,6 +10,8 @@ import { PrintButton } from "@/components/invoices/print-button"
 import { Button } from "@/components/ui/button"
 import { RotateCcw, FileDown, Printer } from "lucide-react"
 import { RecordPaymentDialog } from "@/components/invoices/record-payment-dialog"
+import { PaymentHistory } from "@/components/invoices/payment-history"
+import { RefundDialog } from "@/components/invoices/refund-dialog"
 
 export default async function InvoiceDetailPage({
   params,
@@ -27,6 +29,12 @@ export default async function InvoiceDetailPage({
     include: {
       patient: { select: { id: true, fullName: true, phone: true, address: true } },
       items: true,
+      payments: {
+        include: {
+          recordedBy: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   })
 
@@ -118,13 +126,25 @@ export default async function InvoiceDetailPage({
             <div className="grid grid-cols-2 gap-3">
               <Link href="/invoices/new"><Button variant="outline" className="w-full rounded-xl text-xs h-20 flex flex-col gap-1 border-dashed hover:bg-muted/50"><FileDown className="h-4 w-4" /> New Invoice</Button></Link>
               <RecordPaymentDialog invoiceId={invoice.id} remainingAmount={remainingAmount} />
-              <Link href="#"><Button variant="outline" className="w-full rounded-xl text-xs h-20 flex flex-col gap-1 border-dashed hover:bg-muted/50"><RotateCcw className="h-4 w-4" /> Refund</Button></Link>
+              <RefundDialog 
+                invoiceId={invoice.id} 
+                maxRefundAmount={paidAmount}
+                patientName={invoice.patient.fullName}
+              />
               <Link href="#"><Button variant="outline" className="w-full rounded-xl text-xs h-20 flex flex-col gap-1 border-dashed hover:bg-muted/50"><Printer className="h-4 w-4" /> Export PDF</Button></Link>
             </div>
           </div>
           <div className="p-6 rounded-[24px] bg-white dark:bg-[#223247] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] shadow-[0_8px_20px_rgba(100,116,139,0.06)]">
             <h3 className="text-lg font-semibold text-foreground mb-4">Payment History</h3>
-            <div className="text-center py-8 text-sm text-muted-foreground">No payments recorded yet.</div>
+            <PaymentHistory payments={invoice.payments.map((p) => ({
+              id: p.id,
+              amount: Number(p.amount),
+              method: p.method,
+              createdAt: p.createdAt,
+              userName: p.recordedBy?.name || "System",
+              reference: p.reference,
+              isRefund: p.method === "REFUND",
+            }))} />
           </div>
         </div>
       </div>

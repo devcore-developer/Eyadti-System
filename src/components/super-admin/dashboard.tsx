@@ -278,7 +278,9 @@ export function SuperAdminDashboard({
     { icon: XCircle, label: "Suspend Clinic", href: "/super-admin/clinics", color: "text-[#EF6B6B]", bg: "bg-[#EF6B6B]/10", hoverBg: "hover:bg-[#EF6B6B]/20" },
     { icon: CheckCircle2, label: "Activate Clinic", href: "/super-admin/clinics", color: "text-[#5BC0BE]", bg: "bg-[#5BC0BE]/10", hoverBg: "hover:bg-[#5BC0BE]/20" },
     { icon: SlidersHorizontal, label: "Manage Plans", href: "/admin/plans", color: "text-[#A78BFA]", bg: "bg-[#A78BFA]/10", hoverBg: "hover:bg-[#A78BFA]/20" },
-    { icon: Megaphone, label: "Announcement", href: "#", color: "text-[#F4B860]", bg: "bg-[#F4B860]/10", hoverBg: "hover:bg-[#F4B860]/20", onClick: () => setIsAnnouncementOpen(true) },    { icon: HeadphonesIcon, label: "Support Mode", href: "#", color: "text-[#6B9CFF]", bg: "bg-[#6B9CFF]/10", hoverBg: "hover:bg-[#6B9CFF]/20" },
+    { icon: Megaphone, label: "Announcement", href: "#", color: "text-[#F4B860]", bg: "bg-[#F4B860]/10", hoverBg: "hover:bg-[#F4B860]/20", onClick: () => setIsAnnouncementOpen(true) },
+    { icon: MessageSquare, label: "Testimonials", href: "/super-admin/testimonials", color: "text-[#EC4899]", bg: "bg-[#EC4899]/10", hoverBg: "hover:bg-[#EC4899]/20" },
+    { icon: HeadphonesIcon, label: "Support Mode", href: "#", color: "text-[#6B9CFF]", bg: "bg-[#6B9CFF]/10", hoverBg: "hover:bg-[#6B9CFF]/20" },
     { icon: BarChart3, label: "Revenue Report", href: "/super-admin/billing", color: "text-[#6BCB77]", bg: "bg-[#6BCB77]/10", hoverBg: "hover:bg-[#6BCB77]/20" },
     { icon: FileDown, label: "Export Reports", href: "/api/super-admin/export?type=full", color: "text-[#5BC0BE]", bg: "bg-[#5BC0BE]/10", hoverBg: "hover:bg-[#5BC0BE]/20", download: true },
     { icon: Wrench, label: "System Settings", href: "/super-admin/features", color: "text-muted-foreground", bg: "bg-muted", hoverBg: "hover:bg-muted/80" },
@@ -625,7 +627,19 @@ export function SuperAdminDashboard({
             </CardContent></Card>
             )}
 
-            <Card className="premium-card border-none bg-gradient-to-br from-[#6B9CFF]/5 via-transparent to-[#5BC0BE]/5"><CardHeader className="pb-3"><div className="flex items-center gap-3"><div className="p-2 rounded-xl bg-[#6B9CFF]/10"><Settings className="h-5 w-5 text-[#6B9CFF]" /></div><CardTitle className="text-base font-bold">Admin Tools</CardTitle></div></CardHeader><CardContent className="space-y-3"><p className="text-xs text-muted-foreground leading-relaxed">Generate activation codes and manage platform configuration.</p><Dialog open={isCodeDialogOpen} onOpenChange={setIsCodeDialogOpen}><DialogTrigger asChild><Button variant="outline" size="sm" className="w-full border-[#6B9CFF]/20 hover:bg-[#6B9CFF]/10 hover:text-[#6B9CFF] transition-colors rounded-xl h-9"><Plus className="h-3.5 w-3.5 mr-2" /> Generate Code</Button></DialogTrigger><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Generate Activation Code</DialogTitle></DialogHeader><GenerateCodeForm plans={plans} /></DialogContent></Dialog><div className="grid grid-cols-2 gap-2"><Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground rounded-xl h-9" onClick={() => router.push("/super-admin/audit-logs")}><Activity className="mr-2 h-3.5 w-3.5" /> Audit Logs</Button><Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground rounded-xl h-9" onClick={() => router.push("/super-admin/features")}><Settings className="mr-2 h-3.5 w-3.5" /> Features</Button></div></CardContent></Card>
+            <Card className="premium-card border-none bg-gradient-to-br from-[#6B9CFF]/5 via-transparent to-[#5BC0BE]/5"><CardHeader className="pb-3"><div className="flex items-center gap-3"><div className="p-2 rounded-xl bg-[#6B9CFF]/10"><Settings className="h-5 w-5 text-[#6B9CFF]" /></div><CardTitle className="text-base font-bold">Admin Tools</CardTitle></div></CardHeader><CardContent className="space-y-3"><p className="text-xs text-muted-foreground leading-relaxed">Generate activation codes and manage platform configuration.</p>
+            <Dialog open={isCodeDialogOpen} onOpenChange={setIsCodeDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="..."> Generate Code</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto p-6">
+                <DialogHeader className="sticky top-0 bg-background z-10 pb-4 border-b border-border/50 -mx-6 -mt-6 px-6 pt-6 rounded-t-xl">
+                  <DialogTitle>Generate Activation Code</DialogTitle>
+                </DialogHeader>
+                <GenerateCodeForm plans={plans} />
+              </DialogContent>
+            </Dialog>
+            <div className="grid grid-cols-2 gap-2"><Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground rounded-xl h-9" onClick={() => router.push("/super-admin/audit-logs")}><Activity className="mr-2 h-3.5 w-3.5" /> Audit Logs</Button><Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground rounded-xl h-9" onClick={() => router.push("/super-admin/features")}><Settings className="mr-2 h-3.5 w-3.5" /> Features</Button></div></CardContent></Card>
           </div>
         </div>
 

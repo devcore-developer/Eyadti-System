@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Save } from "lucide-react"
 import { useState } from "react"
+import { showSuccess, showError } from "@/components/shared/feedback-toast"
 
 interface ClinicSettingsFormProps {
   clinicId: string
@@ -62,9 +63,9 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
     setIsSubmitting(true)
     const result = await updateClinicSettings(clinicId, data)
     if (result.success) {
-      alert("Settings saved successfully!")
+      showSuccess("Settings saved successfully")
     } else {
-      alert(result.error || "Failed to save settings")
+      showError("Failed to save", result.error || "Something went wrong")
     }
     setIsSubmitting(false)
   }
