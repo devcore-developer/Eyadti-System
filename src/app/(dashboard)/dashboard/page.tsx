@@ -157,6 +157,8 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
             stats={stats}
             chartData={chartData}
             recentActivity={recentActivity}
+            attendanceStats={attendanceStats}
+            doctorAnalytics={doctorAnalytics}
           />
         </MobileLayout>
 

@@ -6,8 +6,13 @@ import { X, Plus } from "lucide-react"
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#F5F7FB]">
-      <div className="px-4 pt-[20px] pb-[80px] space-y-5">{children}</div>
+    <div 
+      className="min-h-dvh bg-[#F5F7FB] overflow-x-hidden" 
+      style={{ width: '100vw', boxSizing: 'border-box' }}
+    >
+      <div className="px-4 pt-[20px] pb-[100px] space-y-5 w-full max-w-[500px] mx-auto">
+        {children}
+      </div>
     </div>
   )
 }
@@ -18,9 +23,11 @@ export function MobileBottomNav({ links }: { links: { label: string; href: strin
       className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100"
       style={{
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        height: "calc(64px + env(safe-area-inset-bottom, 0px))",
+        boxSizing: "border-box",
       }}
     >
-      <div className="h-[64px] max-w-lg mx-auto flex items-center justify-around px-4">
+      <div className="h-[64px] max-w-[500px] mx-auto flex items-center justify-around px-4">
         {links.map((item) => (
           <button
             key={item.label}

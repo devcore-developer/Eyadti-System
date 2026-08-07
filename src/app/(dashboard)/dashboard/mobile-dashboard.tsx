@@ -6,8 +6,9 @@ import { formatCurrency } from "@/lib/utils/date-filters"
 import {
   CalendarDays, FileText, UserPlus,
   Pill, Users, CalendarCheck, TrendingUp, AlertCircle,
-  ChevronRight
+  ChevronRight, UserCheck, Clock, UserX, LogOut, Activity
 } from "lucide-react"
+
 type MobileDashboardProps = {
   doctorName: string
   clinicName: string
@@ -23,12 +24,21 @@ type MobileDashboardProps = {
     unpaidInvoicesAmount: number
     totalRevenue: number
   }
-  chartData: { name: string; revenue: number }[]
+  chartData: { name: string; revenue: number; patients: number; appointments: number }[]
   recentActivity: {
     patients: any[]
     appointments: any[]
     invoices: any[]
   }
+  attendanceStats: {
+    totalDoctors: number
+    present: number
+    late: number
+    absent: number
+    finished: number
+    branchCoverage: { branchId: string; branchName: string; doctorCount: number }[]
+  }
+  doctorAnalytics: any[]
 }
 
 function getGreeting() {
@@ -39,48 +49,21 @@ function getGreeting() {
 }
 
 /* ═══ Hero ═══ */
-
-function MobileHero({
-  doctorName,
-  clinicName,
-  todayAppointments,
-  pendingInvoices,
-  newPatients,
-}: {
-  doctorName: string
-  clinicName: string
-  todayAppointments: number
-  pendingInvoices: number
-  newPatients: number
-}) {
+function MobileHero({ doctorName, clinicName, todayAppointments, pendingInvoices, newPatients }: any) {
   return (
-    <div
-      className="relative overflow-hidden"
-      style={{
-        borderRadius: 20,
-        padding: 20,
-        background: "linear-gradient(135deg, #2B9E99 0%, #5BC0BE 40%, #6B9CFF 100%)",
-        boxShadow: "0 8px 32px rgba(107,156,255,0.18)",
-      }}
-    >
+    <div className="relative overflow-hidden" style={{ borderRadius: 20, padding: 20, background: "linear-gradient(135deg, #2B9E99 0%, #5BC0BE 40%, #6B9CFF 100%)", boxShadow: "0 8px 32px rgba(107,156,255,0.18)" }}>
       <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.12), transparent 70%)" }} />
-      
       <div className="relative z-10">
         <p className="text-white/60 text-[12px] font-medium">{getGreeting()} 👋</p>
         <h2 className="text-white text-[22px] font-bold leading-tight mt-0.5 truncate">{doctorName}</h2>
         <p className="text-white/50 text-[11px] mt-0.5 truncate">{clinicName}</p>
-
         <div className="flex gap-2 mt-4">
           {[
             { label: "Today", value: todayAppointments },
             { label: "Pending", value: pendingInvoices },
             { label: "New", value: newPatients },
           ].map((s) => (
-            <div
-              key={s.label}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-              style={{ background: "rgba(255,255,255,0.1)" }}
-            >
+            <div key={s.label} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.1)" }}>
               <span className="text-white/60 text-[10px] font-medium">{s.label}</span>
               <span className="text-white text-[13px] font-bold tabular-nums">{s.value}</span>
             </div>
@@ -92,7 +75,6 @@ function MobileHero({
 }
 
 /* ═══ Quick Actions ═══ */
-
 function MobileQuickActions() {
   const router = useRouter()
   const actions = [
@@ -105,16 +87,7 @@ function MobileQuickActions() {
   return (
     <div className="grid grid-cols-4 gap-3">
       {actions.map((action) => (
-        <button
-          key={action.label}
-          onClick={() => router.push(action.href)}
-          className="flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
-          style={{
-            padding: "12px 4px",
-            borderRadius: 16,
-            background: action.tint,
-          }}
-        >
+        <button key={action.label} onClick={() => router.push(action.href)} className="flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform" style={{ padding: "12px 4px", borderRadius: 16, background: action.tint }}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${action.bg}15` }}>
             <action.icon className="w-[18px] h-[18px]" style={{ color: action.bg }} strokeWidth={2} />
           </div>
@@ -126,7 +99,6 @@ function MobileQuickActions() {
 }
 
 /* ═══ Stats ═══ */
-
 function MobileStats({ stats, newPatients }: { stats: MobileDashboardProps["stats"]; newPatients: number }) {
   const cards = [
     { icon: TrendingUp, label: "Revenue", value: formatCurrency(stats.monthlyRevenue), sub: "this month", bg: "#6BCB77", tint: "rgba(107,203,119,0.03)" },
@@ -138,15 +110,7 @@ function MobileStats({ stats, newPatients }: { stats: MobileDashboardProps["stat
   return (
     <div className="grid grid-cols-2 gap-3">
       {cards.map((card) => (
-        <div
-          key={card.label}
-          className="p-4"
-          style={{
-            borderRadius: 16,
-            background: card.tint,
-            border: `1px solid ${card.bg}10`,
-          }}
-        >
+        <div key={card.label} className="p-4" style={{ borderRadius: 16, background: card.tint, border: `1px solid ${card.bg}10` }}>
           <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: `${card.bg}12` }}>
             <card.icon className="w-4 h-4" style={{ color: card.bg }} strokeWidth={2} />
           </div>
@@ -159,8 +123,161 @@ function MobileStats({ stats, newPatients }: { stats: MobileDashboardProps["stat
   )
 }
 
-/* ═══ Upcoming ═══ */
+/* ═══ TODAY'S ATTENDANCE (NEW) ═══ */
+function MobileAttendance({ stats }: { stats: MobileDashboardProps["attendanceStats"] }) {
+  if (stats.totalDoctors === 0) return null;
+  const cards = [
+    { key: "present", label: "Present", icon: UserCheck, color: "#10B981", bg: "rgba(16,185,129,0.08)" },
+    { key: "late", label: "Late", icon: Clock, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+    { key: "absent", label: "Absent", icon: UserX, color: "#64748B", bg: "rgba(100,116,139,0.08)" },
+    { key: "finished", label: "Checked Out", icon: LogOut, color: "#6B9CFF", bg: "rgba(107,156,255,0.08)" },
+  ]
 
+  return (
+    <div className="bg-white p-4" style={{ borderRadius: 16, border: "1px solid rgba(0,0,0,0.04)" }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-[#5BC0BE]/[0.08] flex items-center justify-center">
+            <UserCheck className="w-4 h-4 text-[#5BC0BE]" strokeWidth={2} />
+          </div>
+          <h3 className="text-gray-900 font-semibold text-[14px]">Today's Attendance</h3>
+        </div>
+        <span className="text-[11px] font-medium text-gray-400">
+          {stats.present + stats.late + stats.finished}/{stats.totalDoctors} active
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {cards.map((card) => {
+          const Icon = card.icon
+          const value = stats[card.key as keyof typeof stats] as number
+          return (
+            <div key={card.key} className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: card.bg }}>
+              <Icon className="w-4 h-4 shrink-0" style={{ color: card.color }} strokeWidth={2} />
+              <div>
+                <p className="text-gray-900 text-[18px] font-bold leading-none">{value}</p>
+                <p className="text-gray-500 text-[10px] font-medium mt-0.5">{card.label}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ═══ CHARTS (Revenue, Patient Growth, Appointments) ═══ */
+function MobileChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) return null
+  const isEmpty = data.every(d => d.revenue === 0)
+
+  return (
+    <div className="bg-white p-4" style={{ borderRadius: 16, border: "1px solid rgba(0,0,0,0.04)" }}>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-[#6B9CFF]/[0.08] flex items-center justify-center">
+          <TrendingUp className="w-4 h-4 text-[#6B9CFF]" strokeWidth={2} />
+        </div>
+        <h3 className="text-gray-900 font-semibold text-[14px]">Revenue Trend</h3>
+      </div>
+      <div style={{ height: 200 }}>
+        {isEmpty ? (
+          <div className="flex items-center justify-center h-full text-gray-400 text-[12px]">No revenue data</div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="mobGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#6B9CFF" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#6B9CFF" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94A3B8" }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94A3B8" }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} width={32} />
+              <Tooltip contentStyle={{ borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", border: "none", padding: "8px 12px", fontSize: 12 }} formatter={(value: any) => [formatCurrency(Number(value)), "Revenue"]} />
+              <Area type="monotone" dataKey="revenue" stroke="#6B9CFF" strokeWidth={2} fill="url(#mobGrad)" dot={false} activeDot={{ r: 4, fill: "#6B9CFF", stroke: "white", strokeWidth: 2 }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MobilePatientGrowthChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) return null
+  const isEmpty = data.every(d => d.patients === 0)
+
+  return (
+    <div className="bg-white p-4" style={{ borderRadius: 16, border: "1px solid rgba(0,0,0,0.04)" }}>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-[#5BC0BE]/[0.08] flex items-center justify-center">
+          <Users className="w-4 h-4 text-[#5BC0BE]" strokeWidth={2} />
+        </div>
+        <h3 className="text-gray-900 font-semibold text-[14px]">Patient Growth</h3>
+      </div>
+      <div style={{ height: 200 }}>
+        {isEmpty ? (
+          <div className="flex items-center justify-center h-full text-gray-400 text-[12px]">No growth data</div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="mobGradPatients" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#5BC0BE" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#5BC0BE" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94A3B8" }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94A3B8" }} width={32} />
+              <Tooltip contentStyle={{ borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", border: "none", padding: "8px 12px", fontSize: 12 }} formatter={(value: any) => [value, "New Patients"]} />
+              <Area type="monotone" dataKey="patients" stroke="#5BC0BE" strokeWidth={2} fill="url(#mobGradPatients)" dot={false} activeDot={{ r: 4, fill: "#5BC0BE", stroke: "white", strokeWidth: 2 }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MobileAppointmentsActivityChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) return null
+  const isEmpty = data.every(d => d.appointments === 0)
+
+  return (
+    <div className="bg-white p-4" style={{ borderRadius: 16, border: "1px solid rgba(0,0,0,0.04)" }}>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-[#89D6D2]/[0.08] flex items-center justify-center">
+          <Activity className="w-4 h-4 text-[#89D6D2]" strokeWidth={2} />
+        </div>
+        <h3 className="text-gray-900 font-semibold text-[14px]">Appointments Activity</h3>
+      </div>
+      <div style={{ height: 200 }}>
+        {isEmpty ? (
+          <div className="flex items-center justify-center h-full text-gray-400 text-[12px]">No appointments data</div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="mobGradAppts" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#89D6D2" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#89D6D2" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94A3B8" }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94A3B8" }} width={32} />
+              <Tooltip contentStyle={{ borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", border: "none", padding: "8px 12px", fontSize: 12 }} formatter={(value: any) => [value, "Appointments"]} />
+              <Area type="monotone" dataKey="appointments" stroke="#89D6D2" strokeWidth={2} fill="url(#mobGradAppts)" dot={false} activeDot={{ r: 4, fill: "#89D6D2", stroke: "white", strokeWidth: 2 }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ═══ Upcoming ═══ */
 function MobileUpcoming({ appointments }: { appointments: any[] }) {
   if (appointments.length === 0) return null
   const router = useRouter()
@@ -168,7 +285,7 @@ function MobileUpcoming({ appointments }: { appointments: any[] }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-gray-900 font-bold text-[16px]">Upcoming</h3>
+        <h3 className="text-gray-900 font-bold text-[16px]">Upcoming Appointments</h3>
         <button onClick={() => router.push("/appointments")} className="text-[12px] font-semibold text-[#6B9CFF] flex items-center gap-0.5 active:opacity-70">
           View All <ChevronRight className="w-3.5 h-3.5" />
         </button>
@@ -191,9 +308,7 @@ function MobileUpcoming({ appointments }: { appointments: any[] }) {
               style={{ borderRadius: 14, border: "1px solid rgba(0,0,0,0.04)" }}
             >
               <div className="w-10 h-10 rounded-full bg-[#6B9CFF]/[0.08] flex items-center justify-center shrink-0">
-                <span className="text-[12px] font-bold text-[#6B9CFF]">
-                  {(apt.patientName || "?").charAt(0)}
-                </span>
+                <span className="text-[12px] font-bold text-[#6B9CFF]">{(apt.patientName || "?").charAt(0)}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold text-gray-900 truncate">{apt.patientName}</p>
@@ -213,50 +328,7 @@ function MobileUpcoming({ appointments }: { appointments: any[] }) {
   )
 }
 
-/* ═══ Chart ═══ */
-
-function MobileChart({ data }: { data: { name: string; revenue: number }[] }) {
-  if (!data || data.length === 0) return null
-  const isEmpty = data.every(d => d.revenue === 0)
-
-  return (
-    <div className="bg-white p-4" style={{ borderRadius: 16, border: "1px solid rgba(0,0,0,0.04)" }}>
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-[#6B9CFF]/[0.08] flex items-center justify-center">
-          <TrendingUp className="w-4 h-4 text-[#6B9CFF]" strokeWidth={2} />
-        </div>
-        <h3 className="text-gray-900 font-semibold text-[14px]">Revenue</h3>
-      </div>
-      <div style={{ height: 160 }}>
-        {isEmpty ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-[12px]">No revenue data</div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
-              <defs>
-                <linearGradient id="mobGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6B9CFF" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#6B9CFF" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94A3B8" }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94A3B8" }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} width={32} />
-              <Tooltip
-                contentStyle={{ borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", border: "none", padding: "8px 12px", fontSize: 12 }}
-                formatter={(value: any) => [formatCurrency(Number(value)), "Revenue"]}
-              />
-              <Area type="monotone" dataKey="revenue" stroke="#6B9CFF" strokeWidth={2} fill="url(#mobGrad)" dot={false} activeDot={{ r: 4, fill: "#6B9CFF", stroke: "white", strokeWidth: 2 }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ═══ Recent List ═══ */
-
+/* ═══ Recent Lists ═══ */
 function MobileRecentSection({ title, items, viewAllHref, renderRow }: { title: string; items: any[]; viewAllHref: string; renderRow: (item: any) => React.ReactNode }) {
   if (items.length === 0) return null
   const router = useRouter()
@@ -285,33 +357,62 @@ function MobileRecentSection({ title, items, viewAllHref, renderRow }: { title: 
   )
 }
 
-/* ═══ Main ═══ */
+/* ═══ TOP DOCTORS (NEW) ═══ */
+function MobileTopDoctors({ doctors }: { doctors: any[] }) {
+  if (doctors.length === 0) return null;
 
+  return (
+    <div className="bg-white p-4" style={{ borderRadius: 16, border: "1px solid rgba(0,0,0,0.04)" }}>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-[#5BC0BE]/[0.08] flex items-center justify-center">
+          <Users className="w-4 h-4 text-[#5BC0BE]" strokeWidth={2} />
+        </div>
+        <h3 className="text-gray-900 font-semibold text-[14px]">Top Doctors</h3>
+      </div>
+      <div className="space-y-2">
+        {doctors.slice(0, 5).map((doc) => (
+          <div key={doc.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50/50">
+            <div className="w-9 h-9 rounded-full bg-[#5BC0BE]/10 flex items-center justify-center shrink-0">
+              <span className="text-[12px] font-bold text-[#5BC0BE]">{doc.name?.charAt(0) || "D"}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-gray-900 truncate">{doc.name}</p>
+              <p className="text-[11px] text-gray-400 truncate">{doc.specialization || 'General'}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[12px] font-bold text-gray-700">{doc.patientCount} pts</p>
+              <p className="text-[10px] text-gray-400">{doc.appointmentCount} appts</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ═══ MAIN DASHBOARD ═══ */
 export function MobileDashboard({
-  doctorName,
-  clinicName,
-  todayAppointments,
-  pendingInvoices,
-  newPatients,
-  stats,
-  chartData,
-  recentActivity,
+  doctorName, clinicName, todayAppointments, pendingInvoices, newPatients,
+  stats, chartData, recentActivity, attendanceStats, doctorAnalytics
 }: MobileDashboardProps) {
   return (
     <>
-      <MobileHero
-        doctorName={doctorName}
-        clinicName={clinicName}
-        todayAppointments={todayAppointments}
-        pendingInvoices={pendingInvoices}
-        newPatients={newPatients}
-      />
-
+      <MobileHero doctorName={doctorName} clinicName={clinicName} todayAppointments={todayAppointments} pendingInvoices={pendingInvoices} newPatients={newPatients} />
+      
       <MobileQuickActions />
+      
       <MobileStats stats={stats} newPatients={newPatients} />
-      <MobileUpcoming appointments={recentActivity.appointments} />
+      
+      <MobileAttendance stats={attendanceStats} />
+      
       <MobileChart data={chartData} />
-
+      
+      <MobilePatientGrowthChart data={chartData} />
+      
+      <MobileAppointmentsActivityChart data={chartData} />
+      
+      <MobileUpcoming appointments={recentActivity.appointments} />
+      
       <MobileRecentSection
         title="Recent Patients"
         items={recentActivity.patients}
@@ -319,9 +420,7 @@ export function MobileDashboard({
         renderRow={(p: any) => (
           <>
             <div className="w-9 h-9 rounded-full bg-[#5BC0BE]/[0.08] flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-bold text-[#5BC0BE]">
-                {(p.name || "?").charAt(0)}
-              </span>
+              <span className="text-[11px] font-bold text-[#5BC0BE]">{(p.name || "?").charAt(0)}</span>
             </div>
             <div className="flex-1 min-w-0 ml-3">
               <p className="text-[13px] font-medium text-gray-900 truncate">{p.name}</p>
@@ -344,9 +443,7 @@ export function MobileDashboard({
           return (
             <>
               <div className="w-9 h-9 rounded-full bg-[#6B9CFF]/[0.08] flex items-center justify-center shrink-0">
-                <span className="text-[11px] font-bold text-[#6B9CFF]">
-                  {(a.patientName || "?").charAt(0)}
-                </span>
+                <span className="text-[11px] font-bold text-[#6B9CFF]">{(a.patientName || "?").charAt(0)}</span>
               </div>
               <div className="flex-1 min-w-0 ml-3">
                 <p className="text-[13px] font-medium text-gray-900 truncate">{a.patientName}</p>
@@ -390,6 +487,8 @@ export function MobileDashboard({
           )
         }}
       />
+
+      <MobileTopDoctors doctors={doctorAnalytics} />
     </>
   )
 }
