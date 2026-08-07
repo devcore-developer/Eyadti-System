@@ -6,12 +6,16 @@ import { auth } from "@/lib/auth"
 import { cookies, headers } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { notifySuperAdmin } from "@/lib/notifications/super-admin-notifier"
+import { randomBytes } from "crypto"
+import { ActionResult } from "@/types"
 
 function handleAuthError(error: unknown) {
   if (error instanceof AuthenticationError) return { success: false, error: error.message }
   if (error instanceof AuthorizationError) return { success: false, error: error.message }
   return { success: false, error: "An unexpected error occurred" }
 }
+
+// استبدل getPlatformStats بالكامل في src/lib/actions/super-admin.ts
 
 export async function getPlatformStats() {
   try {
@@ -27,9 +31,11 @@ export async function getPlatformStats() {
 
     const [
       totalClinics, activeClinics, totalUsers, totalDoctors, totalPatients,
-      activeTrials, expiringSubs, failedPayments,
+      activeTrials, expiringSubs,
       prevTotalClinics, prevTotalPatients, prevTotalDoctors,
-      newSubsThisMonth, newSubsLastMonth
+      newSubsThisMonth, newSubsLastMonth,
+      // Plan counts
+      standardCount, professionalCount, enterpriseCount
     ] = await Promise.all([
       prisma.clinic.count(),
       prisma.clinic.count({ where: { subscription: { status: "ACTIVE" } } }),
@@ -37,20 +43,43 @@ export async function getPlatformStats() {
       prisma.user.count({ where: { role: "DOCTOR" } }),
       prisma.patient.count(),
       prisma.clinic.count({ where: { subscription: { status: "TRIAL" } } }),
-      prisma.clinic.count({ where: { subscription: { endDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, status: "ACTIVE" } } }),
-      prisma.invoice.count({ where: { status: { not: "PAID" } } }),
+      prisma.clinic.count({ 
+        where: { 
+          subscription: { 
+            status: "ACTIVE",
+            endDate: { lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } 
+          } 
+        } 
+      }),
       prisma.clinic.count({ where: { createdAt: { lt: oneMonthAgo } } }),
       prisma.patient.count({ where: { createdAt: { lt: oneMonthAgo } } }),
       prisma.user.count({ where: { role: "DOCTOR", createdAt: { lt: oneMonthAgo } } }),
       prisma.subscription.count({ where: { status: "ACTIVE", startDate: { gte: thisMonthStart } } }),
       prisma.subscription.count({ where: { status: "ACTIVE", startDate: { gte: lastMonthStart, lt: thisMonthStart } } }),
+      // Count by plan slug
+      prisma.subscription.count({ 
+        where: { status: "ACTIVE", plan: { slug: "standard" } } 
+      }),
+      prisma.subscription.count({ 
+        where: { status: "ACTIVE", plan: { slug: "professional" } } 
+      }),
+      prisma.subscription.count({ 
+        where: { status: "ACTIVE", plan: { slug: "enterprise" } } 
+      }),
     ])
 
+    // ✅ FIX: MRR from amountPaid, not current plan price
     const activeSubs = await prisma.subscription.findMany({
       where: { status: "ACTIVE" },
       include: { plan: { select: { monthlyPrice: true } } }
     })
-    const mrr = activeSubs.reduce((acc, sub) => acc + (sub.plan?.monthlyPrice || 0), 0)
+    
+    const mrr = activeSubs.reduce((acc, sub) => {
+      if (sub.amountPaid && sub.billingCycle === "YEARLY") {
+        return acc + (sub.amountPaid / 12);
+      }
+      return acc + (sub.amountPaid || sub.plan?.monthlyPrice || 0);
+    }, 0)
 
     const calcGrowth = (current: number, previous: number) => {
       if (previous === 0) return current > 0 ? 100 : 0
@@ -67,11 +96,16 @@ export async function getPlatformStats() {
       mrr,
       activeTrials,
       expiringSubs,
-      failedPayments,
+      // Failed payments removed - not relevant for SaaS
+      failedPayments: 0,
       clinicsGrowth: calcGrowth(totalClinics, prevTotalClinics),
       patientsGrowth: calcGrowth(totalPatients, prevTotalPatients),
       doctorsGrowth: calcGrowth(totalDoctors, prevTotalDoctors),
       mrrGrowth: newSubsLastMonth === 0 ? 0 : calcGrowth(newSubsThisMonth, newSubsLastMonth),
+      // Plan breakdown
+      standardCount,
+      professionalCount,
+      enterpriseCount,
     }
   } catch (error) {
     console.error("Error fetching platform stats:", error)
@@ -239,6 +273,68 @@ export async function getAllClinics() {
   }
 }
 
+// ─── GENERATE CODES ─────────────────────────────────────────────────
+export async function superAdminGenerateCodes({
+  planId,
+  type,
+  durationDays,
+  quantity,
+  expiresAt,
+}: {
+  planId: string;
+  type: "SIGNUP" | "SUBSCRIPTION";
+  durationDays: number;
+  quantity: number;
+  expiresAt?: string | null;
+}): Promise<ActionResult> {
+  try {
+    await requireRole("SUPER_ADMIN")
+
+    if (!planId) {
+      return { success: false, error: "Plan is required." }
+    }
+
+    const plan = await prisma.plan.findUnique({ where: { id: planId } })
+    if (!plan) {
+      return { success: false, error: "Plan not found." }
+    }
+
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" }
+    }
+    const parsedExpiresAt = expiresAt ? new Date(expiresAt) : null
+
+    const codesToCreate = Array.from({ length: quantity }).map(() => ({
+      code: randomBytes(Math.ceil(8 / 2))
+        .toString("hex")
+        .slice(0, 8)
+        .toUpperCase(),
+      planId: planId,
+      type: type,
+      durationDays: durationDays,
+      expiresAt: parsedExpiresAt,
+      createdByUserId: session.user.id,
+    }))
+
+    await prisma.activationCode.createMany({
+      data: codesToCreate,
+    })
+
+    const generatedCodes = codesToCreate.map(c => c.code)
+
+    return {
+      success: true,
+      codes: generatedCodes,
+      message: `${quantity} ${type} code(s) generated for ${plan.name}`,
+    }
+  } catch (error: any) {
+    console.error("Error generating codes:", error)
+    return { success: false, error: "Failed to generate codes." }
+  }
+}
+
+
 export async function getAllPlans() {
   try {
     await requireRole("SUPER_ADMIN")
@@ -348,61 +444,135 @@ export async function getClinicDetails(clinicId: string) {
   }
 }
 
+// استبدل getPlatformBillingData بالكامل في src/lib/actions/super-admin.ts
+
 export async function getPlatformBillingData() {
   try {
     await requireRole("SUPER_ADMIN")
 
+    // ✅ FIX: Only ACTIVE subscriptions (exclude TRIAL, EXPIRED, CANCELLED)
     const activeSubs = await prisma.subscription.findMany({
       where: { status: "ACTIVE" },
-      include: { plan: { select: { monthlyPrice: true } } }
+      include: { 
+        plan: { select: { name: true, slug: true, monthlyPrice: true } }
+      }
     })
     
-    const mrr = activeSubs.reduce((acc, sub) => acc + (sub.plan?.monthlyPrice || 0), 0)
+    // ✅ FIX: Use amountPaid from subscription, fallback to plan price for backward compatibility
+    const mrr = activeSubs.reduce((acc, sub) => {
+      // Use stored amount if available (monthly equivalent)
+      if (sub.amountPaid && sub.billingCycle === "YEARLY") {
+        return acc + (sub.amountPaid / 12);
+      }
+      return acc + (sub.amountPaid || sub.plan?.monthlyPrice || 0);
+    }, 0)
+    
     const arr = mrr * 12
     const activeSubsCount = activeSubs.length
 
-    const failedPayments = await prisma.invoice.findMany({
-      where: { status: { not: "PAID" } },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      include: { clinic: { select: { name: true } } }
+    // ✅ FIX: Revenue by plan breakdown
+    const revenueByPlan: Record<string, number> = {}
+    const countByPlan: Record<string, number> = {}
+    
+    activeSubs.forEach(sub => {
+      const planName = sub.plan?.name || "Unknown"
+      const monthlyAmount = sub.amountPaid 
+        ? (sub.billingCycle === "YEARLY" ? sub.amountPaid / 12 : sub.amountPaid)
+        : (sub.plan?.monthlyPrice || 0)
+      
+      revenueByPlan[planName] = (revenueByPlan[planName] || 0) + monthlyAmount
+      countByPlan[planName] = (countByPlan[planName] || 0) + 1
     })
 
-    const serializedFailedPayments = failedPayments.map(inv => ({
-      id: inv.id,
-      invoiceNumber: inv.invoiceNumber,
-      createdAt: inv.createdAt,
-      status: inv.status,
-      amount: Number(inv.amount),
-      clinic: inv.clinic
-    }))
-
+    // ✅ Chart data - last 6 months from SUBSCRIPTIONS, not invoices
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
-    const invoices = await prisma.invoice.findMany({
-      where: { status: 'PAID', createdAt: { gte: sixMonthsAgo } },
-      select: { amount: true, createdAt: true }
-    })
-
-    const revenueByMonth: Record<string, number> = {}
+    const monthlyRevenue: Record<string, number> = {}
+    const monthlyByPlan: Record<string, Record<string, number>> = {}
+    
     const now = new Date()
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const key = d.toLocaleString('default', { month: 'short' })
-      revenueByMonth[key] = 0
+      monthlyRevenue[key] = 0
+      monthlyByPlan[key] = {}
     }
 
-    invoices.forEach(inv => {
-      const key = new Date(inv.createdAt).toLocaleString('default', { month: 'short' })
-      if (revenueByMonth[key] !== undefined) {
-        revenueByMonth[key] += Number(inv.amount)
+    // Get all active subscriptions that were active during the last 6 months
+    const recentSubs = await prisma.subscription.findMany({
+      where: {
+        status: { in: ["ACTIVE"] },
+        startDate: { lte: now },
+      },
+      include: {
+        plan: { select: { name: true, monthlyPrice: true } }
       }
     })
 
-    const chartData = Object.entries(revenueByMonth).map(([month, revenue]) => ({ month, revenue }))
+    recentSubs.forEach(sub => {
+      const subStart = new Date(sub.startDate)
+      const subEnd = sub.endDate ? new Date(sub.endDate) : now
+      
+      for (let i = 5; i >= 0; i--) {
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999)
+        
+        // Was subscription active during this month?
+        if (subStart <= monthEnd && subEnd >= monthStart) {
+          const key = monthStart.toLocaleString('default', { month: 'short' })
+          const planName = sub.plan?.name || "Unknown"
+          const monthlyAmount = sub.amountPaid 
+            ? (sub.billingCycle === "YEARLY" ? sub.amountPaid / 12 : sub.amountPaid)
+            : (sub.plan?.monthlyPrice || 0)
+          
+          monthlyRevenue[key] += monthlyAmount
+          if (!monthlyByPlan[key][planName]) monthlyByPlan[key][planName] = 0
+          monthlyByPlan[key][planName] += monthlyAmount
+        }
+      }
+    })
 
-    return { mrr, arr, activeSubsCount, failedPayments: serializedFailedPayments, chartData }
+    const chartData = Object.entries(monthlyRevenue).map(([month, revenue]) => ({
+      month,
+      revenue,
+      ...(monthlyByPlan[month] || {})
+    }))
+
+    // No "failed payments" for SaaS - remove that section
+    // Instead, show expiring subscriptions
+    const expiringSubs = await prisma.subscription.findMany({
+      where: {
+        status: "ACTIVE",
+        endDate: {
+          gte: new Date(),
+          lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        }
+      },
+      include: {
+        clinic: { select: { name: true } },
+        plan: { select: { name: true } }
+      },
+      orderBy: { endDate: 'asc' },
+      take: 10
+    })
+
+    const serializedExpiring = expiringSubs.map(sub => ({
+      id: sub.id,
+      clinicName: sub.clinic?.name || "Unknown",
+      planName: sub.plan?.name || "Unknown",
+      endDate: sub.endDate,
+    }))
+
+    return { 
+      mrr, 
+      arr, 
+      activeSubsCount, 
+      revenueByPlan,
+      countByPlan,
+      expiringSubscriptions: serializedExpiring,
+      chartData 
+    }
   } catch (error) {
     console.error("Error fetching billing data:", error)
     return null
@@ -519,6 +689,8 @@ export async function getPlatformAuditLogs() {
 }
 
 // ✅ تقرير الأرباح حسب الفترة الزمنية
+// استبدل getRevenueReportData بالكامل في src/lib/actions/super-admin.ts
+
 export async function getRevenueReportData(from: string, to: string) {
   try {
     await requireRole("SUPER_ADMIN")
@@ -528,9 +700,10 @@ export async function getRevenueReportData(from: string, to: string) {
     const endDate = new Date(to)
     endDate.setHours(23, 59, 59, 999)
 
+    // ✅ FIX: Only ACTIVE subscriptions (EXCLUDE TRIALS from revenue!)
     const subscriptions = await prisma.subscription.findMany({
       where: {
-        status: { in: ["ACTIVE", "TRIAL"] },
+        status: "ACTIVE", // Only paid subscriptions
         OR: [
           { startDate: { lte: endDate }, endDate: { gte: startDate } },
           { startDate: { lte: endDate }, endDate: null } 
@@ -538,47 +711,94 @@ export async function getRevenueReportData(from: string, to: string) {
       },
       include: {
         clinic: { select: { id: true, name: true, owner: { select: { name: true } } } },
-        plan: { select: { name: true, monthlyPrice: true } }
+        plan: { select: { name: true, slug: true, monthlyPrice: true } }
       }
     })
 
     let totalRevenue = 0
+    let standardRevenue = 0
+    let professionalRevenue = 0
+    let enterpriseRevenue = 0
+    let standardCount = 0
+    let professionalCount = 0
+    let enterpriseCount = 0
+
     const reportData = subscriptions.map(sub => {
       const subStart = new Date(sub.startDate)
       const subEnd = sub.endDate ? new Date(sub.endDate) : new Date()
 
       let activeMonthsCount = 0
 
-      // نمر على كل شهر في الفترة اللي اختارها
       let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
       const endCursor = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
 
       while (cursor <= endCursor) {
-        const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999) // آخر يوم في الشهر
+        const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999)
 
-        // لو الاشتراك كان شغل في أي يوم من الشهر ده = شهر كامل فلوس
         if (subStart <= monthEnd && subEnd >= cursor) {
           activeMonthsCount++
         }
 
-        cursor.setMonth(cursor.getMonth() + 1) // نروح للشهر اللي جاي
+        cursor.setMonth(cursor.getMonth() + 1)
       }
 
-      // الفلوس = عدد الأشهر الكاملة × سعر الخطة (من غير أي تقسيم)
-      const revenue = activeMonthsCount * (sub.plan?.monthlyPrice || 0)
+      // ✅ Use amountPaid if available, otherwise fall back to plan price
+      const monthlyAmount = sub.amountPaid 
+        ? (sub.billingCycle === "YEARLY" ? sub.amountPaid / 12 : sub.amountPaid)
+        : (sub.plan?.monthlyPrice || 0)
+      
+      const revenue = activeMonthsCount * monthlyAmount
       totalRevenue += revenue
+
+      // Categorize by plan
+      const planSlug = sub.plan?.slug || ""
+      if (planSlug === "standard") {
+        standardRevenue += revenue
+        standardCount++
+      } else if (planSlug === "professional") {
+        professionalRevenue += revenue
+        professionalCount++
+      } else if (planSlug === "enterprise") {
+        enterpriseRevenue += revenue
+        enterpriseCount++
+      }
 
       return {
         clinicName: sub.clinic.name,
         ownerName: sub.clinic.owner?.name || "N/A",
         planName: sub.plan?.name || "Free",
+        planSlug: sub.plan?.slug || "",
         status: sub.status,
         activeMonths: activeMonthsCount,
+        monthlyRate: monthlyAmount,
         revenue
       }
     })
 
-    return { data: reportData, totalRevenue, startDate: from, endDate: to }
+    // Also get trial count for info (but NOT in revenue)
+    const trialCount = await prisma.subscription.count({
+      where: {
+        status: "TRIAL",
+        startDate: { lte: endDate },
+        OR: [
+          { trialEndsAt: { gte: startDate } },
+          { trialEndsAt: null }
+        ]
+      }
+    })
+
+    return { 
+      data: reportData, 
+      totalRevenue,
+      planBreakdown: {
+        standard: { revenue: standardRevenue, count: standardCount },
+        professional: { revenue: professionalRevenue, count: professionalCount },
+        enterprise: { revenue: enterpriseRevenue, count: enterpriseCount },
+      },
+      trialCount,
+      startDate: from, 
+      endDate: to 
+    }
   } catch (error) {
     console.error("Error fetching revenue data:", error)
     return null

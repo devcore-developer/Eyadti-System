@@ -1,3 +1,5 @@
+// src/components/super-admin/download-pdf-button.tsx
+
 "use client"
 
 import { useState } from "react"
@@ -21,30 +23,58 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", backgroundColor: "#f9fafb", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingVertical: 4 },
   cell: { padding: 5, fontSize: 9, color: "#1a1a1a" },
   headerCell: { padding: 5, fontSize: 9, fontWeight: "bold", color: "#374151" },
-  col1: { width: "25%" }, col2: { width: "18%" }, col3: { width: "15%" }, col4: { width: "12%" }, col5: { width: "12%" }, col6: { width: "18%", textAlign: "right" }
+  col1: { width: "22%" }, col2: { width: "15%" }, col3: { width: "14%" }, col4: { width: "10%" }, col5: { width: "10%" }, col6: { width: "10%" }, col7: { width: "19%", textAlign: "right" },
+  sectionTitle: { fontSize: 12, fontWeight: "bold", color: "#374151", marginTop: 15, marginBottom: 8 },
+  breakdownRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3, paddingHorizontal: 5, backgroundColor: "#f9fafb" },
+  breakdownCell: { fontSize: 9, color: "#4b5563" },
+  noteBox: { backgroundColor: "#fffbeb", padding: 8, borderRadius: 4, marginTop: 15, borderWidth: 1, borderColor: "#fbbf24" },
+  noteText: { fontSize: 8, color: "#92400e" }
 });
 
-const PdfDocument = ({ data, totalRevenue, dateRange }: any) => (
+const PdfDocument = ({ data, totalRevenue, planBreakdown, trialCount, dateRange }: any) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
         <Text style={styles.title}>Nexora Revenue Report</Text>
         <Text style={styles.subtitle}>Period: {dateRange.from} to {dateRange.to}</Text>
+        <Text style={styles.subtitle}>Generated: {new Date().toLocaleString()}</Text>
       </View>
       
       <View style={styles.totalBox}>
-        <Text style={styles.totalText}>Total Collected Revenue</Text>
+        <Text style={styles.totalText}>Total Recurring Revenue</Text>
         <Text style={styles.totalText}>{totalRevenue.toLocaleString()} EGP</Text>
       </View>
+
+      {/* Plan Breakdown */}
+      {planBreakdown && (
+        <View style={{ marginBottom: 15 }}>
+          <Text style={styles.sectionTitle}>Revenue by Plan</Text>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownCell}>Standard ({planBreakdown.standard?.count || 0} clinics)</Text>
+            <Text style={[styles.breakdownCell, { fontWeight: "bold" }]}>{(planBreakdown.standard?.revenue || 0).toLocaleString()} EGP</Text>
+          </View>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownCell}>Professional ({planBreakdown.professional?.count || 0} clinics)</Text>
+            <Text style={[styles.breakdownCell, { fontWeight: "bold" }]}>{(planBreakdown.professional?.revenue || 0).toLocaleString()} EGP</Text>
+          </View>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownCell}>Enterprise ({planBreakdown.enterprise?.count || 0} clinics)</Text>
+            <Text style={[styles.breakdownCell, { fontWeight: "bold" }]}>{(planBreakdown.enterprise?.revenue || 0).toLocaleString()} EGP</Text>
+          </View>
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Detailed Breakdown</Text>
 
       <View style={styles.table}>
         <View style={styles.headerRow}>
           <View style={[styles.headerCell, styles.col1]}><Text>Clinic Name</Text></View>
           <View style={[styles.headerCell, styles.col2]}><Text>Owner</Text></View>
           <View style={[styles.headerCell, styles.col3]}><Text>Plan</Text></View>
-          <View style={[styles.headerCell, styles.col4]}><Text>Months</Text></View>
-          <View style={[styles.headerCell, styles.col5]}><Text>Status</Text></View>
-          <View style={[styles.headerCell, styles.col6]}><Text>Revenue (EGP)</Text></View>
+          <View style={[styles.headerCell, styles.col4]}><Text>Monthly</Text></View>
+          <View style={[styles.headerCell, styles.col5]}><Text>Months</Text></View>
+          <View style={[styles.headerCell, styles.col6]}><Text>Status</Text></View>
+          <View style={[styles.headerCell, styles.col7]}><Text>Revenue (EGP)</Text></View>
         </View>
         
         {data.map((clinic: any, i: number) => (
@@ -52,12 +82,23 @@ const PdfDocument = ({ data, totalRevenue, dateRange }: any) => (
             <View style={[styles.cell, styles.col1]}><Text>{clinic.clinicName}</Text></View>
             <View style={[styles.cell, styles.col2]}><Text>{clinic.ownerName}</Text></View>
             <View style={[styles.cell, styles.col3]}><Text>{clinic.planName}</Text></View>
-            <View style={[styles.cell, styles.col4]}><Text>{clinic.activeMonths} Month(s)</Text></View>
-            <View style={[styles.cell, styles.col5]}><Text>{clinic.status}</Text></View>
-            <View style={[styles.cell, styles.col6]}><Text>{clinic.revenue.toLocaleString()}</Text></View>
+            <View style={[styles.cell, styles.col4]}><Text>{clinic.monthlyRate?.toLocaleString() || 0}</Text></View>
+            <View style={[styles.cell, styles.col5]}><Text>{clinic.activeMonths}</Text></View>
+            <View style={[styles.cell, styles.col6]}><Text>{clinic.status}</Text></View>
+            <View style={[styles.cell, styles.col7]}><Text>{clinic.revenue.toLocaleString()}</Text></View>
           </View>
         ))}
       </View>
+
+      {/* Note about trials */}
+      {trialCount > 0 && (
+        <View style={styles.noteBox}>
+          <Text style={styles.noteText}>
+            Note: {trialCount} clinic(s) on free trial are excluded from this revenue report. 
+            Trial subscriptions do not generate revenue.
+          </Text>
+        </View>
+      )}
     </Page>
   </Document>
 )
@@ -79,7 +120,13 @@ export function DownloadPdfButton() {
       if (!result) throw new Error("Failed to fetch data")
       
       const blob = await pdf(
-        <PdfDocument data={result.data} totalRevenue={result.totalRevenue} dateRange={{ from, to }} />
+        <PdfDocument 
+          data={result.data} 
+          totalRevenue={result.totalRevenue}
+          planBreakdown={result.planBreakdown}
+          trialCount={result.trialCount}
+          dateRange={{ from, to }} 
+        />
       ).toBlob()
       
       const url = URL.createObjectURL(blob)

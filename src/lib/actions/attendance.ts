@@ -1,11 +1,14 @@
+// src/lib/actions/attendance.ts
+
 "use server"
 
 import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
+import { requireFeature } from "@/lib/services/feature-gate"
 
 // ─── Helper: Get today's branch for a doctor ────────────────────
 export async function getDoctorTodayBranch(doctorId: string): Promise<string | null> {
-  const dayOfWeek = new Date().getDay() // 0=Sunday
+  const dayOfWeek = new Date().getDay()
   const schedule = await prisma.doctorSchedule.findFirst({
     where: { doctorId, dayOfWeek, isAvailable: true },
     select: { branchId: true },
@@ -15,6 +18,17 @@ export async function getDoctorTodayBranch(doctorId: string): Promise<string | n
 
 // ─── Get today's attendance for all doctors in a clinic ─────────
 export async function getTodayAttendance(clinicId: string) {
+  const session = await auth()
+  if (!session?.user?.clinicId) return []
+
+  // ✅ SERVER-SIDE FEATURE GATE: Doctor Attendance requires Professional+
+  try {
+    await requireFeature(clinicId, "DOCTOR_ATTENDANCE")
+  } catch {
+    // Return empty array - the UI will show the locked state
+    return []
+  }
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -59,10 +73,21 @@ export async function checkInDoctor(doctorId: string, branchId: string | null) {
   if (!session?.user) return { success: false, error: "Unauthorized" }
 
   const clinicId = session.user.clinicId
+  if (!clinicId) return { success: false, error: "No clinic assigned" }
+
+  // ✅ SERVER-SIDE FEATURE GATE
+  try {
+    await requireFeature(clinicId, "DOCTOR_ATTENDANCE")
+  } catch (error: any) {
+    return { 
+      success: false, 
+      error: error.message || "Doctor Attendance is not available on your current plan. Please upgrade to Professional to unlock this feature." 
+    }
+  }
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Get doctor's schedule start time for today
   const dayOfWeek = today.getDay()
   const schedule = await prisma.doctorSchedule.findFirst({
     where: { doctorId, dayOfWeek, isAvailable: true },
@@ -107,6 +132,19 @@ export async function checkOutDoctor(attendanceId: string) {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
 
+  const clinicId = session.user.clinicId
+  if (!clinicId) return { success: false, error: "No clinic assigned" }
+
+  // ✅ SERVER-SIDE FEATURE GATE
+  try {
+    await requireFeature(clinicId, "DOCTOR_ATTENDANCE")
+  } catch (error: any) {
+    return { 
+      success: false, 
+      error: error.message || "Doctor Attendance is not available on your current plan." 
+    }
+  }
+
   const attendance = await prisma.doctorAttendance.update({
     where: { id: attendanceId },
     data: {
@@ -120,6 +158,18 @@ export async function checkOutDoctor(attendanceId: string) {
 
 // ─── Get attendance stats for dashboard ─────────────────────────
 export async function getAttendanceStats(clinicId: string) {
+  const session = await auth()
+  if (!session?.user?.clinicId) {
+    return { totalDoctors: 0, present: 0, late: 0, absent: 0, finished: 0, branchCoverage: [] }
+  }
+
+  // ✅ SERVER-SIDE FEATURE GATE
+  try {
+    await requireFeature(clinicId, "DOCTOR_ATTENDANCE")
+  } catch {
+    return { totalDoctors: 0, present: 0, late: 0, absent: 0, finished: 0, branchCoverage: [], featureLocked: true }
+  }
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -136,7 +186,6 @@ export async function getAttendanceStats(clinicId: string) {
   const absent = totalDoctors - present - attendances.filter(a => a.status === "FINISHED").length
   const finished = attendances.filter(a => a.status === "FINISHED").length
 
-  // Branch coverage
   const branchCoverage = new Map<string, string[]>()
   for (const att of attendances) {
     if (att.branchId) {

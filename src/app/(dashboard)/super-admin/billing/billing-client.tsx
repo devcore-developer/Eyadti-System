@@ -10,8 +10,10 @@ interface BillingData {
   mrr: number
   arr: number
   activeSubsCount: number
-  failedPayments: any[]
-  chartData: { month: string, revenue: number }[]
+  revenueByPlan: Record<string, number>
+  countByPlan: Record<string, number>
+  expiringSubscriptions: { id: string; clinicName: string; planName: string; endDate: Date | null }[]
+  chartData: { month: string; revenue: number; [key: string]: any }[]
 }
 
 export function BillingClient({ data }: { data: BillingData }) {
@@ -106,22 +108,22 @@ export function BillingClient({ data }: { data: BillingData }) {
         </CardContent>
       </Card>
 
-      {/* Failed Payments */}
+      {/* Expiring Subscriptions */}
       <Card className="border-border/50">
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-base">Failed Transactions</CardTitle>
-            {data.failedPayments.length > 0 && (
-              <Badge variant="outline" className="border-rose-500/30 text-rose-600 bg-rose-500/10 text-xs">
-                {data.failedPayments.length} Issues
+            <CardTitle className="text-base">Expiring Subscriptions</CardTitle>
+            {data.expiringSubscriptions.length > 0 && (
+              <Badge variant="outline" className="border-amber-500/30 text-amber-600 bg-amber-500/10 text-xs">
+                {data.expiringSubscriptions.length} Expiring
               </Badge>
             )}
           </div>
         </CardHeader>
         <CardContent>
-          {data.failedPayments.length === 0 ? (
+          {data.expiringSubscriptions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm border border-dashed rounded-lg">
-              🎉 All payments are healthy!
+              ✅ No subscriptions expiring in the next 7 days
             </div>
           ) : (
             <div className="relative w-full overflow-auto rounded-lg border border-border/50">
@@ -129,21 +131,17 @@ export function BillingClient({ data }: { data: BillingData }) {
                 <thead className="[&_tr]:border-b bg-muted/30">
                   <tr className="border-b">
                     <th className="h-11 px-4 text-left font-medium text-muted-foreground">Clinic</th>
-                    <th className="h-11 px-4 text-left font-medium text-muted-foreground hidden md:table-cell">Date</th>
-                    <th className="h-11 px-4 text-left font-medium text-muted-foreground">Amount</th>
-                    <th className="h-11 px-4 text-right font-medium text-muted-foreground">Action</th>
+                    <th className="h-11 px-4 text-left font-medium text-muted-foreground">Plan</th>
+                    <th className="h-11 px-4 text-left font-medium text-muted-foreground">Expires</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.failedPayments.map((inv) => (
-                    <tr key={inv.id} className="border-b transition-colors hover:bg-muted/30">
-                      <td className="p-4 font-medium">{inv.clinic?.name || "Unknown"}</td>
-                      <td className="p-4 text-muted-foreground hidden md:table-cell">{new Date(inv.createdAt).toLocaleDateString()}</td>
-                      <td className="p-4 font-semibold text-rose-600">{Number(inv.amount).toLocaleString()} EGP</td>
-                      <td className="p-4 text-right">
-                        <Button variant="outline" size="sm" className="text-xs h-8">
-                          Retry
-                        </Button>
+                  {data.expiringSubscriptions.map((sub) => (
+                    <tr key={sub.id} className="border-b transition-colors hover:bg-muted/30">
+                      <td className="p-4 font-medium">{sub.clinicName}</td>
+                      <td className="p-4 text-muted-foreground">{sub.planName}</td>
+                      <td className="p-4 text-amber-600 font-medium">
+                        {sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'N/A'}
                       </td>
                     </tr>
                   ))}

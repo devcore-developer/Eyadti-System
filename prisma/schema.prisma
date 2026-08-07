@@ -406,6 +406,7 @@ model Plan {
   doctorSchedulesEnabled       Boolean  @default(true)
   queueManagementEnabled       Boolean  @default(false)
   waitingRoomDisplayEnabled    Boolean  @default(false)
+  doctorAttendanceEnabled     Boolean  @default(false)
   active                       Boolean  @default(true)
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
@@ -428,6 +429,8 @@ model Subscription {
   currentPeriodEnd DateTime?
   trialEndsAt DateTime?
   cancelledAt DateTime?
+  amountPaid    Float?       @default(0)
+  billingCycle  String?      @default("MONTHLY")
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 

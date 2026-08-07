@@ -32,6 +32,8 @@ export async function createTrialSubscription(
       status: SubscriptionStatus.TRIAL,
       startDate: now,
       trialEndsAt,
+      amountPaid: 0, // Trial = no payment
+      billingCycle: "MONTHLY",
     },
     include: { plan: true },
   });
@@ -41,7 +43,6 @@ export async function createTrialSubscription(
 
 /**
  * Get subscription for a clinic (READ ONLY — no side effects).
- * Does NOT auto-expire. Use checkAndExpireTrials() for that.
  */
 export async function getSubscription(
   clinicId: string
@@ -74,13 +75,23 @@ export function getTrialDaysRemaining(trialEndsAt: Date | null): number | null {
   return days > 0 ? days : 0;
 }
 
+/**
+ * Activate subscription and store the ACTUAL amount paid.
+ * This amount is used for revenue calculations, NOT the current plan price.
+ */
 export async function activateSubscription(
   clinicId: string,
   planId: string,
   billingCycle: "MONTHLY" | "YEARLY"
 ): Promise<SubscriptionType> {
+  const plan = await prisma.plan.findUnique({ where: { id: planId } });
+  if (!plan) throw new Error("Plan not found");
+
   const now = new Date();
   const endDate = new Date(now);
+
+  // Calculate the amount ACTUALLY paid at time of activation
+  const amountPaid = billingCycle === "MONTHLY" ? plan.monthlyPrice : plan.yearlyPrice;
 
   if (billingCycle === "MONTHLY") {
     endDate.setMonth(endDate.getMonth() + 1);
@@ -100,9 +111,10 @@ export async function activateSubscription(
         status: SubscriptionStatus.ACTIVE,
         startDate: now,
         endDate,
-        // FIX #39: Add currentPeriodEnd
         currentPeriodEnd: endDate,
         cancelledAt: null,
+        amountPaid,
+        billingCycle,
       },
       include: { plan: true },
     });
@@ -116,8 +128,9 @@ export async function activateSubscription(
       status: SubscriptionStatus.ACTIVE,
       startDate: now,
       endDate,
-      // FIX #39: Add currentPeriodEnd
       currentPeriodEnd: endDate,
+      amountPaid,
+      billingCycle,
     },
     include: { plan: true },
   });
@@ -157,8 +170,12 @@ export async function reactivateSubscription(
   planId: string,
   billingCycle: "MONTHLY" | "YEARLY"
 ): Promise<SubscriptionType> {
+  const plan = await prisma.plan.findUnique({ where: { id: planId } });
+  if (!plan) throw new Error("Plan not found");
+
   const now = new Date();
   const endDate = new Date(now);
+  const amountPaid = billingCycle === "MONTHLY" ? plan.monthlyPrice : plan.yearlyPrice;
 
   if (billingCycle === "MONTHLY") {
     endDate.setMonth(endDate.getMonth() + 1);
@@ -173,9 +190,10 @@ export async function reactivateSubscription(
       status: SubscriptionStatus.ACTIVE,
       startDate: now,
       endDate,
-      // FIX #39: Add currentPeriodEnd
       currentPeriodEnd: endDate,
       cancelledAt: null,
+      amountPaid,
+      billingCycle,
     },
     include: { plan: true },
   });

@@ -1,107 +1,73 @@
+// src/components/landing/pricing-section.tsx
+
 import { prisma } from "@/lib/db"
-import { Check, X, Zap, Building2, Rocket } from "lucide-react"
+import { Check, X, Building2, Stethoscope, Users, Activity, GitBranch, ShieldCheck, Headphones, CreditCard, ArrowRight, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { SubscriptionStatus } from "@prisma/client"
+import { TRIAL_DURATION_DAYS } from "@/lib/constants/features"
 
-// ⬇️⬇️⬇️ قاموس ترجمة الـ Pricing ⬇️⬇⬇️
-type PricingStrings = {
-  title: string;
-  subtitle: string;
-  mostPopular: string;
-  contactSales: string;
-  contactSalesMsg: string;
-  startFreeTrial: string;
-  upgradeNow: string;
-  currentTrial: string;
-  currentPlan: string;
-  currency: string;
-  saveMonths: string;
-  branches: string;
-  doctors: string;
-  users: string;
-  monthlyVisits: string;
-  onlineBooking: string;
-  whatsapp: string;
-  analytics: string;
-  auditLogs: string;
-  gallery: string;
-};
-
-const pricingStrings: Record<"en" | "ar", PricingStrings> = {
-  en: {
-    title: "Choose the Right Plan for Your Clinic",
-    subtitle: "Start your 7-day free trial today. No credit card required. Upgrade anytime as your clinic grows.",
-    mostPopular: "MOST POPULAR",
-    contactSales: "Contact Sales",
-    contactSalesMsg: "I'm interested in the Enterprise plan",
-    startFreeTrial: "Start Free Trial",
-    upgradeNow: "Upgrade Now",
-    currentTrial: "Current Trial Plan",
-    currentPlan: "Current Plan",
-    currency: "EGP / mo",
-    saveMonths: "Save 2 months!",
-    branches: "Branches",
-    doctors: "Doctors",
-    users: "Users",
-    monthlyVisits: "Monthly Visits",
-    onlineBooking: "Online Booking",
-    whatsapp: "WhatsApp Automation",
-    analytics: "Advanced Analytics",
-    auditLogs: "Audit Logs",
-    gallery: "Before/After Gallery",
-  },
-  ar: {
-    title: "اختر الخطة المناسبة لعيادتك",
-    subtitle: "ابدأ فترة تجريبية مجانية لمدة 7 أيام اليوم. لا حاجة لبطاقة ائتمان. قم بالترقية في أي وقت.",
-    mostPopular: "الأكثر شعبية",
-    contactSales: "تواصل مع المبيعات",
-    contactSalesMsg: "أنا مهتمون بخطة المؤسسة",
-    startFreeTrial: "ابدأ تجريبي مجاناً",
-    upgradeNow: "ترقية الآن",
-    currentTrial: "خطة التجربة الحالية",
-    currentPlan: "الخطة الحالية",
-    currency: "ج.م / شهر",
-    saveMonths: "وفر شهرين!",
-    branches: "الفروع",
-    doctors: "الأطباء",
-    users: "المستخدمين",
-    monthlyVisits: "الزيارات الشهرية",
-    onlineBooking: "حجز أونلاين",
-    whatsapp: "أتمتة واتساب",
-    analytics: "تحليلات متقدمة",
-    auditLogs: "سجل العمليات",
-    gallery: "معرض قبل وبعد",
-  }
-};
-
-// ⬇️⬇️⬇️ إضافة الـ Props ⬇⬇⬇️
-type PricingSectionProps = {
-  locale?: "en" | "ar";
-};
-
-// دالة مساعدة لعرض القيم
-function PlanValue({ value, isBoolean }: { value: boolean | number | null; isBoolean?: boolean }) {
-  if (isBoolean) {
-    return value ? <Check className="h-5 w-5 text-emerald-500 mx-auto" /> : <X className="h-5 w-5 text-slate-400 mx-auto" />
-  }
-  if (value === -1 || value === null) return <span className="text-emerald-500 font-bold">Unlimited</span>
-  return <span>{value}</span>
+const limitIcons: Record<string, React.ReactNode> = {
+  Branches: <GitBranch className="w-3.5 h-3.5" />,
+  Doctors: <Stethoscope className="w-3.5 h-3.5" />,
+  Users: <Users className="w-3.5 h-3.5" />,
+  "Monthly Visits": <Activity className="w-3.5 h-3.5" />,
 }
 
-export default async function PricingSection({ locale = "en" }: PricingSectionProps) {
-  const t = pricingStrings[locale];
-  
+const planIcons: Record<string, React.ReactNode> = {
+  standard: <Building2 className="w-5 h-5 text-slate-500" />,
+  professional: <Sparkles className="w-5 h-5 text-blue-600" />,
+  enterprise: <Building2 className="w-5 h-5 text-amber-600" />,
+}
+
+const planIconBgs: Record<string, string> = {
+  standard: "bg-slate-100",
+  professional: "bg-blue-50",
+  enterprise: "bg-amber-50",
+}
+
+const featuresList = [
+  "Online Booking",
+  "Doctor Attendance",
+  "WhatsApp Automation",
+  "Advanced Analytics",
+  "Audit Logs",
+  "Before/After Gallery",
+]
+
+function PlanValue({ value, isEnterprise }: { value: boolean | number | null; isEnterprise?: boolean }) {
+  if (typeof value === "boolean") {
+    return value ? (
+      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-50">
+        <Check className="w-3.5 h-3.5 text-emerald-600" strokeWidth={2.5} />
+      </span>
+    ) : (
+      <span className="flex items-center justify-center w-5 h-5">
+        <X className="w-3.5 h-3.5 text-slate-300" strokeWidth={2} />
+      </span>
+    )
+  }
+  if (value === -1 || value === null) {
+    return (
+      <span className="font-bold text-sm {isEnterprise ? 'text-amber-600' : 'text-blue-600'}">
+        {isEnterprise ? "Custom" : "Unlimited"}
+      </span>
+    )
+  }
+  return <span className="font-semibold text-sm text-slate-900">{value}</span>
+}
+
+export default async function PricingSection() {
   const session = await auth()
   const currentClinicId = session?.user?.clinicId
-  
-  let currentPlanSlug = null
+
+  let currentPlanSlug: string | null = null
   let isTrial = false
 
   if (currentClinicId) {
     const subscription = await prisma.subscription.findUnique({
       where: { clinicId: currentClinicId },
-      select: { planId: true, status: true, plan: { select: { slug: true } } }
+      select: { planId: true, status: true, plan: { select: { slug: true } } },
     })
     if (subscription) {
       currentPlanSlug = subscription.plan.slug
@@ -109,134 +75,248 @@ export default async function PricingSection({ locale = "en" }: PricingSectionPr
     }
   }
 
-  // جلب الباقات النشطة فقط
   const rawPlans = await prisma.plan.findMany({
-    where: { active: true, slug: { not: "default-plan" } }
+    where: { active: true, slug: { in: ["standard", "professional", "enterprise"] } },
   })
 
-  // ترتيب الباقات
-  const planOrder = ['starter', 'pro', 'enterprise'];
-  const plans = rawPlans.sort((a, b) => planOrder.indexOf(a.slug) - planOrder.indexOf(b.slug));
+  const planOrder = ["standard", "professional", "enterprise"]
+  const plans = rawPlans.sort((a, b) => planOrder.indexOf(a.slug) - planOrder.indexOf(b.slug))
 
-  const highlightPlan = "pro"
+  // Build feature matrix from actual plan data
+  const featureMatrix: Record<string, boolean> = {
+    "Online Booking": plans[0]?.onlineBookingEnabled ?? false,
+    "Doctor Attendance": plans[1]?.doctorAttendanceEnabled ?? false,
+    "WhatsApp Automation": plans[1]?.whatsappEnabled ?? false,
+    "Advanced Analytics": plans[1]?.analyticsEnabled ?? false,
+    "Audit Logs": plans[1]?.auditLogsEnabled ?? false,
+    "Before/After Gallery": plans[1]?.galleryEnabled ?? false,
+  }
+
+  const trustItems = [
+    { icon: <CreditCard className="w-4 h-4 text-slate-400" />, title: "No credit card required", desc: "Start free" },
+    { icon: <ShieldCheck className="w-4 h-4 text-slate-400" />, title: "Secure & Reliable", desc: "HIPAA-ready" },
+    { icon: <Headphones className="w-4 h-4 text-slate-400" />, title: "24/7 Support", desc: "Always here" },
+    { icon: <ArrowRight className="w-4 h-4 text-slate-400" />, title: "Upgrade Anytime", desc: "No lock-in" },
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-[#0F172A] dark:to-[#17212F] py-20 px-4">
-      <div className="max-w-7xl mx-auto text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight mb-4">
-          {t.title}
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          {t.subtitle}
-        </p>
-      </div>
+    <section id="pricing" className="relative" style={{ backgroundColor: "#F7FAFF" }}>
+      <div className="max-w-[1200px] mx-auto px-5 md:px-8 py-20 md:py-24">
+        {/* ── Header ──────────────────────────────────── */}
+        <div className="text-center mb-14 md:mb-16">
+          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-blue-600 mb-4">
+            Simple, transparent pricing
+          </span>
+          <h2
+            className="text-[36px] md:text-[42px] font-extrabold leading-[1.1] mb-5"
+            style={{ color: "#0F172A" }}
+          >
+            Choose the Right Plan for Your Clinic
+          </h2>
+          <p className="text-base md:text-[17px] leading-relaxed max-w-[660px] mx-auto" style={{ color: "#64748B" }}>
+            Start your {TRIAL_DURATION_DAYS}-day free trial today. No credit card required.
+            Upgrade anytime as your clinic grows.
+          </p>
+        </div>
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-        {plans.map((plan) => {
-          const isHighlighted = plan.slug === highlightPlan
-          const isCurrent = plan.slug === currentPlanSlug
-          const isEnterprise = plan.slug === "enterprise"
+        {/* ── Cards Grid ─────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          {plans.map((plan) => {
+            const isHighlighted = plan.slug === "professional"
+            const isCurrent = plan.slug === currentPlanSlug
+            const isEnterprise = plan.slug === "enterprise"
 
-          return (
-            <div
-              key={plan.id}
-              className={`relative rounded-2xl border p-8 flex flex-col transition-all duration-300 ${
-                isHighlighted
-                  ? "bg-white dark:bg-[#1A2332] border-[#6B9CFF] shadow-[0_20px_60px_rgba(107,156,255,0.2)] scale-105 z-10"
-                  : "bg-white dark:bg-[#1E293B] border-slate-200 dark:border-slate-700/50 shadow-lg"
-              }`}
-            >
-              {isHighlighted && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-md flex items-center gap-1">
-                  <Zap className="h-3 w-3" /> {t.mostPopular}
-                </div>
-              )}
-
-              <div className="mb-8">
-                <div className="flex items-center gap-3 mb-2">
-                  {plan.slug === "starter" && <Rocket className="h-6 w-6 text-slate-500" />}
-                  {plan.slug === "pro" && <Building2 className="h-6 w-6 text-[#6B9CFF]" />}
-                  {plan.slug === "enterprise" && <Zap className="h-6 w-6 text-amber-500" />}
-                  <h3 className="text-2xl font-bold text-foreground">{plan.name}</h3>
-                </div>
-                <p className="text-sm text-muted-foreground h-10">{plan.description}</p>
-              </div>
-
-              <div className="mb-8">
-                {isEnterprise ? (
-                  <div className="text-4xl font-bold text-foreground">{t.contactSales}</div>
-                ) : (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-5xl font-bold text-foreground">{plan.monthlyPrice}</span>
-                    <span className="text-muted-foreground">{t.currency}</span>
+            return (
+              <div
+                key={plan.id}
+                className={`
+                  relative bg-white rounded-[22px] p-7 md:p-8 flex flex-col
+                  transition-all duration-200 ease-out
+                  hover:-translate-y-0.5
+                  ${
+                    isHighlighted
+                      ? "border-2 border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.1),0_8px_40px_rgba(59,130,246,0.08)] z-10"
+                      : "border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                  }
+                `}
+              >
+                {/* Most Popular Badge */}
+                {isHighlighted && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
+                    <span
+                      className="inline-flex items-center px-4 py-1.5 rounded-full text-[12px] font-bold tracking-wide text-white shadow-md"
+                      style={{ backgroundColor: "#3B82F6" }}
+                    >
+                      MOST POPULAR
+                    </span>
                   </div>
                 )}
-                {!isEnterprise && plan.yearlyPrice > 0 && (
-                  <p className="text-sm text-emerald-500 mt-1 font-medium">
-                    {plan.yearlyPrice} {t.currency.replace("/ mo", "")} / year ({t.saveMonths})
-                  </p>
-                )}
-              </div>
 
-              <div className="mb-8 space-y-3 flex-1">
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.maxBranches} /> <span className="text-muted-foreground">{t.branches}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.maxDoctors} /> <span className="text-muted-foreground">{t.doctors}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.maxUsers} /> <span className="text-muted-foreground">{t.users}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.maxMonthlyVisits} /> <span className="text-muted-foreground">{t.monthlyVisits}</span>
-                </div>
-                
-                <hr className="my-4 border-slate-100 dark:border-slate-700" />
-
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.onlineBookingEnabled} isBoolean /> <span className="text-muted-foreground">{t.onlineBooking}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.whatsappEnabled} isBoolean /> <span className="text-muted-foreground">{t.whatsapp}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.analyticsEnabled} isBoolean /> <span className="text-muted-foreground">{t.analytics}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.auditLogsEnabled} isBoolean /> <span className="text-muted-foreground">{t.auditLogs}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <PlanValue value={plan.galleryEnabled} isBoolean /> <span className="text-muted-foreground">{t.gallery}</span>
-                </div>
-              </div>
-
-              <div>
-                {isCurrent ? (
-                  <button disabled className="w-full py-3 px-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-500 font-semibold">
-                    {isTrial ? t.currentTrial : t.currentPlan}
-                  </button>
-                ) : isEnterprise ? (
-                  <a href={`https://wa.me/201275976195?text=${encodeURIComponent(t.contactSalesMsg)}`} target="_blank" className="block w-full py-3 px-4 rounded-xl border-2 border-amber-500 text-amber-600 font-semibold hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors text-center">
-                    {t.contactSales}
-                  </a>
-                ) : (
-                  <Link 
-                    href={currentClinicId ? "/settings/billing" : `/signup`} 
-                    className={`block w-full py-3 px-4 rounded-xl font-semibold text-center transition-all duration-200 ${
-                      isHighlighted 
-                        ? "bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_8px_20px_rgba(107,156,255,0.3)] hover:-translate-y-0.5" 
-                        : "border-2 border-slate-200 dark:border-slate-700 text-foreground hover:border-[#6B9CFF]"
-                    }`}
+                {/* ── Plan Header ─────────────────────── */}
+                <div className="flex items-center gap-3 mb-2">
+                  <div
+                    className={`flex items-center justify-center w-11 h-11 rounded-xl ${planIconBgs[plan.slug] || "bg-slate-100"}`}
                   >
-                    {currentClinicId ? t.upgradeNow : t.startFreeTrial}
-                  </Link>
-                )}
+                    {planIcons[plan.slug]}
+                  </div>
+                  <div>
+                    <h3 className="text-[22px] font-bold leading-tight" style={{ color: "#0F172A" }}>
+                      {plan.name}
+                    </h3>
+                  </div>
+                </div>
+                <p className="text-sm leading-relaxed mb-9" style={{ color: "#64748B" }}>
+                  {plan.description}
+                </p>
+
+                {/* ── Price ────────────────────────────── */}
+                <div className="mb-9">
+                  {isEnterprise ? (
+                    <div>
+                      <p className="text-sm font-medium mb-1" style={{ color: "#64748B" }}>
+                        Starting from
+                      </p>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-[52px] font-extrabold leading-none" style={{ color: "#0F172A" }}>
+                          {plan.monthlyPrice.toLocaleString()}
+                        </span>
+                        <span className="text-[15px] font-medium" style={{ color: "#64748B" }}>
+                          EGP / mo
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-[52px] font-extrabold leading-none" style={{ color: "#0F172A" }}>
+                          {plan.monthlyPrice.toLocaleString()}
+                        </span>
+                        <span className="text-[15px] font-medium" style={{ color: "#64748B" }}>
+                          EGP / mo
+                        </span>
+                      </div>
+                      {plan.yearlyPrice > 0 && (
+                        <p className="text-[13px] font-medium mt-2" style={{ color: "#10B981" }}>
+                          {plan.yearlyPrice.toLocaleString()} EGP / year — Save 2 months
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Limits ───────────────────────────── */}
+                <div className="space-y-0 mb-8 pb-8 border-b border-slate-100">
+                  {(["Branches", "Doctors", "Users", "Monthly Visits"] as const).map((label) => {
+                    const value =
+                      label === "Branches"
+                        ? plan.maxBranches
+                        : label === "Doctors"
+                        ? plan.maxDoctors
+                        : label === "Users"
+                        ? plan.maxUsers
+                        : plan.maxMonthlyVisits
+
+                    return (
+                      <div key={label} className="flex items-center justify-between py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <span style={{ color: "#94A3B8" }}>{limitIcons[label]}</span>
+                          <span className="text-[14px]" style={{ color: "#64748B" }}>
+                            {label}
+                          </span>
+                        </div>
+                        {isEnterprise ? (
+                          <span className="font-bold text-sm text-amber-600">Customized</span>
+                        ) : (
+                          <PlanValue value={value} />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* ── Features ──────────────────────────── */}
+                <div className="space-y-0 mb-8 flex-1">
+                  {featuresList.map((feature) => {
+                    const isIncluded = isEnterprise
+                      ? true
+                      : plan.slug === "professional"
+                      ? featureMatrix[feature] ?? false
+                      : plan.slug === "standard"
+                      ? feature === "Online Booking"
+                        ? true
+                        : false
+                      : false
+
+                    return (
+                      <div key={feature} className="flex items-center justify-between py-2.5">
+                        <span className="text-[14px]" style={{ color: "#475569" }}>
+                          {feature}
+                        </span>
+                        <PlanValue value={isIncluded} isEnterprise={isEnterprise} />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* ── CTA ───────────────────────────────── */}
+                <div className="mt-auto pt-2">
+                  {isCurrent ? (
+                    <button
+                      disabled
+                      className="w-full h-[50px] rounded-[13px] text-[15px] font-semibold border-2 border-slate-200 text-slate-400 cursor-not-allowed"
+                    >
+                      {isTrial ? "Current Trial Plan" : "Current Plan"}
+                    </button>
+                  ) : isEnterprise ? (
+                    <a
+                      href="https://wa.me/201275976195?text=I'm interested in the Enterprise plan"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full h-[50px] rounded-[13px] text-[15px] font-semibold border-2 border-amber-400 text-amber-600 hover:bg-amber-50 transition-colors duration-200"
+                    >
+                      Contact Sales
+                      <ArrowRight className="w-4 h-4" />
+                    </a>
+                  ) : (
+                    <Link
+                      href={currentClinicId ? "/settings/billing" : "/signup"}
+                      className={`
+                        flex items-center justify-center gap-2 w-full h-[50px] rounded-[13px] text-[15px] font-semibold
+                        transition-all duration-200 ease-out
+                        hover:-translate-y-px
+                        ${
+                          isHighlighted
+                            ? "text-white shadow-md hover:shadow-lg"
+                            : "border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+                        }
+                      `}
+                      style={isHighlighted ? { backgroundColor: "#3B82F6" } : undefined}
+                    >
+                      {currentClinicId ? "Upgrade Now" : "Start Free Trial"}
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  )}
+                </div>
               </div>
+            )
+          })}
+        </div>
+
+        {/* ── Trust Strip ─────────────────────────────── */}
+        <div className="mt-12 md:mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-[900px] mx-auto">
+          {trustItems.map((item) => (
+            <div key={item.title} className="flex flex-col items-center text-center gap-1.5 py-3">
+              {item.icon}
+              <span className="text-[13px] font-semibold" style={{ color: "#334155" }}>
+                {item.title}
+              </span>
+              <span className="text-[12px]" style={{ color: "#94A3B8" }}>
+                {item.desc}
+              </span>
             </div>
-          )
-        })}
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   )
 }

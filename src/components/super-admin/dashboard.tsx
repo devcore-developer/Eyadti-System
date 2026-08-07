@@ -40,6 +40,7 @@ interface PlatformStats {
   totalPatients: number; appointmentsToday: number; mrr: number; activeTrials: number
   expiringSubs: number; failedPayments: number
   clinicsGrowth: number; patientsGrowth: number; doctorsGrowth: number; mrrGrowth: number
+  standardCount?: number; professionalCount?: number; enterpriseCount?: number  // ← أضف السطر ده
 }
 
 interface Clinic {
@@ -89,9 +90,13 @@ interface AuditLog {
 }
 
 interface BillingData {
-  mrr: number; arr: number; activeSubsCount: number
-  failedPayments: { id: string; invoiceNumber: string | null; createdAt: Date; status: string; amount: number; clinic: { name: string } | null }[]
-  chartData: { month: string; revenue: number }[]
+  mrr: number
+  arr: number
+  activeSubsCount: number
+  revenueByPlan: Record<string, number>
+  countByPlan: Record<string, number>
+  expiringSubscriptions: { id: string; clinicName: string; planName: string; endDate: Date | null }[]
+  chartData: { month: string; revenue: number; [key: string]: any }[]
 }
 
 // ─── SPARKLINE ───────────────────────────────────────────────────
@@ -403,7 +408,9 @@ export function SuperAdminDashboard({
             <KPICard title="Appointments Today" value={stats.appointmentsToday} icon={CalendarDays} description="Scheduled" className="md:col-span-1" />
             <KPICard title="Active Trials" value={stats.activeTrials} icon={Layers} description="Free trials running" className="md:col-span-1" />
             <KPICard title="Expiring Soon" value={stats.expiringSubs} icon={AlertTriangle} description="Within 7 days" className="md:col-span-1" />
-            <KPICard title="Failed Payments" value={stats.failedPayments} icon={XCircle} description="Requires attention" className="md:col-span-1" />
+            <KPICard title="Standard" value={stats.standardCount || 0} icon={Building2} description="clinics" className="md:col-span-1" />
+            <KPICard title="Professional" value={stats.professionalCount || 0} icon={Building2} description="clinics" className="md:col-span-1" />
+            <KPICard title="Enterprise" value={stats.enterpriseCount || 0} icon={Building2} description="clinics" className="md:col-span-1" />
           </div>
         )}
 
@@ -487,14 +494,26 @@ export function SuperAdminDashboard({
                 <div className="flex items-center gap-3"><div className="p-2 rounded-xl bg-[#5BC0BE]/10"><CreditCard className="h-4 w-4 text-[#5BC0BE]" /></div><div><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Subscriptions</p><p className="text-xl font-extrabold text-foreground">{billingData?.activeSubsCount || 0}</p></div></div>
               </CardContent>
             </Card>
-            {billingData?.failedPayments && billingData.failedPayments.length > 0 && (
+            {billingData?.expiringSubscriptions && billingData.expiringSubscriptions.length > 0 && (
               <Card className="premium-card border-none">
-                <CardHeader className="pb-3"><div className="flex items-center justify-between"><CardTitle className="text-sm font-bold">Recent Unpaid</CardTitle><Badge variant="outline" className="text-[10px] border-[#EF6B6B]/30 text-[#EF6B6B] bg-[#EF6B6B]/5">{billingData.failedPayments.length}</Badge></div></CardHeader>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-bold">Expiring Soon</CardTitle>
+                    <Badge variant="outline" className="text-[10px] border-[#F4B860]/30 text-[#F4B860] bg-[#F4B860]/5">
+                      {billingData.expiringSubscriptions.length}
+                    </Badge>
+                  </div>
+                </CardHeader>
                 <CardContent className="space-y-2.5">
-                  {billingData.failedPayments.slice(0, 3).map((inv) => (
-                    <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="min-w-0"><p className="text-xs font-medium text-foreground truncate">{inv.clinic?.name || 'Unknown'}</p><p className="text-[10px] text-muted-foreground">{inv.invoiceNumber}</p></div>
-                      <span className="text-xs font-bold text-[#EF6B6B] shrink-0 ml-2">{formatCurrency(inv.amount)}</span>
+                  {billingData.expiringSubscriptions.slice(0, 3).map((sub) => (
+                    <div key={sub.id} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">{sub.clinicName}</p>
+                        <p className="text-[10px] text-muted-foreground">{sub.planName}</p>
+                      </div>
+                      <span className="text-[10px] text-[#F4B860] shrink-0 ml-2">
+                        {sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'N/A'}
+                      </span>
                     </div>
                   ))}
                 </CardContent>

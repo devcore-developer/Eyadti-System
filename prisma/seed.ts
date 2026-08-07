@@ -269,8 +269,207 @@ async function main() {
     console.log(`✅ Seeded ${count} Past Medical History items into dictionary`)
   }
 
+  // ════════════════════════════════════════════════════
+  // SaaS PLANS SEEDING
+  // ════════════════════════════════════════════════════
+  console.log("🌱 Seeding SaaS plans...")
+
+  const plansData = [
+    {
+      name: "Standard",
+      slug: "standard",
+      description: "For small clinics and solo doctors",
+      monthlyPrice: 600,
+      yearlyPrice: 6000,
+      maxDoctors: 2,
+      maxUsers: 2,
+      maxPatients: 500,
+      maxBranches: 1,
+      maxMonthlyVisits: 200,
+      onlineBookingEnabled: true,
+      analyticsEnabled: false,
+      whatsappEnabled: false,
+      auditLogsEnabled: false,
+      galleryEnabled: false,
+      advancedInvoicesEnabled: false,
+      doctorSchedulesEnabled: true,
+      doctorAttendanceEnabled: false,
+      queueManagementEnabled: false,
+      waitingRoomDisplayEnabled: false,
+      active: true,
+    },
+    {
+      name: "Professional",
+      slug: "professional",
+      description: "For growing clinics and medical centers",
+      monthlyPrice: 1000,
+      yearlyPrice: 10000,
+      maxDoctors: 15,
+      maxUsers: 15,
+      maxPatients: -1,
+      maxBranches: 5,
+      maxMonthlyVisits: -1,
+      onlineBookingEnabled: true,
+      analyticsEnabled: true,
+      whatsappEnabled: true,
+      auditLogsEnabled: true,
+      galleryEnabled: true,
+      advancedInvoicesEnabled: true,
+      doctorSchedulesEnabled: true,
+      doctorAttendanceEnabled: true,
+      queueManagementEnabled: true,
+      waitingRoomDisplayEnabled: true,
+      active: true,
+    },
+    {
+      name: "Enterprise",
+      slug: "enterprise",
+      description: "For large clinics, hospitals, and organizations",
+      monthlyPrice: 2000,
+      yearlyPrice: 20000,
+      maxDoctors: -1,
+      maxUsers: -1,
+      maxPatients: -1,
+      maxBranches: -1,
+      maxMonthlyVisits: -1,
+      onlineBookingEnabled: true,
+      analyticsEnabled: true,
+      whatsappEnabled: true,
+      auditLogsEnabled: true,
+      galleryEnabled: true,
+      advancedInvoicesEnabled: true,
+      doctorSchedulesEnabled: true,
+      doctorAttendanceEnabled: true,
+      queueManagementEnabled: true,
+      waitingRoomDisplayEnabled: true,
+      active: true,
+    },
+  ]
+
+  for (const plan of plansData) {
+    const existing = await prisma.plan.findUnique({
+      where: { slug: plan.slug },
+    })
+
+    if (existing) {
+      await prisma.plan.update({
+        where: { slug: plan.slug },
+        data: plan,
+      })
+      console.log(`  ✅ Updated plan: ${plan.name}`)
+    } else {
+      await prisma.plan.create({ data: plan })
+      console.log(`  ✅ Created plan: ${plan.name}`)
+    }
+  }
+
+  // Deactivate old plans if no active subscriptions
+  const oldSlugs = ["starter", "pro", "default-plan"]
+  for (const slug of oldSlugs) {
+    const old = await prisma.plan.findUnique({ where: { slug } })
+    if (old) {
+      const activeCount = await prisma.subscription.count({
+        where: { planId: old.id, status: { in: ["TRIAL", "ACTIVE"] } },
+      })
+      if (activeCount === 0) {
+        await prisma.plan.update({
+          where: { slug },
+          data: { active: false },
+        })
+        console.log(`  ⚠️ Deactivated old plan: ${slug}`)
+      } else {
+        console.log(`  ⚠️ Old plan "${slug}" has ${activeCount} active subs - kept active`)
+      }
+    }
+  }
+
   console.log("🎉 Seeding complete!")
 }
+
+// أضف هذه الدالة في prisma/seed.ts واستدعها في main()
+
+async function seedPlans() {
+  console.log("🌱 Seeding SaaS plans...")
+
+  const { PLANS_CONFIG } = await import("@/lib/constants/features")
+
+  const plans = [
+    PLANS_CONFIG.STANDARD,
+    PLANS_CONFIG.PROFESSIONAL,
+    PLANS_CONFIG.ENTERPRISE,
+  ]
+
+  for (const plan of plans) {
+    const existing = await prisma.plan.findUnique({
+      where: { slug: plan.slug },
+    })
+
+    if (existing) {
+      // Update existing plan with correct values (migration)
+      await prisma.plan.update({
+        where: { slug: plan.slug },
+        data: {
+          name: plan.name,
+          description: plan.description,
+          monthlyPrice: plan.monthlyPrice,
+          yearlyPrice: plan.yearlyPrice,
+          maxDoctors: plan.maxDoctors,
+          maxUsers: plan.maxUsers,
+          maxPatients: plan.maxPatients,
+          maxBranches: plan.maxBranches,
+          maxMonthlyVisits: plan.maxMonthlyVisits,
+          onlineBookingEnabled: plan.onlineBookingEnabled,
+          analyticsEnabled: plan.analyticsEnabled,
+          whatsappEnabled: plan.whatsappEnabled,
+          auditLogsEnabled: plan.auditLogsEnabled,
+          galleryEnabled: plan.galleryEnabled,
+          advancedInvoicesEnabled: plan.advancedInvoicesEnabled,
+          doctorSchedulesEnabled: plan.doctorSchedulesEnabled,
+          doctorAttendanceEnabled: plan.doctorAttendanceEnabled,
+          queueManagementEnabled: plan.queueManagementEnabled,
+          waitingRoomDisplayEnabled: plan.waitingRoomDisplayEnabled,
+          active: true,
+        },
+      })
+      console.log(`  ✅ Updated plan: ${plan.name}`)
+    } else {
+      await prisma.plan.create({
+        data: {
+          ...plan,
+          active: true,
+        },
+      })
+      console.log(`  ✅ Created plan: ${plan.name}`)
+    }
+  }
+
+  // Deactivate old plans (starter, pro) if they exist
+  const oldSlugs = ["starter", "pro", "default-plan"]
+  for (const slug of oldSlugs) {
+    const old = await prisma.plan.findUnique({ where: { slug } })
+    if (old) {
+      // Check if any active subscriptions use this plan
+      const activeCount = await prisma.subscription.count({
+        where: { planId: old.id, status: { in: ["TRIAL", "ACTIVE"] } },
+      })
+
+      if (activeCount === 0) {
+        await prisma.plan.update({
+          where: { slug },
+          data: { active: false },
+        })
+        console.log(`  ⚠️ Deactivated old plan: ${slug}`)
+      } else {
+        console.log(`  ⚠️ Old plan "${slug}" has ${activeCount} active subscriptions - keeping active for now`)
+      }
+    }
+  }
+
+  console.log("✅ Plans seeding complete!")
+}
+
+// في دالة main()، أضف قبل seed النهائي:
+// await seedPlans()
 
 main()
   .catch((e) => { console.error("❌ Seed failed:", e); process.exit(1) })

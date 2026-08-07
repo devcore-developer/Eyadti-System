@@ -1,109 +1,158 @@
-"use client"
+// src/components/landing/testimonials-section.tsx
 
-import { useState, useEffect } from "react"
-import { Star, Quote } from "lucide-react"
-import { MotionWrapper } from "./motion-wrapper"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { cn } from "@/lib/utils"
-import { useLang } from "@/lib/i18n-context" // ⬅️ إضافة الـ Hook
+import { prisma } from "@/lib/db"
+import { Quote } from "lucide-react"
 
-interface Testimonial {
-  id: string
-  name: string
-  clinicName: string
-  position?: string
-  photoUrl?: string
-  review: string
-  rating: number
-  displayOrder: number
+import { Star } from "lucide-react";
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-1.5" dir="ltr">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          size={18}
+          strokeWidth={1.8}
+          fill={i < rating ? "#F5B74F" : "transparent"}
+          className={i < rating ? "text-[#F5B74F]" : "text-[#CBD5E1]"}
+        />
+      ))}
+    </div>
+  );
 }
 
-export function TestimonialsSection() {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
-  const [loading, setLoading] = useState(true)
-  const { t } = useLang() // ⬅️ الترجمة
-
-  useEffect(() => {
-    async function loadTestimonials() {
-      try {
-        const res = await fetch("/api/testimonials")
-        if (res.ok) {
-          const data = await res.json()
-          setTestimonials(data)
-        }
-      } catch {
-        // Silent fail
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadTestimonials()
-  }, [])
-
-  if (loading) return null
-  if (testimonials.length === 0) return null
+function InitialsAvatar({ name }: { name: string }) {
+  const words = name.trim().split(/\s+/)
+  let initials = ""
+  if (words.length >= 2) {
+    initials = (words[0][0] + words[1][0]).toUpperCase()
+  } else if (words.length === 1 && words[0].length >= 2) {
+    initials = words[0].slice(0, 2).toUpperCase()
+  } else {
+    initials = words[0]?.[0]?.toUpperCase() || "?"
+  }
 
   return (
-    <section id="testimonials" className="py-24 md:py-32 bg-muted/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <MotionWrapper className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">
-            {t("landing.trustedByClinics")}
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            {t("landing.trustedByDesc")}
+    <div
+      className="flex items-center justify-center w-11 h-11 rounded-full text-sm font-bold text-white flex-shrink-0"
+      style={{ backgroundColor: "#3B82F6" }}
+    >
+      {initials}
+    </div>
+  )
+}
+
+function TestimonialCard({
+  testimonial,
+}: {
+  testimonial: {
+    id: string
+    name: string
+    clinicName: string
+    position: string | null
+    photoUrl: string | null
+    review: string
+    rating: number
+  }
+}) {
+  const isArabic = /[\u0600-\u06FF]/.test(testimonial.review)
+
+  return (
+    <div
+      className="relative bg-white rounded-[20px] border border-slate-200 p-7 md:p-8 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)]"
+    >
+      {/* Decorative Quote Icon */}
+      <Quote
+        className="absolute top-6 right-6 w-12 h-12 text-blue-500 opacity-[0.12] pointer-events-none"
+        strokeWidth={1.5}
+      />
+
+      {/* Rating */}
+      <div className="mb-5">
+        <StarRating rating={testimonial.rating} />
+      </div>
+
+      {/* Review Text */}
+      <p
+        className="text-[16px] leading-[1.7] mb-7 min-h-[100px]"
+        style={{ color: "#334155", direction: isArabic ? "rtl" : "ltr", textAlign: isArabic ? "right" : "left" }}
+      >
+        &ldquo;{testimonial.review}&rdquo;
+      </p>
+
+      {/* Author */}
+      <div className={`flex items-center gap-3 pt-5 border-t border-slate-100 ${isArabic ? "flex-row-reverse" : ""}`}>
+        {testimonial.photoUrl ? (
+          <img
+            src={testimonial.photoUrl}
+            alt={testimonial.name}
+            className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+          />
+        ) : (
+          <InitialsAvatar name={testimonial.name} />
+        )}
+        <div className={`min-w-0 ${isArabic ? "text-right" : ""}`}>
+          <p className="text-[14px] font-bold leading-tight truncate" style={{ color: "#0F172A" }}>
+            {testimonial.name}
           </p>
-        </MotionWrapper>
+          <p className="text-[12px] mt-0.5 truncate" style={{ color: "#64748B" }}>
+            {testimonial.clinicName}
+            {testimonial.position ? ` · ${testimonial.position}` : ""}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {testimonials.map((t, i) => (
-            <MotionWrapper key={t.id} delay={i * 0.1}>
-              <div className="premium-card p-6 h-full flex flex-col relative overflow-hidden">
-                <div className="absolute top-4 end-4 text-[#F4B860] opacity-20"> {/* ⬅️ right لـ end */}
-                  <Quote className="h-16 w-16" />
-                </div>
-                <div className="relative z-10 flex-1">
-                  {/* Stars */}
-                  <div className="flex gap-0.5 mb-4">
-                    {Array.from({ length: 5 }).map((_, si) => (
-                      <Star
-                        key={si}
-                        className={cn(
-                          "h-4 w-4",
-                          si < t.rating
-                            ? "fill-[#F4B860] text-[#F4B860]"
-                            : "fill-muted text-muted"
-                        )}
-                      />
-                    ))}
-                  </div>
+export default async function TestimonialsSection() {
+  const testimonials = await prisma.testimonial.findMany({
+    where: { isPublished: true },
+    orderBy: { displayOrder: "asc" },
+  })
 
-                  {/* Review */}
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-6 flex-1">
-                    &ldquo;{t.review}&rdquo;
-                  </p>
+  // Don't render the section at all if there are no published testimonials
+  if (testimonials.length === 0) {
+    return null
+  }
 
-                  {/* Author */}
-                  <div className="flex items-center gap-3 pt-4 border-t border-border/50">
-                    <Avatar className="h-10 w-10">
-                      {t.photoUrl ? (
-                        <img src={t.photoUrl} alt={t.name} className="object-cover" />
-                      ) : (
-                        <AvatarFallback className="bg-gradient-to-br from-[#5BC0BE] to-[#6B9CFF] text-white text-xs font-bold">
-                          {t.name.charAt(0)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{t.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {t.position ? `${t.position}, ` : ""}{t.clinicName}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </MotionWrapper>
+  const isSingle = testimonials.length === 1
+  const isTwo = testimonials.length === 2
+
+  return (
+    <section className="py-20 md:py-24">
+      <div className="max-w-[1200px] mx-auto px-5 md:px-8">
+        {/* ── Header ──────────────────────────────────── */}
+        <div className="text-center mb-12 md:mb-16">
+          <h2
+            className="text-[40px] md:text-[46px] font-extrabold leading-[1.15] mb-4"
+            style={{ color: "#0F172A" }}
+          >
+            Trusted by Clinics & Medical Centers
+          </h2>
+          <p
+            className="text-[16px] md:text-[17px] leading-relaxed max-w-[680px] mx-auto"
+            style={{ color: "#64748B" }}
+          >
+            Our platform is trusted by clinics and medical centers across the region,
+            providing seamless management and patient care.
+          </p>
+        </div>
+
+        {/* ── Testimonials Grid ────────────────────────── */}
+        <div
+          className={`
+            ${isSingle ? "max-w-[500px] mx-auto" : ""}
+            ${isTwo ? "max-w-[700px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-6" : ""}
+            ${
+              !isSingle && !isTwo
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                : ""
+            }
+          `}
+        >
+          {testimonials.map((t) => (
+            <TestimonialCard key={t.id} testimonial={t} />
           ))}
         </div>
       </div>
