@@ -6,11 +6,14 @@ import { X, Plus } from "lucide-react"
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div 
-      className="min-h-dvh bg-[#F5F7FB] overflow-x-hidden" 
-      style={{ width: '100vw', boxSizing: 'border-box' }}
-    >
-      <div className="px-4 pt-[20px] pb-[100px] space-y-5 w-full max-w-[500px] mx-auto">
+    <div className="w-full min-h-dvh bg-[#F5F7FB] overflow-x-hidden">
+      <div 
+        className="px-4 pt-5 space-y-5 w-full max-w-[500px] mx-auto"
+        style={{ 
+          // مسافة تحت بالظبط بتساوي ارتفاع النافبار (64) + مسافة أمان (24)
+          paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px) + 24px)' 
+        }}
+      >
         {children}
       </div>
     </div>
