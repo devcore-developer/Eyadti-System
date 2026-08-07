@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { MobileCard, MobileCardItem } from "@/components/ui/mobile-card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, CalendarX } from "lucide-react"
-
+import { useLang } from "@/lib/i18n-context"
 
 type AppointmentRow = {
   id: string
@@ -50,13 +50,15 @@ export function AppointmentTable({
   totalPages,
   searchParams,
 }: Props) {
+  const { t } = useLang()
+
   if (appointments.length === 0) {
     return (
       <EmptyState 
         icon={CalendarX} 
-        title="No appointments found" 
-        description="There are no appointments matching your criteria for this day." 
-        actionLabel="Book New"
+        title={t("empty.noAppointments")} 
+        description={t("empty.noAppointmentsDesc")} 
+        actionLabel={t("empty.bookNew")}
         actionUrl="/appointments/new"
       />
     )
@@ -71,11 +73,11 @@ export function AppointmentTable({
           <table className="w-full text-sm">
             <thead className="premium-table-header">
               <tr className="border-b border-border">
-                <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Patient</th>
-                <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Doctor</th>
-                <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Date & Time</th>
-                <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Status</th>
-                <th className="text-right px-6 py-4 font-semibold text-muted-foreground">Actions</th>
+                <th className="text-start px-6 py-4 font-semibold text-muted-foreground">{t("table.patient")}</th>
+                <th className="text-start px-6 py-4 font-semibold text-muted-foreground">{t("table.doctor")}</th>
+                <th className="text-start px-6 py-4 font-semibold text-muted-foreground">{t("table.dateTime")}</th>
+                <th className="text-start px-6 py-4 font-semibold text-muted-foreground">{t("table.status")}</th>
+                <th className="text-end px-6 py-4 font-semibold text-muted-foreground">{t("table.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -91,7 +93,7 @@ export function AppointmentTable({
                   <td className="px-6 py-4">
                     <AppointmentStatusBadge status={apt.status as any} />
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-end">
                     <AppointmentRowActions
                       appointmentId={apt.id}
                       status={apt.status as any}
@@ -117,8 +119,8 @@ export function AppointmentTable({
               </Link>
               <AppointmentStatusBadge status={apt.status as any} />
             </div>
-            <MobileCardItem label="Doctor" value={apt.doctor.name} />
-            <MobileCardItem label="Date" value={formatDateTime(apt.dateTime)} />
+            <MobileCardItem label={t("table.doctor")} value={apt.doctor.name} />
+            <MobileCardItem label={t("table.dateTime")} value={formatDateTime(apt.dateTime)} />
             <div className="mt-3 pt-3 border-t border-border flex justify-end">
               <AppointmentRowActions
                 appointmentId={apt.id}

@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Save } from "lucide-react"
+import { Loader2, Save, CreditCard } from "lucide-react"
 import { useState } from "react"
 import { showSuccess, showError } from "@/components/shared/feedback-toast"
+import type { PaymentWorkflowType } from "@/types"
 
 interface ClinicSettingsFormProps {
   clinicId: string
@@ -54,14 +55,18 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
       timeFormat: settings?.timeFormat || "24h",
       enableNotifications: settings?.enableNotifications ?? true,
       enableOnlineBooking: settings?.enableOnlineBooking ?? false,
-      // ↓↓↓ التعديل الجديد ↓↓↓
       whatsappInstanceName: settings?.whatsappInstanceName || "",
     },
   })
 
   const onSubmit = async (data: ClinicSettingsInput) => {
     setIsSubmitting(true)
-    const result = await updateClinicSettings(clinicId, data)
+    // ⬇️⬇️⬇️ ندمج الـ Payment Workflow مع الداتا قبل الإرسال ⬇️⬇⬇️
+    const finalData = {
+      ...data,
+      paymentWorkflow: (document.getElementById('paymentWorkflowSelect') as HTMLSelectElement)?.value || "PAY_AFTER_VISIT"
+    }
+    const result = await updateClinicSettings(clinicId, finalData)
     if (result.success) {
       showSuccess("Settings saved successfully")
     } else {
@@ -119,11 +124,7 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div>
             <Label>Currency</Label>
-            <Select
-              disabled={isReadOnly}
-              defaultValue={form.getValues("currency") || "EGP"}
-              onValueChange={(val: string | null) => { if (val) form.setValue("currency", val) }}
-            >
+            <Select disabled={isReadOnly} defaultValue={form.getValues("currency") || "EGP"} onValueChange={(val: string | null) => { if (val) form.setValue("currency", val) }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {currencies.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
@@ -132,11 +133,7 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
           </div>
           <div>
             <Label>Timezone</Label>
-            <Select
-              disabled={isReadOnly}
-              defaultValue={form.getValues("timezone") || "Africa/Cairo"}
-              onValueChange={(val: string | null) => { if (val) form.setValue("timezone", val) }}
-            >
+            <Select disabled={isReadOnly} defaultValue={form.getValues("timezone") || "Africa/Cairo"} onValueChange={(val: string | null) => { if (val) form.setValue("timezone", val) }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {timezones.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -145,19 +142,11 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
           </div>
           <div>
             <Label>Default Appointment Duration (mins)</Label>
-            <Input 
-              type="number" 
-              {...form.register("defaultAppointmentDuration", { valueAsNumber: true })} 
-              disabled={isReadOnly} 
-            />
+            <Input type="number" {...form.register("defaultAppointmentDuration", { valueAsNumber: true })} disabled={isReadOnly} />
           </div>
           <div>
             <Label>Time Format</Label>
-            <Select
-              disabled={isReadOnly}
-              defaultValue={form.getValues("timeFormat") || "24h"}
-              onValueChange={(val: string | null) => { if (val) form.setValue("timeFormat", val as "12h" | "24h") }}
-            >
+            <Select disabled={isReadOnly} defaultValue={form.getValues("timeFormat") || "24h"} onValueChange={(val: string | null) => { if (val) form.setValue("timeFormat", val as "12h" | "24h") }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="24h">24-Hour</SelectItem>
@@ -168,22 +157,42 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
         </CardContent>
       </Card>
 
-      {/* ↓↓↓ الـ Card الجديد الخاص بالـ Evolution API ↓↓↓ */}
+      {/* ⬇️⬇️⬇️ كارت الـ Payment Workflow الجديد ⬇️⬇⬇️ */}
+      <Card className="border-indigo-200 bg-indigo-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-indigo-600" /> Payment Workflow</CardTitle>
+          <CardDescription>
+            Choose how your clinic handles patient payments. This will affect Reception, Waiting Room, and Invoices.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <select 
+            id="paymentWorkflowSelect"
+            disabled={isReadOnly} 
+            defaultValue={settings?.paymentWorkflow || "PAY_AFTER_VISIT"}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="PAY_AFTER_VISIT">Pay After Visit (Standard Clinics)</option>
+            <option value="PAY_BEFORE_VISIT">Pay Before Visit (Pediatrics, Internal Med)</option>
+            <option value="SPLIT_PAYMENT">Split Payment (Dental, Surgery, Cosmetic)</option>
+          </select>
+          <div className="mt-3 text-xs text-muted-foreground bg-white p-3 rounded-lg border">
+            {settings?.paymentWorkflow === "PAY_BEFORE_VISIT" && "• Patient pays at reception before seeing the doctor. No billing popup after visit."}
+            {settings?.paymentWorkflow === "SPLIT_PAYMENT" && "• Reception collects consultation fee. Procedure fee is billed after the doctor visit."}
+            {(!settings?.paymentWorkflow || settings?.paymentWorkflow === "PAY_AFTER_VISIT") && "• Standard flow: Patient sees doctor, then goes to billing to pay the full amount."}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>WhatsApp Integration (Evolution API)</CardTitle>
-          <CardDescription>
-            Enter the WhatsApp instance name for this clinic. Make sure the instance is created and connected on your Evolution API server.
-          </CardDescription>
+          <CardDescription>Enter the WhatsApp instance name for this clinic.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div>
             <Label>Instance Name</Label>
-            <Input 
-              {...form.register("whatsappInstanceName")} 
-              disabled={isReadOnly} 
-              placeholder="e.g., mos_clinic" 
-            />
+            <Input {...form.register("whatsappInstanceName")} disabled={isReadOnly} placeholder="e.g., mos_clinic" />
             {form.formState.errors.whatsappInstanceName && (
               <p className="text-xs text-destructive mt-1">{form.formState.errors.whatsappInstanceName.message}</p>
             )}
@@ -201,26 +210,14 @@ export function ClinicSettingsForm({ clinicId, settings, isReadOnly }: ClinicSet
               <p className="font-medium text-sm">Enable Notifications</p>
               <p className="text-xs text-muted-foreground">Send SMS/WhatsApp/Email notifications.</p>
             </div>
-            <input
-              type="checkbox"
-              checked={form.watch("enableNotifications")}
-              onChange={(e) => form.setValue("enableNotifications", e.target.checked)}
-              disabled={isReadOnly}
-              className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-            />
+            <input type="checkbox" checked={form.watch("enableNotifications")} onChange={(e) => form.setValue("enableNotifications", e.target.checked)} disabled={isReadOnly} className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
           </div>
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
               <p className="font-medium text-sm">Enable Online Booking</p>
               <p className="text-xs text-muted-foreground">Allow patients to book online.</p>
             </div>
-            <input
-              type="checkbox"
-              checked={form.watch("enableOnlineBooking")}
-              onChange={(e) => form.setValue("enableOnlineBooking", e.target.checked)}
-              disabled={isReadOnly}
-              className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-            />
+            <input type="checkbox" checked={form.watch("enableOnlineBooking")} onChange={(e) => form.setValue("enableOnlineBooking", e.target.checked)} disabled={isReadOnly} className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
           </div>
         </CardContent>
       </Card>

@@ -18,29 +18,21 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🛡️ AUTHENTICATION GUARD (منع غير المسجلين من الدخول)
-  // ملاحظة: السوبر أدمن لا يملك clinicId لذا نتحقق من الـ user فقط
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (!session?.user) {
     redirect("/login")
   }
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
-  // التحقق من وضع الدعم
   const cookieStore = await cookies()
   const supportClinicId = cookieStore.get('support_clinic_id')?.value
   const isSupportMode = session.user.role === 'SUPER_ADMIN' && !!supportClinicId
 
   const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
 
-  // ✅ جلب بيانات العيادة لبانر وضع الدعم المطور
   let supportData = null
   if (isSupportMode && supportClinicId) {
     supportData = await getSupportModeClinicData(supportClinicId)
   }
 
-  // الاشتراك هيتجلب تلقائياً بتاع العيادة المستهدفة لو في Support Mode
   const subscription = !isSuperAdmin || isSupportMode ? (session.user.clinicId 
     ? await prisma.subscription.findUnique({ 
         where: { clinicId: session.user.clinicId }, 
@@ -48,15 +40,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       }) 
     : null) : null
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🛡️ SUSPENSION GUARD (Phase 3 - Step 5)
-  // إذا كانت العيادة موقوفة، نمنع الوصول لأي صفحة ونوجهه فوراً
-  // ملاحظة: هذا لا ينطبق على السوبر أدمن أو وضع الدعم الفني
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (!isSupportMode && !isSuperAdmin && subscription?.status === "SUSPENDED") {
     redirect("/suspended")
   }
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   const branches = session.user.clinicId 
     ? await prisma.branch.findMany({ 
@@ -78,7 +64,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <>
-      {/* ✅ Support Mode Banner المطور مع الـ Diagnostics */}
       {isSupportMode && supportData && (
         <SupportModeBanner 
           clinicId={supportClinicId}
@@ -93,14 +78,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
         />
       )}
 
-      {/* ✅ تم تعديل الـ div الأساسي عشان ياخد padding-top لو في Support Mode */}
       <div className={cn(
         "flex overflow-hidden bg-slate-50/50 dark:bg-[#0F172A] print:h-auto print:overflow-visible print:bg-white",
         "h-screen",
         isSupportMode && "pt-10" 
       )}>
         
-        {/* ── Desktop Sidebar ── */}
+        {/* ── Desktop Sidebar (Flexbox يقلب مكانه تلقائياً في RTL) ── */}
         <div className="hidden lg:flex print:hidden">
           <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} />
         </div>
@@ -113,16 +97,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} isMobile />
             </MobileNav>
             
-            <div className="flex items-center gap-2 ml-3 min-w-0">
-              <img 
-                src="/dashboard-logo.png" 
-                alt="Nexora" 
-                className="h-[22px] w-[22px] object-contain shrink-0"
-              />
+            {/* ⬇️⬇️⬇️ تغيير ml-3 لـ ms-3 (Start Margin) ⬇️⬇⬇️ */}
+            <div className="flex items-center gap-2 ms-3 min-w-0">
+              <img src="/dashboard-logo.png" alt="Nexora" className="h-[22px] w-[22px] object-contain shrink-0" />
               <h1 className="text-[16px] font-semibold text-gray-900 dark:text-white truncate">{clinic?.name || "Nexora Clinic"}</h1>
             </div>
 
-            <div className="flex items-center gap-3 ml-auto shrink-0">
+            {/* ⬇️⬇️⬇️ تغيير ml-auto لـ ms-auto ⬇️⬇⬇️ */}
+            <div className="flex items-center gap-3 ms-auto shrink-0">
               {session.user.id && session.user.clinicId && (
                 <NotificationBell userId={session.user.id} clinicId={session.user.clinicId} />
               )}
@@ -164,7 +146,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {/* ── Main Content ── */}
           <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 print:p-0 print:overflow-visible print:bg-white pb-20 lg:pb-8">
             <div className="animate-fade-in-up print:animate-none max-w-[1400px] mx-auto">
-              {/* لو في وضع دعم، نعرض المحتوى من غير حارس الاشتراك */}
               {isSupportMode || isSuperAdmin ? (
                 children
               ) : (

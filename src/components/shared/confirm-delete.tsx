@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
+import { useLang } from "@/lib/i18n-context"
 
 type Props = {
   title: string
@@ -24,6 +25,7 @@ type Props = {
 export function ConfirmDelete({ title, description, onConfirm, children }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const { t } = useLang()
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -58,7 +60,7 @@ export function ConfirmDelete({ title, description, onConfirm, children }: Props
             disabled={isPending}
             className="rounded-xl bg-white dark:bg-[#223247] hover:bg-slate-100 dark:hover:bg-[#2A3B4E] px-5 py-2.5 font-semibold transition-colors shadow-sm border-border"
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button 
             variant="destructive" 
@@ -67,7 +69,7 @@ export function ConfirmDelete({ title, description, onConfirm, children }: Props
             isLoading={isPending}
             className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl px-5 py-2.5 shadow-[0_8px_20px_rgba(239,68,68,0.25)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 font-semibold"
           >
-            Yes, Delete
+            {t("delete.yesDelete")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -8,11 +8,12 @@ import {
   DropdownMenuLabel, 
   DropdownMenuSeparator, 
   DropdownMenuTrigger,
-  DropdownMenuGroup // <-- تمت إضافة هذا
+  DropdownMenuGroup
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { LogOut, Settings, Building2, HelpCircle } from "lucide-react"
+import { LogOut, Settings, Building2, HelpCircle, Languages } from "lucide-react" // ⬅️ أضفنا Languages
 import Link from "next/link"
+import { useLang } from "@/lib/i18n-context" // ⬅️ إضافة الـ Hook
 
 interface UserProfileMenuProps {
   userName: string
@@ -26,6 +27,13 @@ export function UserProfileMenu({
   userName, userEmail, userRole, clinicName, branchName 
 }: UserProfileMenuProps) {
   const initials = userName?.split(" ").map(n => n[0]).join("").substring(0, 2) || "U"
+  
+  // ⬇️⬇️⬇️ نظام اللغات ⬇️⬇⬇️
+  const { locale, setLocale, t } = useLang()
+
+  const toggleLang = () => {
+    setLocale(locale === "en" ? "ar" : "en")
+  }
 
   return (
     <DropdownMenu>
@@ -39,7 +47,6 @@ export function UserProfileMenu({
       
       <DropdownMenuContent className="w-72 p-2 border-[rgba(148,163,184,0.15)] dark:border-[rgba(255,255,255,0.08)] shadow-[0_20px_40px_rgba(0,0,0,0.15)] rounded-2xl bg-white dark:bg-[#1A2332]" align="end">
         
-        {/* تمت إضافة DropdownMenuGroup هنا */}
         <DropdownMenuGroup>
           <DropdownMenuLabel className="font-normal p-3">
             <div className="flex flex-col space-y-1">
@@ -63,23 +70,34 @@ export function UserProfileMenu({
         <Link href="/settings">
           <DropdownMenuItem className="rounded-xl cursor-pointer py-2.5 my-1 focus:bg-[#F5F8FF] dark:focus:bg-[#223247]">
             <Settings className="h-4 w-4 mr-3 text-muted-foreground" />
-            <span className="text-sm font-medium">Account Settings</span>
+            <span className="text-sm font-medium">{t("menu.accountSettings")}</span>
           </DropdownMenuItem>
         </Link>
         
         <Link href="/settings/clinics">
           <DropdownMenuItem className="rounded-xl cursor-pointer py-2.5 my-1 focus:bg-[#F5F8FF] dark:focus:bg-[#223247]">
             <Building2 className="h-4 w-4 mr-3 text-muted-foreground" />
-            <span className="text-sm font-medium">Clinic Settings</span>
+            <span className="text-sm font-medium">{t("menu.clinicSettings")}</span>
           </DropdownMenuItem>
         </Link>
         
         <Link href="/settings/help" legacyBehavior passHref>
           <DropdownMenuItem className="rounded-xl cursor-pointer py-2.5 my-1 focus:bg-[#F5F8FF] dark:focus:bg-[#223247]">
             <HelpCircle className="h-4 w-4 mr-3 text-muted-foreground" />
-            <span className="text-sm font-medium">Help & Support</span>
+            <span className="text-sm font-medium">{t("menu.helpSupport")}</span>
           </DropdownMenuItem>
         </Link>
+
+        <DropdownMenuSeparator className="bg-[rgba(148,163,184,0.1)] dark:bg-[rgba(255,255,255,0.06)]" />
+        
+        {/* ⬇️⬇️⬇️ زرار تغيير اللغة ⬇️⬇⬇️ */}
+        <DropdownMenuItem 
+          className="rounded-xl cursor-pointer py-2.5 my-1 focus:bg-[#F5F8FF] dark:focus:bg-[#223247]"
+          onClick={toggleLang}
+        >
+          <Languages className="h-4 w-4 mr-3 text-muted-foreground" />
+          <span className="text-sm font-medium">{locale === "en" ? t("lang.ar") : t("lang.en")}</span>
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-[rgba(148,163,184,0.1)] dark:bg-[rgba(255,255,255,0.06)]" />
         
@@ -88,7 +106,7 @@ export function UserProfileMenu({
           onClick={() => signOut({ callbackUrl: '/login' })}
         >
           <LogOut className="mr-3 h-4 w-4" />
-          <span className="text-sm font-medium">Log out</span>
+          <span className="text-sm font-medium">{t("menu.logout")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

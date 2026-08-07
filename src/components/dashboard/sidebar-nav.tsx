@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useLang } from "@/lib/i18n-context" // ⬅️ إضافة الـ Hook
 import {
   LayoutDashboard,
   Users,
@@ -22,35 +23,37 @@ import {
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
+// ⬇️⬇️⬇️ أضفنا الـ key لكل عنصر عشان نربطه بالقاموس ⬇️⬇⬇️
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "New Visit", href: "/reception/new", icon: UserPlus },
-  { name: "Appointments", href: "/appointments", icon: CalendarDays },
-  { name: "Waiting Room", href: "/waiting-room", icon: Monitor },
-  { name: "Online Bookings", href: "/appointments/online", icon: Globe },
-  { name: "Patients", href: "/patients", icon: Users },
-  { name: "Invoices", href: "/invoices", icon: Receipt },
+  { key: "dashboard", name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { key: "newVisit", name: "New Visit", href: "/reception/new", icon: UserPlus },
+  { key: "appointments", name: "Appointments", href: "/appointments", icon: CalendarDays },
+  { key: "waitingRoom", name: "Waiting Room", href: "/waiting-room", icon: Monitor },
+  { key: "onlineBooking", name: "Online Bookings", href: "/appointments/online", icon: Globe },
+  { key: "patients", name: "Patients", href: "/patients", icon: Users },
+  { key: "invoices", name: "Invoices", href: "/invoices", icon: Receipt },
 ]
 
 const adminNavigation = [
-  { name: "Users & Roles", href: "/admin/users", icon: Shield },
-  { name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
-  { name: "Public Booking", href: "/book", icon: Globe },
-  { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
-  { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
-  { name: "Branches", href: "/settings/branches", icon: Building2 },
+  { key: "usersRoles", name: "Users & Roles", href: "/admin/users", icon: Shield },
+  { key: "clinicSettings", name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
+  { key: "publicBooking", name: "Public Booking", href: "/book", icon: Globe },
+  { key: "billingPlan", name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
+  { key: "auditLogs", name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
+  { key: "branches", name: "Branches", href: "/settings/branches", icon: Building2 },
 ]
 
 const superAdminNavigation = [
-  { name: "Platform Overview", href: "/super-admin", icon: BarChart3 },
-  { name: "All Clinics", href: "/super-admin/clinics", icon: Building2 },
-  { name: "Platform Billing", href: "/super-admin/billing", icon: CreditCard },
-  { name: "System Health", href: "/super-admin/system-health", icon: Activity },
-  { name: "Feature Flags", href: "/super-admin/features", icon: Zap },
+  { key: "platformOverview", name: "Platform Overview", href: "/super-admin", icon: BarChart3 },
+  { key: "allClinics", name: "All Clinics", href: "/super-admin/clinics", icon: Building2 },
+  { key: "platformBilling", name: "Platform Billing", href: "/super-admin/billing", icon: CreditCard },
+  { key: "systemHealth", name: "System Health", href: "/super-admin/system-health", icon: Activity },
+  { key: "featureFlags", name: "Feature Flags", href: "/super-admin/features", icon: Zap },
 ]
 
 export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSuperAdmin?: boolean }) {
   const pathname = usePathname()
+  const { t } = useLang() // ⬅️ الترجمة
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/")
@@ -62,7 +65,7 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
         const active = isActive(item.href)
         return (
           <Link
-            key={item.name}
+            key={item.key}
             href={item.href}
             className={cn(
               "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
@@ -79,7 +82,8 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
                   : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
               )}
             />
-            <span className="truncate">{item.name}</span>
+            {/* ⬇️⬇️⬇️ استخدام دالة الترجمة ⬇️⬇⬇️ */}
+            <span className="truncate">{t(`sidebar.${item.key}`)}</span>
           </Link>
         )
       })}
@@ -88,31 +92,22 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
         <>
           <Separator className="my-3 bg-gray-100 dark:bg-white/[0.06]" />
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            Administration
+            {t("sidebar.administration")}
           </p>
           <div className="space-y-0.5">
             {adminNavigation.map((item) => {
               const active = isActive(item.href)
               return (
                 <Link
-                  key={item.name}
+                  key={item.key}
                   href={item.href}
                   className={cn(
                     "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
-                    active
-                      ? "active"
-                      : "text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-white"
+                    active ? "active" : "text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-white"
                   )}
                 >
-                  <item.icon
-                    className={cn(
-                      "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
-                      active
-                        ? "text-sidebar-accent-foreground"
-                        : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
-                    )}
-                  />
-                  <span className="truncate">{item.name}</span>
+                  <item.icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors duration-150", active ? "text-sidebar-accent-foreground" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")} />
+                  <span className="truncate">{t(`sidebar.${item.key}`)}</span>
                 </Link>
               )
             })}
@@ -124,29 +119,22 @@ export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSupe
         <>
           <Separator className="my-3 bg-gray-100 dark:bg-white/[0.06]" />
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-primary/70">
-            Platform
+            {t("sidebar.platform")}
           </p>
           <div className="space-y-0.5">
             {superAdminNavigation.map((item) => {
               const active = isActive(item.href)
               return (
                 <Link
-                  key={item.name}
+                  key={item.key}
                   href={item.href}
                   className={cn(
                     "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
-                    active
-                      ? "active text-primary bg-primary/[0.08]"
-                      : "text-slate-500 dark:text-slate-400 hover:bg-primary/[0.04] hover:text-primary"
+                    active ? "active text-primary bg-primary/[0.08]" : "text-slate-500 dark:text-slate-400 hover:bg-primary/[0.04] hover:text-primary"
                   )}
                 >
-                  <item.icon
-                    className={cn(
-                      "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
-                      active ? "text-primary" : "text-slate-400 dark:text-slate-500 group-hover:text-primary/70"
-                    )}
-                  />
-                  <span className="truncate">{item.name}</span>
+                  <item.icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors duration-150", active ? "text-primary" : "text-slate-400 dark:text-slate-500 group-hover:text-primary/70")} />
+                  <span className="truncate">{t(`sidebar.${item.key}`)}</span>
                 </Link>
               )
             })}

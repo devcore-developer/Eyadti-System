@@ -5,6 +5,7 @@ import { Star, Quote } from "lucide-react"
 import { MotionWrapper } from "./motion-wrapper"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
+import { useLang } from "@/lib/i18n-context" // ⬅️ إضافة الـ Hook
 
 interface Testimonial {
   id: string
@@ -20,6 +21,7 @@ interface Testimonial {
 export function TestimonialsSection() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [loading, setLoading] = useState(true)
+  const { t } = useLang() // ⬅️ الترجمة
 
   useEffect(() => {
     async function loadTestimonials() {
@@ -30,7 +32,7 @@ export function TestimonialsSection() {
           setTestimonials(data)
         }
       } catch {
-        // Silent fail — section won't render
+        // Silent fail
       } finally {
         setLoading(false)
       }
@@ -46,10 +48,10 @@ export function TestimonialsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <MotionWrapper className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">
-            Trusted by Clinics
+            {t("landing.trustedByClinics")}
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            See what healthcare providers say about Nexora.
+            {t("landing.trustedByDesc")}
           </p>
         </MotionWrapper>
 
@@ -57,7 +59,7 @@ export function TestimonialsSection() {
           {testimonials.map((t, i) => (
             <MotionWrapper key={t.id} delay={i * 0.1}>
               <div className="premium-card p-6 h-full flex flex-col relative overflow-hidden">
-                <div className="absolute top-4 right-4 text-[#F4B860] opacity-20">
+                <div className="absolute top-4 end-4 text-[#F4B860] opacity-20"> {/* ⬅️ right لـ end */}
                   <Quote className="h-16 w-16" />
                 </div>
                 <div className="relative z-10 flex-1">

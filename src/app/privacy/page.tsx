@@ -24,7 +24,8 @@ export default function PrivacyPage() {
           </div>
         </div>
 
-        <div className="prose prose prose-slate dark:prose-invert max-w-none">
+        <div className="prose prose-slate dark:prose-invert max-w-none">
+          {/* النصوص الإنجليزية باقية زي ما هي لأنها نصوص قانونية */}
           <h2>1. Information We Collect</h2>
           <p>We collect information you provide directly when using Nexora, including:</p>
           <ul>

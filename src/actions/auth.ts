@@ -8,9 +8,12 @@ import type { SignupInput } from "@/lib/validations/auth";
 import { Prisma } from "@prisma/client";
 import { AuthError } from "next-auth";
 import { randomUUID } from "crypto";
-import { auditLog } from "@/lib/services/audit";
+import { auditLog } from "@/lib/services/audit"; // تأكد إن المسار ده صحيح أو Non-used احذفه لو موجود في الأصل كده
 import { headers } from "next/headers";
 import type { ActionResult } from "@/types";
+
+// ⬇️⬇️⬇️ تغيير مدة الـ Trial الافتراضية لـ 7 أيام ⬇️⬇⬇️
+const DEFAULT_TRIAL_DAYS = 7;
 
 
 // ─── Signup Action ──────────────────────────────────────────────────────────
@@ -36,7 +39,6 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
     return { success: false, error: "An account with this email already exists." };
   }
 
-  // FIX #8: Prevent duplicate clinic names (case-insensitive)
   const existingClinic = await prisma.clinic.findFirst({
     where: { name: { equals: clinicName, mode: "insensitive" } },
     select: { id: true },
@@ -49,7 +51,6 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // FIX #2, #3, #4: All checks inside transaction to prevent race conditions
       const codeRecord = await tx.activationCode.findFirst({
         where: { code: signupCode.trim() },
         include: { plan: true },
@@ -59,7 +60,6 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
         throw new Error("INVALID_CODE");
       }
 
-      // FIX #4: Check status instead of just isUsed
       if (codeRecord.status !== "AVAILABLE") {
         if (codeRecord.status === "USED") {
           throw new Error("CODE_ALREADY_USED");
@@ -73,7 +73,6 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
         throw new Error("INVALID_CODE");
       }
 
-      // FIX #3: Check expiration
       if (codeRecord.expiresAt && new Date() > codeRecord.expiresAt) {
         await tx.activationCode.update({
           where: { id: codeRecord.id },
@@ -127,11 +126,12 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
         },
       });
 
+      // ⬇️⬇️⬇️ تعديل حساب الأيام ليكون 7 أيام ثابتة للـ Trial ⬇️⬇️⬇️
+      const isTrial = codeRecord.type === "SIGNUP";
+      const status = isTrial ? "TRIAL" : "ACTIVE";
       const startDate = new Date();
-      const endDate = new Date(startDate.getTime() + codeRecord.durationDays * 24 * 60 * 60 * 1000);
-
-      // FIX #7: Determine trial status by code TYPE, not duration
-      const status = codeRecord.type === "SIGNUP" ? "TRIAL" : "ACTIVE";
+      const durationDays = isTrial ? DEFAULT_TRIAL_DAYS : codeRecord.durationDays;
+      const endDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
       await tx.subscription.create({
         data: {
@@ -139,13 +139,12 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
           planId: codeRecord.planId,
           status: status,
           startDate: startDate,
-          trialEndsAt: status === "TRIAL" ? endDate : null,
+          trialEndsAt: isTrial ? endDate : null,
           currentPeriodEnd: endDate,
           endDate: endDate,
         },
       });
 
-      // FIX #5: Complete audit trail
       await tx.activationCode.update({
         where: { id: codeRecord.id },
         data: {
@@ -158,7 +157,6 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
         },
       });
 
-      // ✅ إشعار السوبر أدمن: عيادة جديدة (داخل الـ transaction عشان نقدر نوصل لـ clinic.id)
       const { notifyNewClinicRegistered } = await import("@/lib/notifications/super-admin-notifier")
       await notifyNewClinicRegistered(clinic.id, clinicName, name);
     });
@@ -187,13 +185,12 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
     return { success: false, error: "Failed to create account. Please try again." };
   }
 
-  // Sign in after successful signup
   try {
     await signIn("credentials", { email, password, redirectTo: "/dashboard" });
     return { success: true };
   } catch (error) {
     if (error instanceof AuthError) {
-      return { success: true }; // Account created, redirect will handle it
+      return { success: true };
     }
     throw error;
   }
@@ -204,7 +201,6 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
 export async function redeemSubscriptionCode(clinicId: string, code: string): Promise<ActionResult> {
   try {
     const codeRecord = await prisma.$transaction(async (tx) => {
-      // FIX #20: Race condition — all checks inside transaction
       const record = await tx.activationCode.findFirst({
         where: { code: code.trim() },
         include: { plan: true },
@@ -214,7 +210,6 @@ export async function redeemSubscriptionCode(clinicId: string, code: string): Pr
       if (record.status !== "AVAILABLE") throw new Error("CODE_ALREADY_USED");
       if (record.type === "SIGNUP") throw new Error("CODE_IS_SIGNUP");
 
-      // FIX #21: Check expiration
       if (record.expiresAt && new Date() > record.expiresAt) {
         await tx.activationCode.update({
           where: { id: record.id },
@@ -252,7 +247,6 @@ export async function redeemSubscriptionCode(clinicId: string, code: string): Pr
         },
       });
 
-      // FIX #24: Complete audit trail
       await tx.activationCode.update({
         where: { id: record.id },
         data: {

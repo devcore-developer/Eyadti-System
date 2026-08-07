@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/components/providers"
 import { ThemeScript } from "@/components/theme-script"
+import { LangProvider } from "@/lib/i18n-context" // ⬅️ إضافة الـ Provider
 
 const inter = Inter({
   subsets: ["latin"],
@@ -10,21 +11,18 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
-// ✨ إعدادات الـ PWA الأساسية
 export const metadata: Metadata = {
   title: "Nexora Pro",
   description: "Premium Medical & Clinic Management System",
-  // إعدادات خاصة للأيفون عشان يتعامل مع الموقع كتطبيق Native
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent", // يخلي الـ Status Bar شفاف ومدمج مع تصميمك
+    statusBarStyle: "black-translucent",
     title: "Nexora Pro",
   },
 }
 
-// لون الـ Status Bar في المتصفح وأثناء الـ Splash Screen
 export const viewport: Viewport = {
-  themeColor: "#5BC0BE", // اللون البريميوم بتاعك
+  themeColor: "#5BC0BE",
 }
 
 export default function RootLayout({
@@ -33,15 +31,31 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
-        {/* إضافة ?v=2 عشان نخلي المتصفح يهمل الكاش */}
         <link rel="icon" href="/icon.png?v=2" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        
+        {/* ⬇️⬇️⬇️ سكريبت سريع جداً عشان يمنع ظهور الإنجليزي لمضة واحدة لما تكون اللغة عربي ⬇️⬇⬇️ */}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              try {
+                var lang = localStorage.getItem('nexora-lang');
+                if (lang === 'ar') {
+                  document.documentElement.lang = 'ar';
+                  document.documentElement.dir = 'rtl';
+                }
+              } catch(e) {}
+            })()
+          `
+        }} />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeScript />
-        <Providers>{children}</Providers>
+        <Providers>
+          <LangProvider>{children}</LangProvider> {/* ⬅️ تغليف التطبيق باللغات */}
+        </Providers>
       </body>
     </html>
   )

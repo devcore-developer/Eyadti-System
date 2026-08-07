@@ -13,7 +13,6 @@ enum Role {
   RECEPTIONIST
 }
 
-
 enum InvoiceStatus {
   PAID
   UNPAID
@@ -120,6 +119,12 @@ enum AnnouncementStatus {
   DELETED
 }
 
+enum PaymentWorkflow {
+  PAY_BEFORE_VISIT
+  PAY_AFTER_VISIT
+  SPLIT_PAYMENT
+}
+
 // ── Multi-Branch Support ─────────────────────────────
 
 model Branch {
@@ -189,8 +194,8 @@ model User {
   id              String  @id @default(cuid())
   name            String
   email           String  @unique
-  specialty       String?   // التخصص (مثلاً: Cardiologist)
-  degree          String?   // الدرجة العلمية (مثلاً: MBBS, MD, PhD)  
+  specialty       String?   
+  degree          String?   
   password        String?
   role            Role    @default(RECEPTIONIST)
   allBranchAccess Boolean @default(false)
@@ -263,7 +268,7 @@ model Clinic {
   branches      Branch[]
   galleryItems GalleryItem[]
   usedActivationCodes ActivationCode[]
-  operationalStatus String @default("ACTIVE") // ACTIVE, SUSPENDED, ARCHIVED
+  operationalStatus String @default("ACTIVE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -636,6 +641,7 @@ model ClinicSettings {
   enableNotifications        Boolean  @default(true)
   enableOnlineBooking        Boolean  @default(false)
   whatsappInstanceName       String?
+  paymentWorkflow            PaymentWorkflow @default(PAY_AFTER_VISIT)
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 
@@ -943,7 +949,7 @@ model Appointment {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
-  visit     Visit?            // One-to-One relation
+  visit     Visit?            
   reminders Reminder[]
   booking   Booking?
 
@@ -996,11 +1002,10 @@ model Visit {
 }
 
 // ── IMPORTANT: Update AppointmentStatus Enum ──────────
-// Replace your existing AppointmentStatus with this:
 enum AppointmentStatus {
-  SCHEDULED   // Booked but not arrived
-  CONFIRMED   // Arrived / Checked-in
-  COMPLETED   // Visit finished
+  SCHEDULED   
+  CONFIRMED   
+  COMPLETED   
   CANCELLED
   NO_SHOW
 }
@@ -1037,7 +1042,7 @@ model Announcement {
   endsAt               DateTime?
   
   // Configuration
-  status               AnnouncementStatus @default(ACTIVE) // <-- أضف هذا السطر
+  status               AnnouncementStatus @default(ACTIVE) 
   isDismissible        Boolean           @default(true)
   requireConfirmation  Boolean           @default(false)
   
@@ -1068,14 +1073,13 @@ model AnnouncementRead {
   @@map("announcement_reads")
 }
 
-// أضف هذا الموديل جديد بالكامل في آخر الملف
 model SuperAdminNotification {
   id          String   @id @default(cuid())
-  type        String   // CLINIC_REGISTERED, SUB_EXPIRING, PAYMENT_FAILED, etc.
+  type        String   
   title       String
   message     String
   isRead      Boolean  @default(false)
-  actionUrl   String?  // رابط الصفحة المرتبطة
+  actionUrl   String?  
   clinicId    String?
   clinic      Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
   
@@ -1084,7 +1088,6 @@ model SuperAdminNotification {
   @@index([isRead])
   @@map("super_admin_notifications")
 }
-// ── Testimonials ───────────────────────────────────────
 
 model Testimonial {
   id            String   @id @default(cuid())

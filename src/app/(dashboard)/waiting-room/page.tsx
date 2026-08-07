@@ -3,11 +3,22 @@ import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { QueueCard } from "@/components/waiting-room/queue-card"
 import { VisitStatus, Priority } from "@prisma/client"
+import type { PaymentWorkflowType } from "@/types"
 
 export default async function WaitingRoomPage() {
   const session = await auth()
   if (!session?.user) redirect("/login")
   if (!["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) redirect("/dashboard")
+
+  // ⬇️⬇️⬇️ جلب نظام الدفع من الإعدادات ⬇️⬇⬇️
+  let workflow: PaymentWorkflowType = "PAY_AFTER_VISIT"
+  const settings = await prisma.clinicSettings.findUnique({
+    where: { clinicId: session.user.clinicId },
+    select: { paymentWorkflow: true }
+  })
+  if (settings?.paymentWorkflow) {
+    workflow = settings.paymentWorkflow as PaymentWorkflowType
+  }
 
   const activeVisits = await prisma.visit.findMany({
     where: {
@@ -36,19 +47,23 @@ export default async function WaitingRoomPage() {
     priority: v.priority,
     status: v.status,
     checkedInAt: v.checkedInAt ? v.checkedInAt.toISOString() : null,
-    visitDate: v.visitDate.toISOString(), // ✨ إضافة وقت الموعد الفعلي لحساب الوقت المتبقي
+    visitDate: v.visitDate.toISOString(),
   }))
 
   const waitingCount = serializedVisits.filter(v => v.status === VisitStatus.WAITING).length
   const withDoctorCount = serializedVisits.filter(v => v.status === VisitStatus.WITH_DOCTOR).length
 
   return (
-    // ✨ تقليل الـ spacing على الموبايل
     <div className="space-y-4 md:space-y-6 animate-fade pb-20 md:pb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Waiting Room</h1>
-          <p className="text-sm text-muted-foreground">Patients currently inside the clinic</p>
+          <p className="text-sm text-muted-foreground">
+            Patients currently inside the clinic 
+            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md ml-2 font-mono">
+              {workflow.replace(/_/g, ' ')}
+            </span>
+          </p>
         </div>
         <div className="flex gap-3">
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2 text-center flex-1 sm:flex-none">
@@ -67,7 +82,6 @@ export default async function WaitingRoomPage() {
           No patients in the waiting room right now.
         </div>
       ) : (
-        // ✨ استخدام Grid متناسب مع الكروت الطويلة
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {serializedVisits.map(visit => (
             <QueueCard 
@@ -83,6 +97,7 @@ export default async function WaitingRoomPage() {
               status={visit.status}
               checkedInAt={visit.checkedInAt ? new Date(visit.checkedInAt) : null} 
               scheduledTime={visit.visitDate}
+              workflow={workflow} // ⬅️ تمرير الـ Workflow للكروت
             />
           ))}
         </div>

@@ -25,6 +25,7 @@ export default function TermsPage() {
         </div>
 
         <div className="prose prose-slate dark:prose-invert max-w-none">
+          {/* ملاحظة: غيرنا 5 days لـ 7 days هنا */}
           <h2>1. Acceptance of Terms</h2>
           <p>By accessing or using Nexora, you agree to be bound by these Terms and Conditions. If you do not agree, please do not use the service. These terms apply to all users including clinic owners, doctors, staff, and administrators.</p>
 
@@ -35,7 +36,7 @@ export default function TermsPage() {
           <p>You must provide accurate information when creating an account. You are responsible for maintaining the security of your login credentials. You must be at least 18 years old to create an account. Each clinic is limited to one account unless explicitly authorized by Nexora support.</p>
 
           <h2>4. Trial Period</h2>
-          <p>New clinics receive a 5-day trial period with full access to the features included in their selected plan. No payment is required during the trial. At the end of the trial, the subscription expires automatically. You can upgrade to a paid plan at any time to continue using Nexora.</p>
+          <p>New clinics receive a 7-day trial period with full access to the features included in their selected plan. No payment is required during the trial. At the end of the trial, the subscription expires automatically. You can upgrade to a paid plan at any time to continue using Nexora.</p>
 
           <h2>5. Subscription Plans & Payments</h2>
           <p>Nexora offers multiple subscription plans with different features and limits. By subscribing, you agree to pay the listed price for the selected billing cycle (monthly or yearly). Prices are subject to change with 30 days notice.</p>

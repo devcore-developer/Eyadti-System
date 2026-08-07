@@ -8,6 +8,9 @@ export type ActionResult<T = void> = {
   redirectTo?: string;
 };
 
+// ⬇️⬇️⬇️ أضفنا النوع الجديد ⬇️⬇⬇️
+export type PaymentWorkflowType = "PAY_BEFORE_VISIT" | "PAY_AFTER_VISIT" | "SPLIT_PAYMENT";
+
 export * from "./subscription";
 export * from "./audit";
 export * from "./branch";

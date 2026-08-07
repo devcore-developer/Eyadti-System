@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Clock, Stethoscope, AlertTriangle, ArrowRight } from "lucide-react"
+import { Clock, Stethoscope, AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react"
 import { QuickBillingDialog } from "./quick-billing-dialog"
+import type { PaymentWorkflowType } from "@/types"
 
 type QueueCardProps = {
   id: string
@@ -21,7 +22,8 @@ type QueueCardProps = {
   priority: Priority
   status: VisitStatus
   checkedInAt: Date | null
-  scheduledTime: Date | string | null // ✨ إضافة وقت الموعد الفعلي
+  scheduledTime: Date | string | null
+  workflow?: PaymentWorkflowType
 }
 
 // ✨ دالة ذكية لحساب الوقت (متبقي ولا انتظار)
