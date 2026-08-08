@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
@@ -10,21 +11,27 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
-// ✨ إعدادات الـ PWA الأساسية
+// ✨ إعدادات الـ PWA والـ SEO الأساسية
 export const metadata: Metadata = {
   title: "Nexora Pro",
   description: "Premium Medical & Clinic Management System",
-  // إعدادات خاصة للأيفون عشان يتعامل مع الموقع كتطبيق Native
+  // إعدادات الـ Open Graph للرئيسية
+  openGraph: {
+    title: "Nexora Pro - Medical Clinic Management",
+    description: "Premium Medical & Clinic Management System",
+    type: "website",
+    locale: "en_US",
+    siteName: "Nexora Pro",
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent", // يخلي الـ Status Bar شفاف ومدمج مع تصميمك
+    statusBarStyle: "black-translucent",
     title: "Nexora Pro",
   },
 }
 
-// لون الـ Status Bar في المتصفح وأثناء الـ Splash Screen
 export const viewport: Viewport = {
-  themeColor: "#5BC0BE", // اللون البريميوم بتاعك
+  themeColor: "#5BC0BE",
 }
 
 export default function RootLayout({
@@ -35,7 +42,6 @@ export default function RootLayout({
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
-        {/* إضافة ?v=2 عشان نخلي المتصفح يهمل الكاش */}
         <link rel="icon" href="/icon.png?v=2" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
