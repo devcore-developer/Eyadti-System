@@ -25,7 +25,7 @@ export async function requireRole(...roles: string[]) {
     throw new AuthenticationError()
   }
 
-  // ✅ لو هو SUPER_ADMIN، ادخله على طول في أي عملية من غير فحص
+  // لو هو SUPER_ADMIN، ادخله على طول في أي عملية من غير فحص
   if (session.user.role === "SUPER_ADMIN") {
     return {
       clinicId: session.user.clinicId,
@@ -43,6 +43,88 @@ export async function requireRole(...roles: string[]) {
     userId: session.user.id,
     role: session.user.role,
   }
+}
+
+// ── Financial Access Guard ───────────────────────────
+// الدكتور والريسبشن محظورين من البيانات المالية
+
+export async function requireFinancialAccess() {
+  const session = await auth()
+  if (!session?.user) throw new AuthenticationError()
+
+  if (session.user.role === "SUPER_ADMIN") {
+    return { clinicId: session.user.clinicId, userId: session.user.id, role: session.user.role }
+  }
+
+  if (session.user.role === "DOCTOR" || session.user.role === "RECEPTIONIST") {
+    throw new AuthorizationError("You do not have access to financial data.")
+  }
+
+  return { clinicId: session.user.clinicId, userId: session.user.id, role: session.user.role }
+}
+
+// ── Online Booking Management Guard ──────────────────
+// الدكتور محظور من إدارة الحجوزات الأونلاين
+
+export async function requireOnlineBookingAccess() {
+  const session = await auth()
+  if (!session?.user) throw new AuthenticationError()
+
+  if (session.user.role === "SUPER_ADMIN") {
+    return { clinicId: session.user.clinicId, userId: session.user.id, role: session.user.role }
+  }
+
+  if (session.user.role === "DOCTOR") {
+    throw new AuthorizationError("You do not have access to online booking management.")
+  }
+
+  return { clinicId: session.user.clinicId, userId: session.user.id, role: session.user.role }
+}
+
+// ── Schedule Management Guard ────────────────────────
+// الدكتور يشوف جدوله فقط، ما يقدر يعدله
+
+export async function requireScheduleManagement() {
+  const session = await auth()
+  if (!session?.user) throw new AuthenticationError()
+
+  if (session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST") {
+    return { clinicId: session.user.clinicId, userId: session.user.id, role: session.user.role }
+  }
+
+  if (session.user.role === "DOCTOR") {
+    throw new AuthorizationError("Doctors cannot modify clinic schedules.")
+  }
+
+  throw new AuthorizationError()
+}
+
+// ── User Management Guard ────────────────────────────
+// الأدمن فقط يقدر يدير المستخدمين
+
+export async function requireUserManagement() {
+  const session = await auth()
+  if (!session?.user) throw new AuthenticationError()
+
+  if (session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN") {
+    return { clinicId: session.user.clinicId, userId: session.user.id, role: session.user.role }
+  }
+
+  throw new AuthorizationError("You do not have access to user management.")
+}
+
+// ── Clinic Settings Guard ────────────────────────────
+// الدكتور والريسبشن محظورين من إعدادات العيادة
+
+export async function requireClinicSettingsAccess() {
+  const session = await auth()
+  if (!session?.user) throw new AuthenticationError()
+
+  if (session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN") {
+    return { clinicId: session.user.clinicId, userId: session.user.id, role: session.user.role }
+  }
+
+  throw new AuthorizationError("You do not have access to clinic settings.")
 }
 
 // ── Patient Permissions ──────────────────────────────

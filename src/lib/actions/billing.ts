@@ -1,17 +1,24 @@
 "use server";
 
 import { auth } from "@/lib/auth";
+import { requireFinancialAccess } from "@/lib/permissions";
 import { getSubscription, getTrialDaysRemaining, getActivePlans } from "@/lib/services/subscription";
 import { getUsageStats } from "@/lib/services/usage-limits";
 import { type BillingOverview, type FeatureKey } from "@/types/subscription";
-import { hasFeature, getFeatureAccess } from "@/lib/services/feature-gate"; // ← استيراد مباشر بدل Dynamic
+import { hasFeature, getFeatureAccess } from "@/lib/services/feature-gate";
 
 /**
  * Get the full billing overview for the current user's clinic
+ * PROTECTED: Only ADMIN/SUPER_ADMIN can access billing data
  */
 export async function getBillingOverview(): Promise<BillingOverview | null> {
   const session = await auth();
   if (!session?.user?.clinicId) return null;
+
+  // ── Block DOCTOR and RECEPTIONIST from billing data ──
+  if (session.user.role === "DOCTOR" || session.user.role === "RECEPTIONIST") {
+    return null;
+  }
 
   const subscription = await getSubscription(session.user.clinicId);
   if (!subscription) return null;
@@ -38,6 +45,7 @@ export async function getBillingOverview(): Promise<BillingOverview | null> {
 
 /**
  * Get all active plans for pricing display
+ * PUBLIC: Anyone can see plan pricing
  */
 export async function getPricingPlans() {
   return getActivePlans();

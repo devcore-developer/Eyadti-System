@@ -1,5 +1,5 @@
-// src/app/(dashboard)/invoices/page.tsx
 import { auth } from "@/lib/auth"
+import { requireFinancialAccess } from "@/lib/permissions"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import Link from "next/link"
@@ -17,7 +17,6 @@ import { ReportsSnapshot } from "@/components/invoices/reports-snapshot"
 const PAGE_SIZE = 20
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
-// ── Helper: Process 12-Month Chart Data ──────────────────────────
 function processMonthlyData(
   invoices: { amount: any; status: string; createdAt: Date }[]
 ) {
@@ -69,24 +68,19 @@ function processMonthlyData(
   })
 }
 
-// ── Main Page Component ──────────────────────────────────────────
 export default async function InvoicesPage({
   searchParams,
 }: {
   searchParams: SearchParams
 }) {
-  const session = await auth()
-  if (!session?.user) redirect("/login")
-  if (!["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"].includes(session.user.role)) {
-    redirect("/dashboard")
-  }
+  // ── SERVER-LEVEL AUTHORIZATION: Only financial roles can access this page ──
+  const { clinicId, role } = await requireFinancialAccess()
 
   const params = await searchParams
   const page = Math.max(1, Number(params.page) || 1)
   const filterStatus = typeof params.status === "string" ? params.status : ""
   const searchQuery = typeof params.search === "string" ? params.search : ""
 
-  const clinicId = session.user.clinicId
   const baseWhere = { clinicId }
   const where: any = { ...baseWhere }
   if (filterStatus) where.status = filterStatus
@@ -98,8 +92,6 @@ export default async function InvoicesPage({
   const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
   const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1)
 
-  // Use `as any` on status arrays and select objects to bypass strict TS 
-  // checks until `npx prisma generate` is run to register the new Enum/Fields
   const [
     rawInvoices,
     total,
@@ -127,7 +119,7 @@ export default async function InvoicesPage({
           take: 1,
           select: { id: true, amount: true, method: true, createdAt: true },
         },
-      } as any, // ← Bypass TS until Prisma is regenerated
+      } as any,
     }),
     prisma.invoice.count({ where }),
     prisma.invoice.aggregate({
@@ -183,7 +175,7 @@ export default async function InvoicesPage({
           take: 1,
           select: { createdAt: true, amount: true },
         },
-      } as any, // ← Bypass TS until Prisma is regenerated
+      } as any,
       orderBy: { amount: "desc" },
       take: 20,
     }),
@@ -299,7 +291,7 @@ export default async function InvoicesPage({
     .slice(0, 10)
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
-  const canCreate = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
+  const canCreate = role === "SUPER_ADMIN" || role === "ADMIN" || role === "RECEPTIONIST"
 
   const serializableParams: Record<string, string> = {}
   if (filterStatus) serializableParams.status = filterStatus
@@ -308,14 +300,12 @@ export default async function InvoicesPage({
   return (
     <div className="space-y-8 animate-fade pb-20">
       
-      {/* Phase 22E: Financial Overview Hero */}
       <InvoiceHeader 
         monthlyRevenue={monthlyRevenue}
         collectionRate={collectionRate}
         outstandingBalance={outstandingBalance}
       />
       
-      {/* Phase 22E: Financial KPI Cards */}
       <InvoiceKPIs 
         monthlyRevenue={monthlyRevenue}
         totalRevenue={totalRevenue}
@@ -323,15 +313,12 @@ export default async function InvoicesPage({
         collectionRate={collectionRate}
       />
 
-      {/* Phase 22E: Financial Analytics Charts */}
       <InvoiceAnalytics 
         data={monthlyChartData}
       />
 
-      {/* Phase 22E: Reports Snapshot */}
       <ReportsSnapshot />
 
-      {/* Search, Filters & Create Invoice */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <Suspense 
           fallback={
@@ -350,7 +337,6 @@ export default async function InvoicesPage({
         )}
       </div>
 
-      {/* Premium Invoice Table Container */}
       <div className="overflow-hidden rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] shadow-[0_15px_35px_rgba(100,116,139,0.10)] p-6">
         <InvoiceTable
           invoices={invoices}
@@ -360,9 +346,7 @@ export default async function InvoicesPage({
         />
       </div>
 
-      {/* Phase 22E: Floating Quick Actions */}
       <QuickInvoiceActions />
-
     </div>
   )
 }

@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
+import { requireRole, AuthorizationError } from "@/lib/permissions"
 import { revalidatePath } from "next/cache"
 import { v2 as cloudinary } from "cloudinary"
 import {
@@ -11,23 +12,49 @@ import {
   doctorScheduleArraySchema,
 } from "@/lib/validations/settings"
 
-// إعداد Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
-async function checkAdmin() {
+// ── Role Guards ──────────────────────────────────────
+
+// ADMIN/SUPER_ADMIN only — for editing clinic settings, working hours, schedules
+async function requireClinicAdmin(clinicId: string) {
   const session = await auth()
-  if (!session?.user || !["SUPER_ADMIN", "ADMIN", "CLINIC_OWNER", "DOCTOR"].includes(session.user.role)) {
-    return null
-  }
+  if (!session?.user) return null
+  if (session.user.clinicId !== clinicId) return null
+  if (!["SUPER_ADMIN", "ADMIN"].includes(session.user.role)) return null
   return session
 }
 
+// ADMIN/SUPER_ADMIN/RECEPTIONIST — for viewing clinic settings (read-only)
+async function requireClinicViewer(clinicId: string) {
+  const session = await auth()
+  if (!session?.user) return null
+  if (session.user.clinicId !== clinicId) return null
+  if (!["SUPER_ADMIN", "ADMIN", "RECEPTIONIST"].includes(session.user.role)) return null
+  return session
+}
+
+// DOCTOR can view their OWN schedule only
+async function requireOwnScheduleAccess(doctorId: string) {
+  const session = await auth()
+  if (!session?.user) throw new AuthorizationError("Not authenticated")
+  if (session.user.role !== "DOCTOR") throw new AuthorizationError("Not authorized")
+  if (session.user.id !== doctorId) throw new AuthorizationError("You can only view your own schedule")
+  return session
+}
+
+// ── Clinic Settings ──────────────────────────────────
+
 export async function getClinicSettings(clinicId: string) {
   try {
+    // Any authenticated user in the clinic can read settings
+    const session = await requireClinicViewer(clinicId)
+    if (!session) return null
+
     let settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
 
     if (!settings) {
@@ -47,13 +74,12 @@ export async function getClinicSettings(clinicId: string) {
 }
 
 export async function updateClinicSettings(clinicId: string, rawData: unknown) {
-  const session = await checkAdmin()
-  if (!session || session.user.clinicId !== clinicId) {
+  const session = await requireClinicAdmin(clinicId)
+  if (!session) {
     return { success: false, error: "Unauthorized" }
   }
 
   try {
-    // ⬇️⬇️⬇️ فصل الـ Payment Workflow عشان الـ Zod Schema القديم مايرفضهوش ⬇️⬇⬇️
     let paymentWorkflow: string | undefined = undefined;
     if (rawData && typeof rawData === 'object' && 'paymentWorkflow' in rawData) {
       paymentWorkflow = (rawData as any).paymentWorkflow;
@@ -77,9 +103,11 @@ export async function updateClinicSettings(clinicId: string, rawData: unknown) {
   }
 }
 
+// ── Logo Upload/Delete ───────────────────────────────
+
 export async function uploadClinicLogo(clinicId: string, formData: FormData) {
-  const session = await checkAdmin()
-  if (!session || session.user.clinicId !== clinicId) {
+  const session = await requireClinicAdmin(clinicId)
+  if (!session) {
     return { success: false, error: "Unauthorized" }
   }
 
@@ -125,8 +153,8 @@ export async function uploadClinicLogo(clinicId: string, formData: FormData) {
 }
 
 export async function deleteClinicLogo(clinicId: string) {
-  const session = await checkAdmin()
-  if (!session || session.user.clinicId !== clinicId) {
+  const session = await requireClinicAdmin(clinicId)
+  if (!session) {
     return { success: false, error: "Unauthorized" }
   }
 
@@ -159,8 +187,13 @@ export async function deleteClinicLogo(clinicId: string) {
   }
 }
 
+// ── Working Hours ────────────────────────────────────
+
 export async function getWorkingHours(clinicId: string) {
   try {
+    const session = await requireClinicViewer(clinicId)
+    if (!session) return [0,1,2,3,4,5,6].map(day => ({ dayOfWeek: day, startTime: "09:00", endTime: "17:00", isClosed: day === 5 || day === 6 }))
+
     const hours = await prisma.clinicWorkingHours.findMany({
       where: { clinicId },
       orderBy: { dayOfWeek: "asc" },
@@ -177,8 +210,8 @@ export async function getWorkingHours(clinicId: string) {
 }
 
 export async function updateWorkingHours(clinicId: string, rawData: unknown) {
-  const session = await checkAdmin()
-  if (!session || session.user.clinicId !== clinicId) {
+  const session = await requireClinicAdmin(clinicId)
+  if (!session) {
     return { success: false, error: "Unauthorized" }
   }
 
@@ -196,23 +229,49 @@ export async function updateWorkingHours(clinicId: string, rawData: unknown) {
   }
 }
 
+// ── Doctor Schedules ─────────────────────────────────
+
 export async function getDoctorSchedules(doctorId: string) {
   try {
+    const session = await auth()
+    if (!session?.user) throw new AuthorizationError("Not authenticated")
+
+    // DOCTOR can only see their OWN schedule
+    if (session.user.role === "DOCTOR") {
+      await requireOwnScheduleAccess(doctorId)
+    }
+    // ADMIN/RECEPTIONIST can see any doctor's schedule
+    else if (!["SUPER_ADMIN", "ADMIN", "RECEPTIONIST"].includes(session.user.role)) {
+      throw new AuthorizationError("Not authorized")
+    }
+
     const schedules = await prisma.doctorSchedule.findMany({ where: { doctorId }, orderBy: { dayOfWeek: "asc" } })
     const days = [0, 1, 2, 3, 4, 5, 6]
     return days.map((day) => {
       const existing = schedules.find((s: any) => s.dayOfWeek === day)
       return existing || { dayOfWeek: day, startTime: "09:00", endTime: "17:00", isAvailable: day !== 5 && day !== 6 }
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") {
+      return [0,1,2,3,4,5,6].map(day => ({ dayOfWeek: day, startTime: "09:00", endTime: "17:00", isAvailable: day !== 5 && day !== 6 }))
+    }
     console.error("Error fetching doctor schedules:", error)
     return [0,1,2,3,4,5,6].map(day => ({ dayOfWeek: day, startTime: "09:00", endTime: "17:00", isAvailable: day !== 5 && day !== 6 }))
   }
 }
 
 export async function updateDoctorSchedules(doctorId: string, rawData: unknown) {
-  const session = await checkAdmin()
-  if (!session) return { success: false, error: "Unauthorized" }
+  // ── DOCTOR cannot edit schedules — only ADMIN/RECEPTIONIST ──
+  const session = await auth()
+  if (!session?.user) return { success: false, error: "Unauthorized" }
+
+  if (session.user.role === "DOCTOR") {
+    return { success: false, error: "Doctors cannot modify clinic schedules. Contact your admin." }
+  }
+
+  if (!["SUPER_ADMIN", "ADMIN", "RECEPTIONIST"].includes(session.user.role)) {
+    return { success: false, error: "Not authorized" }
+  }
 
   try {
     const validated = doctorScheduleArraySchema.parse(rawData)
@@ -229,8 +288,18 @@ export async function updateDoctorSchedules(doctorId: string, rawData: unknown) 
 }
 
 export async function updateDoctorCapacity(doctorId: string, duration: number, maxAppointments: number) {
-  const session = await checkAdmin()
-  if (!session) return { success: false, error: "Unauthorized" }
+  // ── DOCTOR cannot edit capacity — only ADMIN/RECEPTIONIST ──
+  const session = await auth()
+  if (!session?.user) return { success: false, error: "Unauthorized" }
+
+  if (session.user.role === "DOCTOR") {
+    return { success: false, error: "Doctors cannot modify capacity settings." }
+  }
+
+  if (!["SUPER_ADMIN", "ADMIN", "RECEPTIONIST"].includes(session.user.role)) {
+    return { success: false, error: "Not authorized" }
+  }
+
   if (!doctorId || duration <= 0 || maxAppointments <= 0) return { success: false, error: "Invalid data provided" }
 
   try {
@@ -244,9 +313,17 @@ export async function updateDoctorCapacity(doctorId: string, duration: number, m
   }
 }
 
+// ── Get Clinic Doctors ───────────────────────────────
+
 export async function getClinicDoctors(clinicId: string) {
   try {
-    return await prisma.user.findMany({ where: { clinicId, role: "DOCTOR" }, select: { id: true, name: true, appointmentDuration: true, maxDailyAppointments: true } })
+    const session = await requireClinicViewer(clinicId)
+    if (!session) return []
+
+    return await prisma.user.findMany({ 
+      where: { clinicId, role: "DOCTOR" }, 
+      select: { id: true, name: true, appointmentDuration: true, maxDailyAppointments: true } 
+    })
   } catch (error) {
     console.error("Error fetching clinic doctors:", error)
     return []

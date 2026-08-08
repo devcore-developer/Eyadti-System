@@ -33,7 +33,8 @@ export default async function PatientsPage({
   const gender = typeof params.gender === "string" ? params.gender.trim() : ""
   const sort = typeof params.sort === "string" ? params.sort.trim() : "desc"
 
-  const where = {
+  // ── Base WHERE clause ──────────────────────────────
+  const baseWhere: any = {
     clinicId: session.user.clinicId,
     ...(search && {
       OR: [
@@ -43,6 +44,49 @@ export default async function PatientsPage({
       ],
     }),
     ...(gender && { gender: gender as "MALE" | "FEMALE" | "OTHER" }),
+  }
+
+  // ── DOCTOR: Only see patients they have interacted with ──
+  let where = baseWhere
+  if (session.user.role === "DOCTOR") {
+    // Get patient IDs that have visits OR appointments with this doctor
+    const doctorPatients = await prisma.patient.findMany({
+      where: {
+        clinicId: session.user.clinicId,
+        OR: [
+          {
+            visits: {
+              some: {
+                doctorId: session.user.id,
+              },
+            },
+          },
+          {
+            appointments: {
+              some: {
+                doctorId: session.user.id,
+              },
+            },
+          },
+        ],
+        // Also apply search filter at this level
+        ...(search && {
+          OR: [
+            { fullName: { contains: search, mode: "insensitive" as const } },
+            { email: { contains: search, mode: "insensitive" as const } },
+            { phone: { contains: search, mode: "insensitive" as const } },
+          ],
+        }),
+        ...(gender && { gender: gender as "MALE" | "FEMALE" | "OTHER" }),
+      },
+      select: { id: true },
+    })
+
+    const patientIds = doctorPatients.map((p) => p.id)
+    where = {
+      id: { in: patientIds },
+      clinicId: session.user.clinicId,
+    }
   }
 
   const orderBy = sort === "asc" ? { createdAt: "asc" as const } : { createdAt: "desc" as const }
@@ -67,6 +111,8 @@ export default async function PatientsPage({
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
+  
+  // ── Create button: Not for DOCTOR ──
   const showCreate = session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST"
   
   const serializableParams: Record<string, string> = {}

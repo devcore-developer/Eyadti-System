@@ -78,6 +78,16 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
   const session = await auth()
   if (!session?.user?.clinicId) redirect("/login")
   const clinicId = session.user.clinicId
+  const userRole = session.user.role
+
+  // ── Role-based visibility flags ──────────────────────
+  const isDoctor = userRole === "DOCTOR"
+  const isReception = userRole === "RECEPTIONIST"
+  const hideFinancial = isDoctor || isReception
+  const hideAllCharts = isDoctor
+  const hideOtherDoctors = isDoctor
+  const hideInvoicesInActivity = isDoctor || isReception
+  const hideAttendance = isDoctor
 
   const [stats, chartData, recentActivity, doctorAnalytics, clinic, attendanceStats] = await Promise.all([
     getDashboardStats(clinicId, period),
@@ -90,28 +100,38 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
 
   const doctorName = session.user.name || "Doctor"
 
+  // ── KPI Grid: dynamic columns based on visible cards ──
+  const kpiGridClass = hideFinancial
+    ? "grid grid-cols-2 gap-3 md:gap-4 lg:gap-5 max-w-2xl"
+    : "grid grid-cols-2 gap-3 md:gap-4 lg:gap-5 xl:grid-cols-4"
+
+  let kpiIndex = 0
   const statsComponent = (
-    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:gap-5 xl:grid-cols-4">
-      <PremiumKPICard
-        title="Revenue" value={formatCurrency(stats.monthlyRevenue)} subtitle={`${formatCurrency(stats.totalRevenue)} total`}
-        icon={TrendingUp} accentColor="text-[#4ADE80]" iconBg="bg-[#4ADE80]/[0.08]"
-        tint="rgba(74,222,128,0.03)" href="/invoices" index={0}
-      />
+    <div className={kpiGridClass}>
+      {!hideFinancial && (
+        <PremiumKPICard
+          title="Revenue" value={formatCurrency(stats.monthlyRevenue)} subtitle={`${formatCurrency(stats.totalRevenue)} total`}
+          icon={TrendingUp} accentColor="text-[#4ADE80]" iconBg="bg-[#4ADE80]/[0.08]"
+          tint="rgba(74,222,128,0.03)" href="/invoices" index={kpiIndex++}
+        />
+      )}
       <PremiumKPICard
         title="Patients" value={stats.totalPatients.toLocaleString()} subtitle={`${stats.newPatients} new this period`}
         icon={Users} accentColor="text-[#5BC0BE]" iconBg="bg-[#5BC0BE]/[0.08]"
-        tint="rgba(91,192,190,0.03)" href="/patients" index={1}
+        tint="rgba(91,192,190,0.03)" href="/patients" index={kpiIndex++}
       />
       <PremiumKPICard
         title="Appointments" value={stats.todayAppointments.toString()} subtitle={`${stats.upcomingAppointments} upcoming`}
         icon={CalendarCheck} accentColor="text-[#6B9CFF]" iconBg="bg-[#6B9CFF]/[0.08]"
-        tint="rgba(107,156,255,0.03)" href="/appointments" index={2}
+        tint="rgba(107,156,255,0.03)" href="/appointments" index={kpiIndex++}
       />
-      <PremiumKPICard
-        title="Unpaid" value={stats.unpaidInvoicesCount.toString()} subtitle={formatCurrency(stats.unpaidInvoicesAmount)}
-        icon={AlertCircle} accentColor="text-[#F4B860]" iconBg="bg-[#F4B860]/[0.08]"
-        tint="rgba(244,184,96,0.03)" href="/invoices?status=UNPAID" index={3}
-      />
+      {!hideFinancial && (
+        <PremiumKPICard
+          title="Unpaid" value={stats.unpaidInvoicesCount.toString()} subtitle={formatCurrency(stats.unpaidInvoicesAmount)}
+          icon={AlertCircle} accentColor="text-[#F4B860]" iconBg="bg-[#F4B860]/[0.08]"
+          tint="rgba(244,184,96,0.03)" href="/invoices?status=UNPAID" index={kpiIndex++}
+        />
+      )}
     </div>
   )
 
@@ -119,8 +139,8 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
     <HeroWelcome
       doctorName={doctorName}
       appointmentsCount={stats.todayAppointments}
-      pendingInvoices={stats.unpaidInvoicesCount}
-      monthlyRevenue={stats.monthlyRevenue}
+      pendingInvoices={hideFinancial ? 0 : stats.unpaidInvoicesCount}
+      monthlyRevenue={hideFinancial ? 0 : stats.monthlyRevenue}
     />
   )
   
@@ -134,12 +154,28 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
 
   const recentListsComponent = (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      <div className="lg:col-span-2">
-        <RecentActivity patients={recentActivity.patients} appointments={recentActivity.appointments} invoices={recentActivity.invoices} />
+      <div className={hideOtherDoctors ? "" : "lg:col-span-2"}>
+        <RecentActivity
+          patients={recentActivity.patients}
+          appointments={recentActivity.appointments}
+          invoices={hideInvoicesInActivity ? [] : recentActivity.invoices}
+        />
       </div>
-      <div className="hidden lg:block"><TopDoctors doctors={doctorAnalytics} /></div>
+      {!hideOtherDoctors && (
+        <div className="hidden lg:block"><TopDoctors doctors={doctorAnalytics} /></div>
+      )}
     </div>
   )
+
+  // ── Mobile FAB: hide Invoice for non-financial roles ──
+  const fabActions = [
+    { label: "New Patient", href: "/patients/new", icon: <UserPlus className="h-5 w-5 text-gray-600" /> },
+    { label: "Appointment", href: "/appointments/new", icon: <CalendarDays className="h-5 w-5 text-gray-600" /> },
+    ...(!hideFinancial ? [
+      { label: "Invoice", href: "/invoices/new", icon: <FileText className="h-5 w-5 text-gray-600" /> }
+    ] : []),
+    { label: "Prescription", href: "#", icon: <Pill className="h-5 w-5 text-gray-600" /> },
+  ]
 
   return (
     <>
@@ -159,15 +195,11 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
             recentActivity={recentActivity}
             attendanceStats={attendanceStats}
             doctorAnalytics={doctorAnalytics}
+            userRole={userRole}
           />
         </MobileLayout>
 
-        <MobileFab actions={[
-          { label: "New Patient", href: "/patients/new", icon: <UserPlus className="h-5 w-5 text-gray-600" /> },
-          { label: "Appointment", href: "/appointments/new", icon: <CalendarDays className="h-5 w-5 text-gray-600" /> },
-          { label: "Invoice", href: "/invoices/new", icon: <FileText className="h-5 w-5 text-gray-600" /> },
-          { label: "Prescription", href: "#", icon: <Pill className="h-5 w-5 text-gray-600" /> },
-        ]} />
+        <MobileFab actions={fabActions} />
 
         <MobileBottomNav links={[
           { label: "Home", href: "/dashboard", active: true, icon: <CalendarDays className="w-[24px] h-[24px]" /> },
@@ -186,20 +218,27 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
             {filterComponent}
           </div>
           {statsComponent}
-          {attendanceStats.totalDoctors > 0 && (
+          {!hideAttendance && attendanceStats.totalDoctors > 0 && (
             <AttendanceKPIs stats={attendanceStats} />
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2">
-              <div className="rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-white dark:bg-[#223247] shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">
-                <AnalyticsCharts data={chartData} />
+
+          {/* Charts + Upcoming: full layout for Admin/Reception, compact for Doctor */}
+          {!hideAllCharts ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div className="lg:col-span-2">
+                <div className="rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-white dark:bg-[#223247] shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5">
+                  <AnalyticsCharts data={chartData} userRole={userRole} />
+                </div>
+              </div>
+              <div className="space-y-5">
+                {upcomingComponent}
+                {!hideOtherDoctors && <TopDoctors doctors={doctorAnalytics} />}
               </div>
             </div>
-            <div className="space-y-5">
-              {upcomingComponent}
-              <TopDoctors doctors={doctorAnalytics} />
-            </div>
-          </div>
+          ) : (
+            upcomingComponent
+          )}
+
           {recentListsComponent}
         </div>
       </div>

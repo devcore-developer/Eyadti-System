@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { useLang } from "@/lib/i18n-context" // ⬅️ إضافة الـ Hook
 import {
   LayoutDashboard,
   Users,
@@ -20,127 +19,209 @@ import {
   BarChart3,
   Activity,
   Zap,
+  UserCircle,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
-// ⬇️⬇️⬇️ أضفنا الـ key لكل عنصر عشان نربطه بالقاموس ⬇️⬇⬇️
-const navigation = [
-  { key: "dashboard", name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { key: "newVisit", name: "New Visit", href: "/reception/new", icon: UserPlus },
-  { key: "appointments", name: "Appointments", href: "/appointments", icon: CalendarDays },
-  { key: "waitingRoom", name: "Waiting Room", href: "/waiting-room", icon: Monitor },
-  { key: "onlineBooking", name: "Online Bookings", href: "/appointments/online", icon: Globe },
-  { key: "patients", name: "Patients", href: "/patients", icon: Users },
-  { key: "invoices", name: "Invoices", href: "/invoices", icon: Receipt },
+// ── Types ────────────────────────────────────────────
+
+type NavItem = {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+type NavSection = {
+  items: NavItem[]
+  label?: string
+  labelColor?: string
+  isPlatform?: boolean
+}
+
+// ── Navigation Definitions ───────────────────────────
+
+// يشترك فيها كل الأدوار
+const baseNav: NavItem[] = [
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Appointments", href: "/appointments", icon: CalendarDays },
+  { name: "Patients", href: "/patients", icon: Users },
 ]
 
-const adminNavigation = [
-  { key: "usersRoles", name: "Users & Roles", href: "/admin/users", icon: Shield },
-  { key: "clinicSettings", name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
-  { key: "publicBooking", name: "Public Booking", href: "/book", icon: Globe },
-  { key: "billingPlan", name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
-  { key: "auditLogs", name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
-  { key: "branches", name: "Branches", href: "/settings/branches", icon: Building2 },
+// الريسبشن والأدمن فقط (عمليات يومية)
+const operationalNav: NavItem[] = [
+  { name: "New Visit", href: "/reception/new", icon: UserPlus },
+  { name: "Waiting Room", href: "/waiting-room", icon: Monitor },
+  { name: "Online Bookings", href: "/appointments/online", icon: Globe },
 ]
 
-const superAdminNavigation = [
-  { key: "platformOverview", name: "Platform Overview", href: "/super-admin", icon: BarChart3 },
-  { key: "allClinics", name: "All Clinics", href: "/super-admin/clinics", icon: Building2 },
-  { key: "platformBilling", name: "Platform Billing", href: "/super-admin/billing", icon: CreditCard },
-  { key: "systemHealth", name: "System Health", href: "/super-admin/system-health", icon: Activity },
-  { key: "featureFlags", name: "Feature Flags", href: "/super-admin/features", icon: Zap },
+// الأدمن فقط (مالي + إداري)
+const financialNav: NavItem[] = [
+  { name: "Invoices", href: "/invoices", icon: Receipt },
 ]
 
-export function SidebarNav({ isAdmin, isSuperAdmin }: { isAdmin: boolean; isSuperAdmin?: boolean }) {
+const adminSectionNav: NavItem[] = [
+  { name: "Users & Roles", href: "/admin/users", icon: Shield },
+  { name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
+  { name: "Public Booking", href: "/book", icon: Globe },
+  { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
+  { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
+  { name: "Branches", href: "/settings/branches", icon: Building2 },
+]
+
+// الدكتور فقط
+const doctorSectionNav: NavItem[] = [
+  { name: "My Account", href: "/settings", icon: UserCircle },
+]
+
+// السوبر أدمن فقط
+const superAdminSectionNav: NavItem[] = [
+  { name: "Platform Overview", href: "/super-admin", icon: BarChart3 },
+  { name: "All Clinics", href: "/super-admin/clinics", icon: Building2 },
+  { name: "Platform Billing", href: "/super-admin/billing", icon: CreditCard },
+  { name: "System Health", href: "/super-admin/system-health", icon: Activity },
+  { name: "Feature Flags", href: "/super-admin/features", icon: Zap },
+]
+
+// ── Role → Navigation Mapper ─────────────────────────
+
+function getNavForRole(role: string): NavSection[] {
+  const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN"
+  const isReception = role === "RECEPTIONIST"
+  const isDoctor = role === "DOCTOR"
+  const isSuperAdmin = role === "SUPER_ADMIN"
+
+  const sections: NavSection[] = []
+
+  // ── القسم الرئيسي ──
+  const mainItems: NavItem[] = [...baseNav]
+
+  if (isReception || isAdmin) {
+    mainItems.push(...operationalNav)
+  }
+
+  if (isAdmin) {
+    mainItems.push(...financialNav)
+  }
+
+  sections.push({ items: mainItems })
+
+  // ── قسم حساب الدكتور ──
+  if (isDoctor) {
+    sections.push({
+      items: doctorSectionNav,
+      label: "Account",
+      labelColor: "text-slate-400 dark:text-slate-500",
+    })
+  }
+
+  // ── قسم الإدارة ──
+  if (isAdmin) {
+    sections.push({
+      items: adminSectionNav,
+      label: "Administration",
+      labelColor: "text-slate-400 dark:text-slate-500",
+    })
+  }
+
+  // ── قسم المنصة ──
+  if (isSuperAdmin) {
+    sections.push({
+      items: superAdminSectionNav,
+      label: "Platform",
+      labelColor: "text-primary/70",
+      isPlatform: true,
+    })
+  }
+
+  return sections
+}
+
+// ── Component ────────────────────────────────────────
+
+export function SidebarNav({ userRole }: { userRole: string }) {
   const pathname = usePathname()
-  const { t } = useLang() // ⬅️ الترجمة
+  const sections = getNavForRole(userRole)
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/")
   }
 
+  function renderNavItem(item: NavItem, isPlatformStyle = false) {
+    const active = isActive(item.href)
+
+    if (isPlatformStyle) {
+      return (
+        <Link
+          key={item.name}
+          href={item.href}
+          className={cn(
+            "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
+            active
+              ? "active text-primary bg-primary/[0.08]"
+              : "text-slate-500 dark:text-slate-400 hover:bg-primary/[0.04] hover:text-primary"
+          )}
+        >
+          <item.icon
+            className={cn(
+              "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
+              active
+                ? "text-primary"
+                : "text-slate-400 dark:text-slate-500 group-hover:text-primary/70"
+            )}
+          />
+          <span className="truncate">{item.name}</span>
+        </Link>
+      )
+    }
+
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        className={cn(
+          "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
+          active
+            ? "active"
+            : "text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-white"
+        )}
+      >
+        <item.icon
+          className={cn(
+            "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
+            active
+              ? "text-sidebar-accent-foreground"
+              : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+          )}
+        />
+        <span className="truncate">{item.name}</span>
+      </Link>
+    )
+  }
+
   return (
     <nav className="flex-1 space-y-0.5 overflow-y-auto py-2">
-      {navigation.map((item) => {
-        const active = isActive(item.href)
-        return (
-          <Link
-            key={item.key}
-            href={item.href}
-            className={cn(
-              "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
-              active
-                ? "active"
-                : "text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-white"
-            )}
-          >
-            <item.icon
+      {sections.map((section, idx) => (
+        <div key={idx}>
+          {idx > 0 && (
+            <Separator className="my-3 bg-gray-100 dark:bg-white/[0.06]" />
+          )}
+          {section.label && (
+            <p
               className={cn(
-                "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
-                active
-                  ? "text-sidebar-accent-foreground"
-                  : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+                "px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest",
+                section.labelColor
               )}
-            />
-            {/* ⬇️⬇️⬇️ استخدام دالة الترجمة ⬇️⬇⬇️ */}
-            <span className="truncate">{t(`sidebar.${item.key}`)}</span>
-          </Link>
-        )
-      })}
-
-      {isAdmin && (
-        <>
-          <Separator className="my-3 bg-gray-100 dark:bg-white/[0.06]" />
-          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            {t("sidebar.administration")}
-          </p>
+            >
+              {section.label}
+            </p>
+          )}
           <div className="space-y-0.5">
-            {adminNavigation.map((item) => {
-              const active = isActive(item.href)
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className={cn(
-                    "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
-                    active ? "active" : "text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-white"
-                  )}
-                >
-                  <item.icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors duration-150", active ? "text-sidebar-accent-foreground" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")} />
-                  <span className="truncate">{t(`sidebar.${item.key}`)}</span>
-                </Link>
-              )
-            })}
+            {section.items.map((item) =>
+              renderNavItem(item, section.isPlatform)
+            )}
           </div>
-        </>
-      )}
-
-      {isSuperAdmin && (
-        <>
-          <Separator className="my-3 bg-gray-100 dark:bg-white/[0.06]" />
-          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-primary/70">
-            {t("sidebar.platform")}
-          </p>
-          <div className="space-y-0.5">
-            {superAdminNavigation.map((item) => {
-              const active = isActive(item.href)
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className={cn(
-                    "sidebar-item group flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150",
-                    active ? "active text-primary bg-primary/[0.08]" : "text-slate-500 dark:text-slate-400 hover:bg-primary/[0.04] hover:text-primary"
-                  )}
-                >
-                  <item.icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors duration-150", active ? "text-primary" : "text-slate-400 dark:text-slate-500 group-hover:text-primary/70")} />
-                  <span className="truncate">{t(`sidebar.${item.key}`)}</span>
-                </Link>
-              )
-            })}
-          </div>
-        </>
-      )}
+        </div>
+      ))}
     </nav>
   )
 }

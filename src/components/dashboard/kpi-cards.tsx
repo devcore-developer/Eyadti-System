@@ -1,79 +1,80 @@
 // components/dashboard/kpi-cards.tsx
-"use client"
-
 import Link from "next/link"
 import { Users, CalendarCheck, DollarSign, Clock, Bell } from "lucide-react"
-import { useLang } from "@/lib/i18n-context"
 
 const kpiData = [
   {
-    titleKey: "kpi.totalPatients",
+    title: "Total Patients",
     value: "1,245",
     growth: "+12%",
     trend: "up",
-    descKey: "kpi.comparedToLastMonth",
     description: "compared to last month",
     icon: Users,
     accent: "text-[#5BC0BE]",
     iconBg: "bg-[#5BC0BE]/10",
-    href: "/patients"
+    href: "/patients",
+    // لا يوجد restrictRole → يظهر للكل
   },
   {
-    titleKey: "kpi.appointments",
+    title: "Appointments",
     value: "184",
     growth: "+5%",
     trend: "up",
-    descKey: "kpi.comparedToLastMonth",
     description: "compared to last month",
     icon: CalendarCheck,
     accent: "text-[#6B9CFF]",
     iconBg: "bg-[#6B9CFF]/10",
-    href: "/appointments"
+    href: "/appointments",
   },
   {
-    titleKey: "kpi.revenue",
+    title: "Revenue",
     value: "$12,450",
     growth: "+18%",
     trend: "up",
-    descKey: "kpi.comparedToLastMonth",
     description: "compared to last month",
     icon: DollarSign,
     accent: "text-[#6B9CFF]",
     iconBg: "bg-[#6B9CFF]/10",
-    href: "/invoices"
+    href: "/invoices",
+    restrictRole: true, // ADMIN فقط
   },
   {
-    titleKey: "kpi.pendingInvoices",
+    title: "Pending Invoices",
     value: "23",
     growth: "-3%",
     trend: "down",
-    descKey: "kpi.comparedToLastMonth",
     description: "compared to last month",
     icon: Clock,
     accent: "text-[#F4B860]",
     iconBg: "bg-[#F4B860]/10",
-    href: "/invoices"
+    href: "/invoices",
+    restrictRole: true, // ADMIN فقط
   },
   {
-    titleKey: "kpi.newNotifications",
+    title: "New Notifications",
     value: "3",
     growth: "Action required",
     trend: "up",
-    descKey: "kpi.actionRequired",
     description: "Click to view details",
     icon: Bell,
     accent: "text-[#EF6B6B]",
     iconBg: "bg-[#EF6B6B]/10",
-    href: "/notifications"
+    href: "/notifications",
   }
 ]
 
-export function KPICards() {
-  const { t } = useLang()
+interface KPICardsProps {
+  userRole?: string
+}
+
+export function KPICards({ userRole = "ADMIN" }: KPICardsProps) {
+  const isAdmin = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
+
+  const visibleKpis = kpiData.filter(kpi => !kpi.restrictRole || isAdmin)
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-      {kpiData.map((kpi, index) => {
+    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 ${isAdmin ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
+      {visibleKpis.map((kpi, index) => {
         const Icon = kpi.icon
         return (
           <Link 
@@ -95,8 +96,8 @@ export function KPICards() {
             
             <div className="relative z-10">
               <h3 className="text-2xl md:text-[32px] font-extrabold text-foreground tracking-tight drop-shadow-sm">{kpi.value}</h3>
-              <p className="text-sm font-semibold text-foreground/80 mt-1">{t(kpi.titleKey)}</p>
-              <p className="text-xs text-muted-foreground mt-2">{t(kpi.descKey)}</p>
+              <p className="text-sm font-semibold text-foreground/80 mt-1">{kpi.title}</p>
+              <p className="text-xs text-muted-foreground mt-2">{kpi.description}</p>
             </div>
           </Link>
         )

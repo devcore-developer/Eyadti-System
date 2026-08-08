@@ -39,6 +39,7 @@ type MobileDashboardProps = {
     branchCoverage: { branchId: string; branchName: string; doctorCount: number }[]
   }
   doctorAnalytics: any[]
+  userRole: string
 }
 
 function getGreeting() {
@@ -49,7 +50,13 @@ function getGreeting() {
 }
 
 /* ═══ Hero ═══ */
-function MobileHero({ doctorName, clinicName, todayAppointments, pendingInvoices, newPatients }: any) {
+function MobileHero({ doctorName, clinicName, todayAppointments, pendingInvoices, newPatients, hideFinancial }: any) {
+  const heroStats = [
+    { label: "Today", value: todayAppointments },
+    ...(!hideFinancial ? [{ label: "Pending", value: pendingInvoices }] : []),
+    { label: "New", value: newPatients },
+  ]
+
   return (
     <div className="relative overflow-hidden" style={{ borderRadius: 20, padding: 20, background: "linear-gradient(135deg, #2B9E99 0%, #5BC0BE 40%, #6B9CFF 100%)", boxShadow: "0 8px 32px rgba(107,156,255,0.18)" }}>
       <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.12), transparent 70%)" }} />
@@ -58,11 +65,7 @@ function MobileHero({ doctorName, clinicName, todayAppointments, pendingInvoices
         <h2 className="text-white text-[22px] font-bold leading-tight mt-0.5 truncate">{doctorName}</h2>
         <p className="text-white/50 text-[11px] mt-0.5 truncate">{clinicName}</p>
         <div className="flex gap-2 mt-4">
-          {[
-            { label: "Today", value: todayAppointments },
-            { label: "Pending", value: pendingInvoices },
-            { label: "New", value: newPatients },
-          ].map((s) => (
+          {heroStats.map((s: any) => (
             <div key={s.label} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.1)" }}>
               <span className="text-white/60 text-[10px] font-medium">{s.label}</span>
               <span className="text-white text-[13px] font-bold tabular-nums">{s.value}</span>
@@ -75,17 +78,21 @@ function MobileHero({ doctorName, clinicName, todayAppointments, pendingInvoices
 }
 
 /* ═══ Quick Actions ═══ */
-function MobileQuickActions() {
+function MobileQuickActions({ hideFinancial }: { hideFinancial: boolean }) {
   const router = useRouter()
   const actions = [
     { icon: UserPlus, label: "Patient", href: "/patients/new", bg: "#5BC0BE", tint: "rgba(91,192,190,0.06)" },
     { icon: CalendarDays, label: "Appointment", href: "/appointments/new", bg: "#6B9CFF", tint: "rgba(107,156,255,0.06)" },
-    { icon: FileText, label: "Invoice", href: "/invoices/new", bg: "#6BCB77", tint: "rgba(107,203,119,0.06)" },
+    ...(!hideFinancial ? [
+      { icon: FileText, label: "Invoice", href: "/invoices/new", bg: "#6BCB77", tint: "rgba(107,203,119,0.06)" }
+    ] : []),
     { icon: Pill, label: "Prescription", href: "#", bg: "#F4B860", tint: "rgba(244,184,96,0.06)" },
   ]
 
+  const gridCols = actions.length === 3 ? "grid-cols-3" : "grid-cols-4"
+
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className={`grid ${gridCols} gap-3`}>
       {actions.map((action) => (
         <button key={action.label} onClick={() => router.push(action.href)} className="flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform" style={{ padding: "12px 4px", borderRadius: 16, background: action.tint }}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${action.bg}15` }}>
@@ -99,13 +106,19 @@ function MobileQuickActions() {
 }
 
 /* ═══ Stats ═══ */
-function MobileStats({ stats, newPatients }: { stats: MobileDashboardProps["stats"]; newPatients: number }) {
-  const cards = [
-    { icon: TrendingUp, label: "Revenue", value: formatCurrency(stats.monthlyRevenue), sub: "this month", bg: "#6BCB77", tint: "rgba(107,203,119,0.03)" },
+function MobileStats({ stats, newPatients, hideFinancial }: { stats: MobileDashboardProps["stats"]; newPatients: number; hideFinancial: boolean }) {
+  const cards: { icon: any; label: string; value: string; sub: string; bg: string; tint: string }[] = [
+    ...(!hideFinancial ? [
+      { icon: TrendingUp, label: "Revenue", value: formatCurrency(stats.monthlyRevenue), sub: "this month", bg: "#6BCB77", tint: "rgba(107,203,119,0.03)" },
+    ] : []),
     { icon: Users, label: "Patients", value: stats.totalPatients.toLocaleString(), sub: `+${newPatients} new`, bg: "#5BC0BE", tint: "rgba(91,192,190,0.03)" },
     { icon: CalendarCheck, label: "Appointments", value: stats.todayAppointments.toString(), sub: `${stats.upcomingAppointments} upcoming`, bg: "#6B9CFF", tint: "rgba(107,156,255,0.03)" },
-    { icon: AlertCircle, label: "Unpaid", value: stats.unpaidInvoicesCount.toString(), sub: formatCurrency(stats.unpaidInvoicesAmount), bg: "#F4B860", tint: "rgba(244,184,96,0.03)" },
+    ...(!hideFinancial ? [
+      { icon: AlertCircle, label: "Unpaid", value: stats.unpaidInvoicesCount.toString(), sub: formatCurrency(stats.unpaidInvoicesAmount), bg: "#F4B860", tint: "rgba(244,184,96,0.03)" },
+    ] : []),
   ]
+
+  if (cards.length === 0) return null
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -123,7 +136,7 @@ function MobileStats({ stats, newPatients }: { stats: MobileDashboardProps["stat
   )
 }
 
-/* ═══ TODAY'S ATTENDANCE (NEW) ═══ */
+/* ═══ TODAY'S ATTENDANCE ═══ */
 function MobileAttendance({ stats }: { stats: MobileDashboardProps["attendanceStats"] }) {
   if (stats.totalDoctors === 0) return null;
   const cards = [
@@ -165,7 +178,7 @@ function MobileAttendance({ stats }: { stats: MobileDashboardProps["attendanceSt
   )
 }
 
-/* ═══ CHARTS (Revenue, Patient Growth, Appointments) ═══ */
+/* ═══ CHARTS ═══ */
 function MobileChart({ data }: { data: any[] }) {
   if (!data || data.length === 0) return null
   const isEmpty = data.every(d => d.revenue === 0)
@@ -357,7 +370,7 @@ function MobileRecentSection({ title, items, viewAllHref, renderRow }: { title: 
   )
 }
 
-/* ═══ TOP DOCTORS (NEW) ═══ */
+/* ═══ TOP DOCTORS ═══ */
 function MobileTopDoctors({ doctors }: { doctors: any[] }) {
   if (doctors.length === 0) return null;
 
@@ -393,23 +406,44 @@ function MobileTopDoctors({ doctors }: { doctors: any[] }) {
 /* ═══ MAIN DASHBOARD ═══ */
 export function MobileDashboard({
   doctorName, clinicName, todayAppointments, pendingInvoices, newPatients,
-  stats, chartData, recentActivity, attendanceStats, doctorAnalytics
+  stats, chartData, recentActivity, attendanceStats, doctorAnalytics, userRole
 }: MobileDashboardProps) {
+  // ── Role-based visibility flags ──────────────────────
+  const isDoctor = userRole === "DOCTOR"
+  const isReception = userRole === "RECEPTIONIST"
+  const hideFinancial = isDoctor || isReception
+  const hideAllCharts = isDoctor
+  const hideOtherDoctors = isDoctor
+  const hideInvoicesInActivity = isDoctor || isReception
+  const hideAttendance = isDoctor
+
   return (
     <>
-      <MobileHero doctorName={doctorName} clinicName={clinicName} todayAppointments={todayAppointments} pendingInvoices={pendingInvoices} newPatients={newPatients} />
+      <MobileHero
+        doctorName={doctorName}
+        clinicName={clinicName}
+        todayAppointments={todayAppointments}
+        pendingInvoices={pendingInvoices}
+        newPatients={newPatients}
+        hideFinancial={hideFinancial}
+      />
       
-      <MobileQuickActions />
+      <MobileQuickActions hideFinancial={hideFinancial} />
       
-      <MobileStats stats={stats} newPatients={newPatients} />
+      <MobileStats stats={stats} newPatients={newPatients} hideFinancial={hideFinancial} />
       
-      <MobileAttendance stats={attendanceStats} />
+      {!hideAttendance && <MobileAttendance stats={attendanceStats} />}
       
-      <MobileChart data={chartData} />
-      
-      <MobilePatientGrowthChart data={chartData} />
-      
-      <MobileAppointmentsActivityChart data={chartData} />
+      {/* Charts: Doctor sees none, Reception sees non-revenue only */}
+      {!hideAllCharts && !hideFinancial && (
+        <MobileChart data={chartData} />
+      )}
+      {!hideAllCharts && (
+        <>
+          <MobilePatientGrowthChart data={chartData} />
+          <MobileAppointmentsActivityChart data={chartData} />
+        </>
+      )}
       
       <MobileUpcoming appointments={recentActivity.appointments} />
       
@@ -457,38 +491,42 @@ export function MobileDashboard({
         }}
       />
 
-      <MobileRecentSection
-        title="Recent Invoices"
-        items={recentActivity.invoices}
-        viewAllHref="/invoices"
-        renderRow={(inv: any) => {
-          const statusCfg = inv.status === "PAID"
-            ? { bg: "rgba(107,203,119,0.08)", text: "#6BCB77" }
-            : inv.status === "CANCELLED"
-            ? { bg: "rgba(239,107,107,0.08)", text: "#EF6B6B" }
-            : { bg: "rgba(244,184,96,0.08)", text: "#F4B860" }
+      {/* Recent Invoices: Admin only */}
+      {!hideInvoicesInActivity && (
+        <MobileRecentSection
+          title="Recent Invoices"
+          items={recentActivity.invoices}
+          viewAllHref="/invoices"
+          renderRow={(inv: any) => {
+            const statusCfg = inv.status === "PAID"
+              ? { bg: "rgba(107,203,119,0.08)", text: "#6BCB77" }
+              : inv.status === "CANCELLED"
+              ? { bg: "rgba(239,107,107,0.08)", text: "#EF6B6B" }
+              : { bg: "rgba(244,184,96,0.08)", text: "#F4B860" }
 
-          return (
-            <>
-              <div className="w-9 h-9 rounded-full bg-[#F4B860]/[0.08] flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-[#F4B860]" strokeWidth={2} />
-              </div>
-              <div className="flex-1 min-w-0 ml-3">
-                <p className="text-[13px] font-medium text-gray-900 truncate">{inv.patientName}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[11px] font-semibold text-gray-600 tabular-nums">{formatCurrency(inv.amount)}</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: statusCfg.bg, color: statusCfg.text }}>
-                    {inv.status}
-                  </span>
+            return (
+              <>
+                <div className="w-9 h-9 rounded-full bg-[#F4B860]/[0.08] flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4 text-[#F4B860]" strokeWidth={2} />
                 </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-            </>
-          )
-        }}
-      />
+                <div className="flex-1 min-w-0 ml-3">
+                  <p className="text-[13px] font-medium text-gray-900 truncate">{inv.patientName}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[11px] font-semibold text-gray-600 tabular-nums">{formatCurrency(inv.amount)}</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: statusCfg.bg, color: statusCfg.text }}>
+                      {inv.status}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+              </>
+            )
+          }}
+        />
+      )}
 
-      <MobileTopDoctors doctors={doctorAnalytics} />
+      {/* Top Doctors: Admin & Reception only */}
+      {!hideOtherDoctors && <MobileTopDoctors doctors={doctorAnalytics} />}
     </>
   )
 }

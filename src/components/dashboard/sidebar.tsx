@@ -26,7 +26,8 @@ export function Sidebar({
   selectedBranchId: string | null;
   isMobile?: boolean;
 }) {
-  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN"
+  const userRole = user?.role || ""
+  const isAdmin = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
   const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"
 
   return (
@@ -62,7 +63,7 @@ export function Sidebar({
       )}
 
       <div className="flex-1 overflow-y-auto min-h-0 px-2.5 py-2 overscroll-contain hide-scrollbar">
-        <SidebarNav isAdmin={isAdmin} />
+        <SidebarNav userRole={userRole} />
       </div>
 
       <div className="mt-auto border-t border-gray-200/60 dark:border-white/[0.06] p-3">

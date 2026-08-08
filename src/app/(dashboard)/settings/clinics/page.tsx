@@ -14,9 +14,15 @@ export default async function ClinicSettingsPage() {
   const session = await auth()
   if (!session?.user?.clinicId) redirect("/login")
 
+  // ── SERVER-LEVEL AUTHORIZATION: Block DOCTOR from this page entirely ──
+  if (session.user.role === "DOCTOR") {
+    redirect("/settings")
+  }
+
   const clinicId = session.user.clinicId
   
-  const isReadOnly = !["SUPER_ADMIN", "ADMIN", "CLINIC_OWNER"].includes(session.user.role)
+  // ADMIN and SUPER_ADMIN can edit; RECEPTIONIST is read-only
+  const isReadOnly = !["SUPER_ADMIN", "ADMIN"].includes(session.user.role)
 
   const [settings, workingHours, doctors, branches] = await Promise.all([
     getClinicSettings(clinicId),

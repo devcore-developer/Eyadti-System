@@ -15,6 +15,7 @@ import { formatCurrency } from "@/lib/utils/date-filters"
 
 interface AnalyticsChartsProps {
   data?: { name: string; revenue: number; appointments: number; patients: number }[]
+  userRole?: string
 }
 
 const CustomTooltip = ({ active, payload, label, isCurrency = false }: any) => {
@@ -42,7 +43,7 @@ function ChartEmptyState({ title }: { title: string }) {
   )
 }
 
-export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
+export function AnalyticsCharts({ data = [], userRole }: AnalyticsChartsProps) {
   const [mounted, setMounted] = useState(false)
   
   useEffect(() => { setMounted(true) }, [])
@@ -59,16 +60,26 @@ export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
     )
   }
 
-  const chartsConfig = [
-    { title: "Revenue Trend", icon: TrendingUp, color: "#6B9CFF", dataKey: "revenue", isCurrency: true, isEmpty },
-    { title: "Patient Growth", icon: Users, color: "#5BC0BE", dataKey: "patients", isCurrency: false, isEmpty },
-    { title: "Appointments Activity", icon: Activity, color: "#89D6D2", dataKey: "appointments", isCurrency: false, isEmpty }
+  // ── Role-based chart filtering ───────────────────────
+  const isDoctor = userRole === "DOCTOR"
+  const isReception = userRole === "RECEPTIONIST"
+  const hideRevenue = isDoctor || isReception
+  const hideOperationalCharts = isDoctor
+
+  const allChartsConfig = [
+    { title: "Revenue Trend", icon: TrendingUp, color: "#6B9CFF", dataKey: "revenue", isCurrency: true, isEmpty, hidden: hideRevenue },
+    { title: "Patient Growth", icon: Users, color: "#5BC0BE", dataKey: "patients", isCurrency: false, isEmpty, hidden: hideOperationalCharts },
+    { title: "Appointments Activity", icon: Activity, color: "#89D6D2", dataKey: "appointments", isCurrency: false, isEmpty, hidden: hideOperationalCharts },
   ]
+
+  const chartsConfig = allChartsConfig.filter(c => !c.hidden)
+
+  if (chartsConfig.length === 0) return null
 
   return (
     <div className="grid grid-cols-1 gap-5">
       {chartsConfig.map((chart, index) => (
-        <div key={index} className="rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-white dark:bg-[#223247] px-5 py-4">
+        <div key={chart.title} className="rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-white dark:bg-[#223247] px-5 py-4">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-1.5 rounded-[8px]" style={{ backgroundColor: `${chart.color}0A` }}>
               <chart.icon className="h-3.5 w-3.5" style={{ color: chart.color }} />
@@ -108,7 +119,7 @@ export function AnalyticsCharts({ data = [] }: AnalyticsChartsProps) {
                   />
                   <Area 
                     type="monotone" 
-                    dataKey={chart.dataKey} 
+                    dataKey={chart.dataKey as any} 
                     stroke={chart.color} 
                     strokeWidth={2} 
                     fill={`url(#g-${index})`} 

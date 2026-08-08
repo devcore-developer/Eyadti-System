@@ -25,6 +25,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   }
 
   const { id } = await params
+  const userRole = session.role
 
   const [patient, timeline, galleryItems, clinic] = await Promise.all([
     prisma.patient.findFirst({
@@ -33,7 +34,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         _count: { select: { visits: true, prescriptions: true, attachments: true, invoices: true } },
         visits: { take: 3, orderBy: { visitDate: "desc" }, include: { doctor: { select: { name: true } }, _count: { select: { complaints: true } } } },
         attachments: { take: 4, orderBy: { createdAt: "desc" }, include: { uploadedBy: { select: { name: true } } } },
-        ...(session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "DOCTOR" ? {
+        ...(userRole === "SUPER_ADMIN" || userRole === "ADMIN" || userRole === "DOCTOR" ? {
           prescriptions: { take: 4, orderBy: { createdAt: "desc" }, include: { doctor: { select: { name: true } }, _count: { select: { items: true } } } },
         } : {}),
         allergies: { orderBy: { createdAt: "desc" } },
@@ -48,12 +49,15 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
   if (!patient) notFound()
 
-  const isMedical = session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "DOCTOR"
-  const isBilling = session.role === "SUPER_ADMIN" || session.role === "ADMIN" || session.role === "RECEPTIONIST"
+  const isDoctor = userRole === "DOCTOR"
+  const isReception = userRole === "RECEPTIONIST"
+  const isMedical = userRole === "SUPER_ADMIN" || userRole === "ADMIN" || isDoctor
+  const isBilling = userRole === "SUPER_ADMIN" || userRole === "ADMIN" || isReception
+  const isAdmin = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
   const showEdit = isMedical
-  const showDelete = session.role === "SUPER_ADMIN" || session.role === "ADMIN"
+  const showDelete = isAdmin
   const canAddVisit = isMedical
-  const canUpload = isMedical || session.role === "RECEPTIONIST"
+  const canUpload = isMedical || isReception
 
   function formatDate(date: Date | string | null | undefined): string {
     if (!date) return "—"
@@ -76,7 +80,6 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   }
 
   return (
-    // ✨ تقليل الـ Spacing وتأمين الـ Overflow
     <div className="space-y-4 sm:space-y-6 md:space-y-8 animate-fade pb-10 min-w-0 overflow-hidden">
       <div>
         <Link href="/patients" className="inline-flex items-center text-sm text-muted-foreground hover:text-[#6B9CFF] transition-colors mb-2">
@@ -94,7 +97,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         lastVisit={patient.visits.length > 0 ? formatDateTime(patient.visits[0].visitDate) : "No visits yet"}
       />
 
-      {/* ✨ Action Buttons - ملء الشاشة على الموبايل */}
+      {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 -mt-2">
         {canAddVisit && (
           <Link href={`/patients/${patient.id}/visits/new`} className="sm:inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:-translate-y-0.5 transition-all duration-200">
@@ -118,13 +121,18 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <PatientSummaryCards visits={patient._count.visits} prescriptions={patient._count.prescriptions} invoices={patient._count.invoices} outstanding={0} />
+      {/* Summary Cards — hide invoice count for DOCTOR */}
+      <PatientSummaryCards 
+        visits={patient._count.visits} 
+        prescriptions={patient._count.prescriptions} 
+        invoices={isDoctor ? 0 : patient._count.invoices} 
+        outstanding={0} 
+      />
 
-      {/* ✨ تقليل الـ Padding للمحتوى الداخلي على الموبايل */}
       <div className="p-3 sm:p-6 md:p-8 rounded-[20px] sm:rounded-[24px] bg-gradient-to-br from-white/95 to-[#F0F8FF]/95 dark:from-[#223247] dark:to-[#1D2A3B] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] shadow-[0_10px_25px_rgba(100,116,139,0.08)] overflow-hidden">
         
-        {/* Tab Navigation محذوف من هنا لأننا استخدمنا الـ Sticky Component */}
-        <PatientTabs>
+        {/* Pass userRole to PatientTabs so Invoices tab is hidden for DOCTOR */}
+        <PatientTabs userRole={userRole}>
           <div className="space-y-8 md:space-y-12 mt-2">
             
             {/* Overview Section */}
@@ -170,7 +178,6 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
                         <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-[#5BC0BE]/10 shrink-0"><Stethoscope className="h-5 w-5 text-[#5BC0BE]" /></div>
                         <div className="min-w-0"><p className="text-sm font-semibold text-foreground truncate">Dr. {visit.doctor.name}</p><p className="text-xs text-muted-foreground mt-0.5">{formatDateTime(visit.visitDate)}</p></div>
                       </div>
-                      {/* ✅ التعديل هنا: استخدام الـ Template Literals */}
                       <span className="inline-flex items-center rounded-full bg-[#5BC0BE]/10 px-2 sm:px-3 py-1 text-xs font-semibold text-[#5BC0BE] shrink-0 ml-2">{`${visit._count.complaints} Complaint${visit._count.complaints !== 1 ? "s" : ""}`}</span>
                     </Link>
                   ))}
@@ -178,7 +185,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
               )}
             </div>
 
-            {/* Prescriptions Section */}
+            {/* Prescriptions Section — DOCTOR and ADMIN only */}
             {isMedical && (
               <div id="prescriptions">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -196,7 +203,6 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
                           <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-[#6B9CFF]/10 shrink-0"><Pill className="h-5 w-5 text-[#6B9CFF]" /></div>
                           <div className="min-w-0"><p className="text-sm font-semibold text-foreground truncate">Dr. {rx.doctor.name}</p><p className="text-xs text-muted-foreground mt-0.5">{formatDate(rx.createdAt)}</p></div>
                         </div>
-                        {/* ✅ التعديل هنا: استخدام الـ Template Literals */}
                         <span className="inline-flex items-center rounded-full bg-[#6B9CFF]/10 px-2 sm:px-3 py-1 text-xs font-semibold text-[#6B9CFF] shrink-0 ml-2">{`${rx._count.items} Med${rx._count.items !== 1 ? "s" : ""}`}</span>
                       </Link>
                     ))}
@@ -205,7 +211,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
               </div>
             )}
 
-            {/* Invoices Section */}
+            {/* Invoices Section — ADMIN and RECEPTIONIST only (DOCTOR excluded) */}
             {isBilling && (
               <div id="invoices">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -242,11 +248,13 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
               </div>
             </div>
 
-            {/* Activity Timeline Section */}
+            {/* Activity Timeline Section — ADMIN only (Audit Logs is an admin feature) */}
             <div id="timeline">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl font-semibold text-foreground">Activity Timeline</h2>
-                <Link href={`/admin/audit-logs?entityType=PATIENT&search=${patient.id}`} className="text-sm font-semibold text-[#6B9CFF]">View Full Log →</Link>
+                {isAdmin && (
+                  <Link href={`/admin/audit-logs?entityType=PATIENT&search=${patient.id}`} className="text-sm font-semibold text-[#6B9CFF]">View Full Log →</Link>
+                )}
               </div>
               <div className="p-4 sm:p-6 rounded-2xl bg-white dark:bg-[#223247] border shadow-sm">
                 <ActivityTimeline logs={timeline as any} />
