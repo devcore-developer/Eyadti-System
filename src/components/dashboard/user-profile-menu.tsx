@@ -13,6 +13,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { LogOut, Settings, Building2, HelpCircle } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+
+// ✅ محذوف من هنا
 
 interface UserProfileMenuProps {
   userName: string
@@ -25,6 +28,8 @@ interface UserProfileMenuProps {
 export function UserProfileMenu({ 
   userName, userEmail, userRole, clinicName, branchName 
 }: UserProfileMenuProps) {
+  const router = useRouter()  // ✅ هنا الصح
+
   const initials = userName?.split(" ").map(n => n[0]).join("").substring(0, 2) || "U"
 
   // الدكتور والريسبشن ما يشوفوا "Clinic Settings"
@@ -78,12 +83,13 @@ export function UserProfileMenu({
           </Link>
         )}
         
-        <Link href="/settings/help" legacyBehavior passHref>
-          <DropdownMenuItem className="rounded-xl cursor-pointer py-2.5 my-1 focus:bg-[#F5F8FF] dark:focus:bg-[#223247]">
-            <HelpCircle className="h-4 w-4 mr-3 text-muted-foreground" />
-            <span className="text-sm font-medium">Help & Support</span>
-          </DropdownMenuItem>
-        </Link>
+        <DropdownMenuItem 
+          className="rounded-xl cursor-pointer py-2.5 my-1 focus:bg-[#F5F8FF] dark:focus:bg-[#223247]"
+          onClick={() => router.push("/settings/help")}
+        >
+          <HelpCircle className="h-4 w-4 mr-3 text-muted-foreground" />
+          <span className="text-sm font-medium">Help & Support</span>
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-[rgba(148,163,184,0.1)] dark:bg-[rgba(255,255,255,0.06)]" />
         

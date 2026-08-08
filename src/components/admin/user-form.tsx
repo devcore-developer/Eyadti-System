@@ -2,7 +2,6 @@
 
 import { useTransition, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-// ✅ تم تصحيح المسار من @/lib/actions/admin إلى @/actions/admin
 import { createUser, updateUser } from "@/actions/admin"
 import type { ActionResult } from "@/types"
 import { Role } from "@prisma/client"
@@ -24,9 +23,10 @@ type Props = {
   user?: UserData
   branches?: Branch[]
   userBranchIds?: string[]
+  readOnlyRole?: boolean
 }
 
-export function UserForm({ user, branches = [], userBranchIds = [] }: Props) {
+export function UserForm({ user, branches = [], userBranchIds = [], readOnlyRole = false }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -59,7 +59,6 @@ export function UserForm({ user, branches = [], userBranchIds = [] }: Props) {
     setFieldErrors({})
     const formData = new FormData(e.currentTarget)
     
-    // إضافة الفروع المحددة إلى FormData
     formData.delete('branchIds')
     selectedBranches.forEach(id => formData.append('branchIds', id))
 
@@ -148,14 +147,20 @@ export function UserForm({ user, branches = [], userBranchIds = [] }: Props) {
             name="role"
             defaultValue={user?.role ?? ""}
             required
-            onChange={(e) => setCurrentRole(e.target.value as Role)}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            disabled={readOnlyRole}
+            className={cn(
+              "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
+              readOnlyRole && "bg-gray-100 text-gray-500 cursor-not-allowed"
+            )}
           >
             <option value="">Select Role...</option>
             <option value={Role.ADMIN}>Admin</option>
             <option value={Role.DOCTOR}>Doctor</option>
             <option value={Role.RECEPTIONIST}>Receptionist</option>
           </select>
+          {readOnlyRole && (
+            <p className="mt-1 text-xs text-gray-500">Only administrators can change roles.</p>
+          )}
           {fieldError("role") && <p className="mt-1 text-xs text-red-600">{fieldError("role")}</p>}
         </div>
       </div>
@@ -258,3 +263,6 @@ export function UserForm({ user, branches = [], userBranchIds = [] }: Props) {
     </form>
   )
 }
+
+// Need cn utility for the disabled select styling
+import { cn } from "@/lib/utils"

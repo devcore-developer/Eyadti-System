@@ -19,11 +19,8 @@ import {
   BarChart3,
   Activity,
   Zap,
-  UserCircle,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
-
-// ── Types ────────────────────────────────────────────
 
 type NavItem = {
   name: string
@@ -38,23 +35,18 @@ type NavSection = {
   isPlatform?: boolean
 }
 
-// ── Navigation Definitions ───────────────────────────
-
-// يشترك فيها كل الأدوار
 const baseNav: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Appointments", href: "/appointments", icon: CalendarDays },
   { name: "Patients", href: "/patients", icon: Users },
 ]
 
-// الريسبشن والأدمن فقط (عمليات يومية)
 const operationalNav: NavItem[] = [
   { name: "New Visit", href: "/reception/new", icon: UserPlus },
   { name: "Waiting Room", href: "/waiting-room", icon: Monitor },
   { name: "Online Bookings", href: "/appointments/online", icon: Globe },
 ]
 
-// الأدمن فقط (مالي + إداري)
 const financialNav: NavItem[] = [
   { name: "Invoices", href: "/invoices", icon: Receipt },
 ]
@@ -68,12 +60,6 @@ const adminSectionNav: NavItem[] = [
   { name: "Branches", href: "/settings/branches", icon: Building2 },
 ]
 
-// الدكتور فقط
-const doctorSectionNav: NavItem[] = [
-  { name: "My Account", href: "/settings", icon: UserCircle },
-]
-
-// السوبر أدمن فقط
 const superAdminSectionNav: NavItem[] = [
   { name: "Platform Overview", href: "/super-admin", icon: BarChart3 },
   { name: "All Clinics", href: "/super-admin/clinics", icon: Building2 },
@@ -81,8 +67,6 @@ const superAdminSectionNav: NavItem[] = [
   { name: "System Health", href: "/super-admin/system-health", icon: Activity },
   { name: "Feature Flags", href: "/super-admin/features", icon: Zap },
 ]
-
-// ── Role → Navigation Mapper ─────────────────────────
 
 function getNavForRole(role: string): NavSection[] {
   const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN"
@@ -92,7 +76,7 @@ function getNavForRole(role: string): NavSection[] {
 
   const sections: NavSection[] = []
 
-  // ── القسم الرئيسي ──
+  // ── Main section ──
   const mainItems: NavItem[] = [...baseNav]
 
   if (isReception || isAdmin) {
@@ -105,16 +89,16 @@ function getNavForRole(role: string): NavSection[] {
 
   sections.push({ items: mainItems })
 
-  // ── قسم حساب الدكتور ──
-  if (isDoctor) {
+  // ── Account section: Doctor and Reception see "Users & Roles" (scoped to self) ──
+  if (isDoctor || isReception) {
     sections.push({
-      items: doctorSectionNav,
+      items: [{ name: "Users & Roles", href: "/admin/users", icon: Shield }],
       label: "Account",
       labelColor: "text-slate-400 dark:text-slate-500",
     })
   }
 
-  // ── قسم الإدارة ──
+  // ── Admin section ──
   if (isAdmin) {
     sections.push({
       items: adminSectionNav,
@@ -123,7 +107,7 @@ function getNavForRole(role: string): NavSection[] {
     })
   }
 
-  // ── قسم المنصة ──
+  // ── Platform section ──
   if (isSuperAdmin) {
     sections.push({
       items: superAdminSectionNav,
@@ -135,8 +119,6 @@ function getNavForRole(role: string): NavSection[] {
 
   return sections
 }
-
-// ── Component ────────────────────────────────────────
 
 export function SidebarNav({ userRole }: { userRole: string }) {
   const pathname = usePathname()
@@ -164,9 +146,7 @@ export function SidebarNav({ userRole }: { userRole: string }) {
           <item.icon
             className={cn(
               "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
-              active
-                ? "text-primary"
-                : "text-slate-400 dark:text-slate-500 group-hover:text-primary/70"
+              active ? "text-primary" : "text-slate-400 dark:text-slate-500 group-hover:text-primary/70"
             )}
           />
           <span className="truncate">{item.name}</span>

@@ -80,7 +80,6 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
   const clinicId = session.user.clinicId
   const userRole = session.user.role
 
-  // ── Role-based visibility flags ──────────────────────
   const isDoctor = userRole === "DOCTOR"
   const isReception = userRole === "RECEPTIONIST"
   const hideFinancial = isDoctor || isReception
@@ -100,7 +99,6 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
 
   const doctorName = session.user.name || "Doctor"
 
-  // ── KPI Grid: dynamic columns based on visible cards ──
   const kpiGridClass = hideFinancial
     ? "grid grid-cols-2 gap-3 md:gap-4 lg:gap-5 max-w-2xl"
     : "grid grid-cols-2 gap-3 md:gap-4 lg:gap-5 xl:grid-cols-4"
@@ -152,22 +150,26 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
 
   const upcomingComponent = <UpcomingAppointments appointments={recentActivity.appointments.slice(0, 3)} />
 
-  const recentListsComponent = (
+  // ── FIX: Doctor gets full-width RecentActivity (no grid wrapper) ──
+  const recentListsComponent = hideOtherDoctors ? (
+    <RecentActivity
+      patients={recentActivity.patients}
+      appointments={recentActivity.appointments}
+      invoices={hideInvoicesInActivity ? [] : recentActivity.invoices}
+    />
+  ) : (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      <div className={hideOtherDoctors ? "" : "lg:col-span-2"}>
+      <div className="lg:col-span-2">
         <RecentActivity
           patients={recentActivity.patients}
           appointments={recentActivity.appointments}
-          invoices={hideInvoicesInActivity ? [] : recentActivity.invoices}
+          invoices={recentActivity.invoices}
         />
       </div>
-      {!hideOtherDoctors && (
-        <div className="hidden lg:block"><TopDoctors doctors={doctorAnalytics} /></div>
-      )}
+      <div className="hidden lg:block"><TopDoctors doctors={doctorAnalytics} /></div>
     </div>
   )
 
-  // ── Mobile FAB: hide Invoice for non-financial roles ──
   const fabActions = [
     { label: "New Patient", href: "/patients/new", icon: <UserPlus className="h-5 w-5 text-gray-600" /> },
     { label: "Appointment", href: "/appointments/new", icon: <CalendarDays className="h-5 w-5 text-gray-600" /> },
@@ -222,7 +224,6 @@ async function DashboardContent({ period }: { period: FilterPeriod }) {
             <AttendanceKPIs stats={attendanceStats} />
           )}
 
-          {/* Charts + Upcoming: full layout for Admin/Reception, compact for Doctor */}
           {!hideAllCharts ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="lg:col-span-2">

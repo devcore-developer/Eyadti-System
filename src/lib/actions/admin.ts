@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { requireRole, AuthenticationError, AuthorizationError } from "@/lib/permissions"
+import { requireRole, requireSelfEdit, AuthenticationError, AuthorizationError } from "@/lib/permissions"
 import { createUserSchema, updateUserSchema, updateClinicSchema } from "@/lib/validations/admin"
 import type { ActionResult } from "@/types"
 import { hash } from "bcryptjs"
@@ -50,10 +50,31 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
 
 export async function updateUser(userId: string, formData: FormData): Promise<ActionResult> {
   try {
-    const session = await requireRole("ADMIN")
-    const existingUser = await prisma.user.findFirst({ where: { id: userId, clinicId: session.clinicId } })
+    // ── Use requireSelfEdit instead of requireRole("ADMIN") ──
+    // This allows DOCTOR and RECEPTION to edit their own profile.
+    // ADMIN/SUPER_ADMIN can still edit any user (enforced at page level).
+    const session = await requireSelfEdit()
+
+    // ── Security: User can ONLY edit their OWN record ──
+    if (session.userId !== userId) {
+      return { success: false, error: "You can only edit your own account." }
+    }
+
+    const existingUser = await prisma.user.findFirst({ 
+      where: { id: userId, clinicId: session.clinicId } 
+    })
     if (!existingUser) return { success: false, error: "User not found in your clinic." }
-    
+
+    // ── Security: Prevent role changes for non-admin users ──
+    // Even though the frontend disables the Role field, enforce at server level.
+    if (session.role !== "SUPER_ADMIN" && session.role !== "ADMIN") {
+      const incomingRole = formData.get("role") as string
+      if (incomingRole && incomingRole !== existingUser.role) {
+        return { success: false, error: "Role changes are not allowed." }
+      }
+    }
+
+    // ── Admin-specific: prevent removing own Admin role ──
     if (existingUser.id === session.userId && formData.get("role") !== "ADMIN") {
       return { success: false, error: "You cannot remove your own Admin role." }
     }
@@ -61,20 +82,29 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
     const raw = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
-      role: formData.get("role") as string,
+      role: (formData.get("role") as string) || "",
       password: (formData.get("password") as string) || "",
     }
+
     const validated = updateUserSchema.safeParse(raw)
     if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]> }
 
-    const updateData: any = { name: validated.data.name, email: validated.data.email, role: validated.data.role }
-    if (validated.data.password && validated.data.password.trim() !== "") updateData.password = await hash(validated.data.password, 10)
+    // For non-admin: always keep the existing role
+    const updateData: any = { 
+      name: validated.data.name, 
+      email: validated.data.email, 
+      role: existingUser.role 
+    }
+    if (validated.data.password && validated.data.password.trim() !== "") {
+      updateData.password = await hash(validated.data.password, 10)
+    }
 
     await prisma.user.update({ where: { id: userId }, data: updateData })
   } catch (error) {
     return handleAuthError(error)
   }
   revalidatePath("/admin/users")
+  revalidatePath(`/admin/users/edit/${userId}`)
   return { success: true }
 }
 

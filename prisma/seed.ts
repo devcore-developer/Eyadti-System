@@ -80,6 +80,14 @@ async function main() {
   ]
   
   defaultComplaints.forEach(c => complaintsSet.add(c))
+
+  // قراءة ملف complaints.csv
+  const complaintsCsv = await readCSV<any>(path.join(__dirname, "Data/complaints.csv"))
+  complaintsCsv.forEach((row: any) => {
+    const name = (row.name || "").trim()
+    if (name.length > 0) complaintsSet.add(name)
+  })
+
   const finalComplaints = Array.from(complaintsSet).map(name => ({ name }))
 
   if (finalComplaints.length > 0) {
@@ -121,6 +129,16 @@ async function main() {
     if (!uniqueDiagnosesMap.has(d.name)) uniqueDiagnosesMap.set(d.name, d)
   }
 
+  // قراءة ملف diagnoses.csv
+  const diagnosesCsv = await readCSV<any>(path.join(__dirname, "Data/diagnoses.csv"))
+  diagnosesCsv.forEach((row: any) => {
+    const name = (row.name || "").trim()
+    const icd10Code = (row.icd10_code || "").trim()
+    if (name.length > 1 && !uniqueDiagnosesMap.has(name)) {
+      uniqueDiagnosesMap.set(name, { name, icd10Code: icd10Code || null })
+    }
+  })
+
   const finalDiagnoses = Array.from(uniqueDiagnosesMap.values())
 
   if (finalDiagnoses.length > 0) {
@@ -145,7 +163,16 @@ async function main() {
     { tradeName: "Glucophage", genericName: "Metformin", strength: "500mg", dosageForm: "Tablet" },
   ]
 
-  const allMedicationsRaw = [...csvMedications, ...defaultMedications]
+  // قراءة ملف medications.csv
+  const smallMedsCsv = await readCSV<any>(path.join(__dirname, "Data/medications.csv"))
+  const smallMeds = smallMedsCsv.map((row: any) => ({
+    tradeName: (row.trade_name || "").trim(),
+    genericName: (row.generic_name || "").trim() || null,
+    strength: (row.strength || "").trim() || null,
+    dosageForm: (row.dosage_form || "").trim() || null,
+  })).filter(m => m.tradeName.length > 1)
+
+  const allMedicationsRaw = [...csvMedications, ...smallMeds, ...defaultMedications]
   const uniqueMedsMap = new Map<string, typeof allMedicationsRaw[0]>()
   for (const m of allMedicationsRaw) {
     const key = `${m.tradeName.toLowerCase()}-${m.strength}`
@@ -165,7 +192,10 @@ async function main() {
   // ════════════════════════════════════════════════════
   console.log("🔍 Seeding Allergies Dictionary...")
 
-  const allergiesData = [
+  // قراءة ملف allergies_dictionary.csv
+  const allergiesCsv = await readCSV<any>(path.join(__dirname, "Data/allergies_dictionary.csv"))
+
+  const hardcodedAllergies = [
     { name: "Penicillin", category: "Drug" }, { name: "Amoxicillin", category: "Drug" },
     { name: "Ampicillin", category: "Drug" }, { name: "Amoxicillin-Clavulanate", category: "Drug" },
     { name: "Cephalexin", category: "Drug" }, { name: "Ceftriaxone", category: "Drug" },
@@ -177,6 +207,17 @@ async function main() {
     { name: "Milk", category: "Food" }, { name: "Egg", category: "Food" },
     { name: "Gluten", category: "Food" }, { name: "Soy", category: "Food" },
   ]
+
+  // دمج CSV مع الـ hardcoded بدون تكرار
+  const allergyMap = new Map<string, { name: string; category: string }>()
+  for (const a of [...allergiesCsv, ...hardcodedAllergies]) {
+    const name = (a.name || "").trim()
+    const category = (a.category || "").trim()
+    if (name.length > 0) {
+      allergyMap.set(name.toLowerCase(), { name, category })
+    }
+  }
+  const allergiesData = Array.from(allergyMap.values())
 
   if (allergiesData.length > 0) {
     const result = await prisma.allergyDict.createMany({ data: allergiesData, skipDuplicates: true })

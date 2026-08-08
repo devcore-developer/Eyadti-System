@@ -173,7 +173,13 @@ export async function addAllergy(patientId: string, formData: FormData): Promise
 
     const validated = allergySchema.safeParse(raw)
     if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as any }
-
+    // Prevent duplicate allergy for same patient
+    const existingAllergy = await prisma.patientAllergy.findFirst({
+      where: { patientId, allergen: validated.data.allergen }
+    })
+    if (existingAllergy) {
+      return { success: false, error: "This allergy is already recorded for this patient." }
+    }
     const allergy = await prisma.patientAllergy.create({ data: { ...validated.data, patientId } })
     await auditLog({ clinicId, userId, action: "CREATE", entityType: "ALLERGY", entityId: allergy.id, newValues: allergy })
   } catch (error: any) {
@@ -200,7 +206,12 @@ export async function addMedicalHistory(patientId: string, formData: FormData): 
 
     const validated = medicalHistorySchema.safeParse(raw)
     if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as any }
-
+    const existingHistory = await prisma.patientMedicalHistory.findFirst({
+      where: { patientId, condition: validated.data.condition }
+    })
+    if (existingHistory) {
+      return { success: false, error: "This condition is already recorded for this patient." }
+    }
     const history = await prisma.patientMedicalHistory.create({
       data: { ...validated.data, patientId, diagnosedAt: validated.data.diagnosedAt ? new Date(validated.data.diagnosedAt) : null }
     })
@@ -229,7 +240,12 @@ export async function addSurgicalHistory(patientId: string, formData: FormData):
 
     const validated = surgicalHistorySchema.safeParse(raw)
     if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as any }
-
+    const existingSurgery = await prisma.patientSurgicalHistory.findFirst({
+      where: { patientId, procedure: validated.data.procedure }
+    })
+    if (existingSurgery) {
+      return { success: false, error: "This procedure is already recorded for this patient." }
+    }
     const surgery = await prisma.patientSurgicalHistory.create({
       data: { ...validated.data, patientId, performedAt: validated.data.performedAt ? new Date(validated.data.performedAt) : null }
     })
@@ -238,6 +254,69 @@ export async function addSurgicalHistory(patientId: string, formData: FormData):
   } catch (error: any) {
     if (error.name === "AuthorizationError") return { success: false, error: error.message }
     return { success: false, error: "Failed to add surgical history." }
+  }
+  revalidatePath(`/patients/${patientId}`)
+  return { success: true }
+}
+
+// ─── Delete Allergy ────────────────────────────────
+export async function deleteAllergy(allergyId: string, patientId: string): Promise<ActionResult> {
+  try {
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR")
+
+    const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId } })
+    if (!patient) return { success: false, error: "Patient not found" }
+
+    const allergy = await prisma.patientAllergy.findFirst({ where: { id: allergyId, patientId } })
+    if (!allergy) return { success: false, error: "Allergy record not found" }
+
+    await prisma.patientAllergy.delete({ where: { id: allergyId } })
+    await auditLog({ clinicId, userId, action: "DELETE", entityType: "ALLERGY", entityId: allergyId, oldValues: allergy })
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
+    return { success: false, error: "Failed to remove allergy." }
+  }
+  revalidatePath(`/patients/${patientId}`)
+  return { success: true }
+}
+
+// ─── Delete Medical History ────────────────────────
+export async function deleteMedicalHistory(historyId: string, patientId: string): Promise<ActionResult> {
+  try {
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR")
+
+    const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId } })
+    if (!patient) return { success: false, error: "Patient not found" }
+
+    const history = await prisma.patientMedicalHistory.findFirst({ where: { id: historyId, patientId } })
+    if (!history) return { success: false, error: "Medical history record not found" }
+
+    await prisma.patientMedicalHistory.delete({ where: { id: historyId } })
+    await auditLog({ clinicId, userId, action: "DELETE", entityType: "MEDICAL_HISTORY", entityId: historyId, oldValues: history })
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
+    return { success: false, error: "Failed to remove medical history." }
+  }
+  revalidatePath(`/patients/${patientId}`)
+  return { success: true }
+}
+
+// ─── Delete Surgical History ───────────────────────
+export async function deleteSurgicalHistory(surgeryId: string, patientId: string): Promise<ActionResult> {
+  try {
+    const { clinicId, userId } = await requireRole("ADMIN", "DOCTOR")
+
+    const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId } })
+    if (!patient) return { success: false, error: "Patient not found" }
+
+    const surgery = await prisma.patientSurgicalHistory.findFirst({ where: { id: surgeryId, patientId } })
+    if (!surgery) return { success: false, error: "Surgical history record not found" }
+
+    await prisma.patientSurgicalHistory.delete({ where: { id: surgeryId } })
+    await auditLog({ clinicId, userId, action: "DELETE", entityType: "SURGICAL_HISTORY", entityId: surgeryId, oldValues: surgery })
+  } catch (error: any) {
+    if (error.name === "AuthorizationError") return { success: false, error: error.message }
+    return { success: false, error: "Failed to remove surgical history." }
   }
   revalidatePath(`/patients/${patientId}`)
   return { success: true }

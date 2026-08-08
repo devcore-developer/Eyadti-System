@@ -826,6 +826,7 @@ model Diagnosis {
   visitDiagnoses VisitDiagnosis[] 
   
   @@index([name])
+  @@unique([name])
   @@map("diagnoses")
 }
 
@@ -872,6 +873,7 @@ model PatientAllergy {
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
+  @@unique([patientId, allergen])
   @@map("patient_allergies")
 }
 
@@ -888,6 +890,7 @@ model PatientMedicalHistory {
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
+  @@unique([patientId, condition])
   @@map("patient_medical_histories")
 }
 
@@ -903,6 +906,7 @@ model PatientSurgicalHistory {
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
+  @@unique([patientId, procedure])  
   @@map("patient_surgical_histories")
 }
 
@@ -913,6 +917,7 @@ model AllergyDict {
   createdAt DateTime @default(now())
   
   @@index([name])
+  @@unique([name])
   @@map("allergy_dictionary")
 }
 
@@ -923,6 +928,7 @@ model SurgeryDict {
   createdAt DateTime @default(now())
   
   @@index([name])
+  @@unique([name])
   @@map("surgery_dictionary")
 }
 

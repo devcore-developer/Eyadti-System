@@ -9,9 +9,18 @@ interface EditUserPageProps {
 
 export default async function EditUserPage({ params }: EditUserPageProps) {
   const session = await auth()
-  if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) redirect("/dashboard")
-  
+  if (!session?.user) redirect("/login")
+
+  const userRole = session.user.role
+  const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN"
+  const isSelfEdit = true // Doctor and Reception can only reach here for their own ID (enforced by page query)
+
   const { id } = await params
+
+  // ── Security: Doctor/Reception can only edit their OWN record ──
+  if (!isAdmin && session.user.id !== id) {
+    redirect("/admin/users")
+  }
 
   const [user, branches] = await Promise.all([
     prisma.user.findUnique({
@@ -40,12 +49,18 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
 
   const branchIds = user.userBranches.map(ub => ub.branchId)
 
+  // Page title based on context
+  const pageTitle = isAdmin ? "Edit User" : "Edit My Account"
+  const pageDescription = isAdmin
+    ? `Update details and permissions for ${user.name}`
+    : "Update your account information"
+
   return (
     <div className="space-y-6 animate-fade">
       <div>
-        <h1 className="text-page-title text-foreground">Edit User</h1>
+        <h1 className="text-page-title text-foreground">{pageTitle}</h1>
         <p className="text-body text-muted-foreground mt-1">
-          Update details and permissions for {user.name}
+          {pageDescription}
         </p>
       </div>
 
@@ -62,6 +77,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
           }}
           branches={branches} 
           userBranchIds={branchIds}
+          readOnlyRole={!isAdmin}
         />
       </div>
     </div>

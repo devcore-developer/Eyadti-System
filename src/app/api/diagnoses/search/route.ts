@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
       where: {
         name: { contains: q, mode: "insensitive" },
       },
-      take: 10,
+      distinct: ['name'],
+      take: 50,
     })
 
     return NextResponse.json(diagnoses)

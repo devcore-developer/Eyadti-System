@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { requireRole, AuthenticationError, AuthorizationError } from "@/lib/permissions"
+import { requireRole, requireSelfEdit, AuthenticationError, AuthorizationError } from "@/lib/permissions"
 import { createUserSchema, updateUserSchema, updateClinicSchema } from "@/lib/validations/admin"
 import type { ActionResult } from "@/types"
 import { hashPassword } from "@/lib/password"
@@ -97,21 +97,41 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
 // ─── Update User ──────────────────────────────────────────────────
 export async function updateUser(userId: string, formData: FormData): Promise<ActionResult> {
   try {
-    const session = await requireRole("ADMIN")
+    let session: Awaited<ReturnType<typeof requireRole>>
+    let isSelfEdit = false
+
+    // ADMIN/SUPER_ADMIN → صلاحية كاملة
+    // DOCTOR/RECEPTIONIST → fall back لـ self-edit
+    try {
+      session = await requireRole("ADMIN")
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        session = await requireSelfEdit()
+        isSelfEdit = true
+      } else {
+        throw error // أعد رمي AuthenticationError
+      }
+    }
+
+    // حماية: Self-edit يسمح فقط بتعديل نفسه
+    if (isSelfEdit && userId !== session.userId) {
+      return { success: false, error: "You can only update your own profile." }
+    }
 
     const existingUser = await prisma.user.findFirst({
       where: { id: userId, clinicId: session.clinicId },
     })
     if (!existingUser) return { success: false, error: "User not found in your clinic." }
 
-    if (existingUser.id === session.userId && formData.get("role") !== "ADMIN") {
+    // حماية Admin فقط: منع إزالة دور الأدمن من نفسه
+    if (!isSelfEdit && existingUser.id === session.userId && formData.get("role") !== "ADMIN") {
       return { success: false, error: "You cannot remove your own Admin role." }
     }
 
     const raw = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
-      role: formData.get("role") as string,
+      role: (formData.get("role") as string) || existingUser.role,
       password: (formData.get("password") as string) || "",
       image: (formData.get("image") as string) || "",
       specialty: (formData.get("specialty") as string) || "",
@@ -128,17 +148,22 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       }
     }
 
+    // الحقول الأساسية المتاحة للجميع
     const updateData: any = {
       name: validated.data.name,
       email: validated.data.email,
-      role: validated.data.role,
       image: validated.data.image || null,
       specialty: validated.data.specialty || null,
       degree: validated.data.degree || null,
     }
 
+    // تغيير الدور متاح لـ ADMIN فقط — حماية من تصعيد الصلاحيات
+    if (!isSelfEdit) {
+      updateData.role = validated.data.role
+    }
+
+    // تغيير كلمة المرور متاح للجميع (بالتشفير)
     if (validated.data.password && validated.data.password.trim() !== "") {
-      // FIX #25: Use hashPassword for consistent salt rounds (12)
       updateData.password = await hashPassword(validated.data.password)
     }
 
@@ -147,7 +172,8 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       data: updateData,
     })
 
-    if (validated.data.branchIds) {
+    // إدارة الفروع متاحة لـ ADMIN فقط
+    if (!isSelfEdit && validated.data.branchIds) {
       if (validated.data.role === Role.DOCTOR) {
         await prisma.$transaction([
           prisma.doctorBranch.deleteMany({ where: { doctorId: userId } }),

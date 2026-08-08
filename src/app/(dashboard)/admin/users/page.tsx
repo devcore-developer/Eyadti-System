@@ -8,10 +8,19 @@ import { UserTable } from "@/components/admin/user-table"
 export default async function UsersPage() {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") redirect("/dashboard")
+
+  const userRole = session.user.role
+  const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN"
+  const isDoctor = userRole === "DOCTOR"
+  const isReception = userRole === "RECEPTIONIST"
+
+  // ── Non-admin roles: only fetch their own user record ──
+  const whereClause = isAdmin
+    ? { clinicId: session.user.clinicId }
+    : { id: session.user.id, clinicId: session.user.clinicId }
 
   const users = await prisma.user.findMany({
-    where: { clinicId: session.user.clinicId },
+    where: whereClause,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -21,21 +30,32 @@ export default async function UsersPage() {
     },
   })
 
+  // Page title and description based on role
+  const pageTitle = isAdmin ? "User Management" : "Users & Roles"
+  const pageDescription = isAdmin
+    ? `${users.length} user${users.length !== 1 ? "s" : ""} in your clinic`
+    : "Manage your account information"
+
+  // Show "Add User" button only for Admin
+  const showCreate = isAdmin
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{pageTitle}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            {users.length} user{users.length !== 1 ? "s" : ""} in your clinic
+            {pageDescription}
           </p>
         </div>
-        <Link
-          href="/admin/users/new"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Add User
-        </Link>
+        {showCreate && (
+          <Link
+            href="/admin/users/new"
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Add User
+          </Link>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">

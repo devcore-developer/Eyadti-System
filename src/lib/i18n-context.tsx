@@ -53,6 +53,7 @@ const enDictionary: Record<string, string> = {
   "menu.clinicSettings": "Clinic Settings",
   "menu.helpSupport": "Help & Support",
   "lang.ar": "Arabic",
+  
   // Common Actions & Misc
   "common.save": "Save",
   "common.cancel": "Cancel",
@@ -65,6 +66,7 @@ const enDictionary: Record<string, string> = {
   "common.confirm": "Confirm",
   "common.back": "Back",
   "common.next": "Next",
+
 }
 
 export const LangProvider = ({ children }: { children: React.ReactNode }) => {

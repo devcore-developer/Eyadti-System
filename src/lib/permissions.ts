@@ -46,8 +46,6 @@ export async function requireRole(...roles: string[]) {
 }
 
 // ── Financial Access Guard ───────────────────────────
-// الدكتور والريسبشن محظورين من البيانات المالية
-
 export async function requireFinancialAccess() {
   const session = await auth()
   if (!session?.user) throw new AuthenticationError()
@@ -63,9 +61,7 @@ export async function requireFinancialAccess() {
   return { clinicId: session.user.clinicId, userId: session.user.id, role: session.user.role }
 }
 
-// ── Online Booking Management Guard ──────────────────
-// الدكتور محظور من إدارة الحجوزات الأونلاين
-
+// ── Online Booking Management Guard ──────────────────────────
 export async function requireOnlineBookingAccess() {
   const session = await auth()
   if (!session?.user) throw new AuthenticationError()
@@ -82,8 +78,6 @@ export async function requireOnlineBookingAccess() {
 }
 
 // ── Schedule Management Guard ────────────────────────
-// الدكتور يشوف جدوله فقط، ما يقدر يعدله
-
 export async function requireScheduleManagement() {
   const session = await auth()
   if (!session?.user) throw new AuthenticationError()
@@ -100,8 +94,6 @@ export async function requireScheduleManagement() {
 }
 
 // ── User Management Guard ────────────────────────────
-// الأدمن فقط يقدر يدير المستخدمين
-
 export async function requireUserManagement() {
   const session = await auth()
   if (!session?.user) throw new AuthenticationError()
@@ -114,8 +106,6 @@ export async function requireUserManagement() {
 }
 
 // ── Clinic Settings Guard ────────────────────────────
-// الدكتور والريسبشن محظورين من إعدادات العيادة
-
 export async function requireClinicSettingsAccess() {
   const session = await auth()
   if (!session?.user) throw new AuthenticationError()
@@ -125,6 +115,28 @@ export async function requireClinicSettingsAccess() {
   }
 
   throw new AuthorizationError("You do not have access to clinic settings.")
+}
+
+// ── Self-Edit Guard ──────────────────────────────────
+// Allows DOCTOR and RECEPTION to edit their OWN profile only.
+// ADMIN/SUPER_ADMIN continue through the full user management flow.
+// ── Self-Edit Guard ──────────────────────────────────
+// Allows DOCTOR and RECEPTION to edit their OWN profile only.
+// ADMIN/SUPER_ADMIN continue through the full user management flow.
+export async function requireSelfEdit() {
+  const session = await auth()
+  if (!session?.user) throw new AuthenticationError()
+
+  const selfEditRoles = ["SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST"]
+  if (!selfEditRoles.includes(session.user.role)) {
+    throw new AuthorizationError()
+  }
+
+  return {
+    clinicId: session.user.clinicId,
+    userId: session.user.id,
+    role: session.user.role,
+  }
 }
 
 // ── Patient Permissions ──────────────────────────────
