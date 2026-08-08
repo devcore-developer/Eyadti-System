@@ -9,6 +9,48 @@ import { requireFeature } from "@/lib/services/feature-gate"
 
 const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID || "c1"
 
+// ═══════════════════════════════════════════════════════
+// 🔒 EGYPT TIMEZONE ENGINE (Handles UTC+2 / UTC+3 DST)
+// ═══════════════════════════════════════════════════════
+function getEgyptOffset(date: Date = new Date()): number {
+  const utcHour = date.getUTCHours()
+  const cairoHourStr = date.toLocaleString('en-US', { timeZone: 'Africa/Cairo', hour: 'numeric', hour12: false })
+  const cairoHour = parseInt(cairoHourStr)
+  
+  let offset = cairoHour - utcHour
+  if (offset > 12) offset -= 24
+  if (offset < -12) offset += 24
+  return offset
+}
+
+function createDateAsCairoLocal(dateStr: string, timeStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const [h, min] = timeStr.split(':').map(Number)
+  
+  // Create a dummy date at noon UTC to safely check the offset for that specific day
+  const dummyDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+  const offset = getEgyptOffset(dummyDate)
+  
+  // Subtract the offset from the local time to get the correct UTC time
+  return new Date(Date.UTC(y, m - 1, d, h - offset, min, 0))
+}
+
+function getCairoTimeParts(utcDate: Date): { hours: number; minutes: number } {
+  const timeStr = utcDate.toLocaleString('en-US', { timeZone: 'Africa/Cairo', hour: '2-digit', minute: '2-digit', hour12: false })
+  const [h, m] = timeStr.split(':').map(Number)
+  return { hours: h === 24 ? 0 : h, minutes: m }
+}
+
+function getCairoDayOfWeek(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  // Use noon UTC to avoid DST edge cases flipping the day
+  const utcDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+  const dayStr = utcDate.toLocaleDateString('en-US', { timeZone: 'Africa/Cairo', weekday: 'short' })
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  return days.indexOf(dayStr)
+}
+
+
 // ── Get Public Clinic Info ───────────────────────────
 export async function getPublicClinicInfo(clinicId: string) {
   const [clinic, settings] = await Promise.all([
@@ -29,6 +71,7 @@ export async function getPublicClinicInfo(clinicId: string) {
     address: settings?.address || clinic?.address || null,
     phone: settings?.phone || clinic?.phone || null,
     email: settings?.email || null,
+    // تم إزالة website و specialty لأنهم مش موجودين في الـ Database
     duration: settings?.defaultAppointmentDuration || 30,
   }
 }
@@ -44,8 +87,8 @@ export async function getAvailableDoctors(clinicId: string) {
       id: true,
       name: true,
       image: true,
-      specialty: true, // ✅ NEW
-      degree: true,    // ✅ NEW
+      specialty: true,
+      degree: true,
       schedules: {
         where: { isAvailable: true },
         orderBy: { dayOfWeek: "asc" },
@@ -63,15 +106,14 @@ export async function getAvailableDoctors(clinicId: string) {
 }
 
 // ── Get Available Time Slots ─────────────────────────
-// ── Get Available Time Slots ─────────────────────────
 export async function getAvailableTimeSlots(
   doctorId: string,
   clinicId: string,
   dateStr: string,
   branchId?: string | null
 ) {
-  const date = new Date(dateStr + "T00:00:00")
-  const dayOfWeek = date.getDay()
+  // ✅ FIX: Use Cairo Day of Week instead of Server Day
+  const dayOfWeek = getCairoDayOfWeek(dateStr)
 
   const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
   const duration = settings?.defaultAppointmentDuration || 30
@@ -120,7 +162,6 @@ export async function getAvailableTimeSlots(
   } else if (clinicHours?.isClosed) {
     return []
   } else {
-    // مفيش clinic working hours — استخدم مواعيد الدكتور
     effectiveStart = doctorSchedule.startTime
     effectiveEnd = doctorSchedule.endTime
   }
@@ -140,36 +181,45 @@ export async function getAvailableTimeSlots(
     slots.push(`${h}:${m}`)
   }
 
-  const nextDay = new Date(date)
-  nextDay.setDate(nextDay.getDate() + 1)
+  // ✅ FIX: Calculate next day in Cairo Time, not UTC
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const startOfDayUTC = new Date(Date.UTC(y, m - 1, d, 0, 0, 0))
+  const offset = getEgyptOffset(startOfDayUTC)
+  const startCairo = new Date(startOfDayUTC.getTime() + (offset * 60 * 60 * 1000))
+  const endCairo = new Date(startCairo.getTime() + (24 * 60 * 60 * 1000))
 
   const existingAppointments = await prisma.appointment.findMany({
     where: {
       doctorId,
       dateTime: {
-        gte: date,
-        lt: nextDay,
+        gte: startCairo,
+        lt: endCairo,
       },
       status: { notIn: [AppointmentStatus.CANCELLED] },
     },
     select: { dateTime: true },
   })
 
+  // ✅ FIX: Extract time using Cairo Timezone
   const bookedSlots = new Set(
     existingAppointments.map((apt) => {
-      const d = new Date(apt.dateTime)
-      return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`
+      const { hours, minutes } = getCairoTimeParts(new Date(apt.dateTime))
+      return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`
     })
   )
 
-  const now = new Date()
-  const isToday = date.toDateString() === now.toDateString()
+  // ✅ FIX: Check "isToday" based on Cairo Time
+  const nowCairo = new Date()
+  const todayStr = `${nowCairo.getFullYear()}-${String(nowCairo.getMonth() + 1).padStart(2, "0")}-${String(nowCairo.getDate()).padStart(2, "0")}`
+  const isToday = dateStr === todayStr
+  const currentCairoTime = getCairoTimeParts(nowCairo)
+  const currentTotalMinutes = currentCairoTime.hours * 60 + currentCairoTime.minutes
 
   return slots.filter((slot) => {
     if (bookedSlots.has(slot)) return false
     if (isToday) {
       const [h, m] = slot.split(":").map(Number)
-      if (h < now.getHours() || (h === now.getHours() && m <= now.getMinutes())) return false
+      if ((h * 60 + m) <= currentTotalMinutes) return false
     }
     return true
   })
@@ -182,8 +232,27 @@ export async function createBooking(clinicId: string, rawData: unknown) {
 
     const validated = bookingFormSchema.parse(rawData)
 
+    // ✅ SECURE: Verify Doctor belongs to this Clinic
+    const doctor = await prisma.user.findFirst({
+      where: { id: validated.doctorId, clinicId, role: "DOCTOR" }
+    })
+    if (!doctor) return { success: false, error: "Invalid doctor selection." }
+
+    // ✅ SECURE: Verify Branch belongs to this Clinic (if provided)
+    if (validated.branchId) {
+      const branch = await prisma.branch.findFirst({
+        where: { id: validated.branchId, clinicId }
+      })
+      if (!branch) return { success: false, error: "Invalid branch selection." }
+    }
+
+    // ✅ CRITICAL FIX: Strict Patient Match to prevent Name Mismatch
     let patient = await prisma.patient.findFirst({
-      where: { phone: validated.phone, clinicId },
+      where: { 
+        phone: validated.phone, 
+        clinicId,
+        fullName: validated.fullName 
+      },
     })
 
     if (!patient) {
@@ -199,12 +268,17 @@ export async function createBooking(clinicId: string, rawData: unknown) {
       })
     }
 
-    const dateTime = new Date(`${validated.date}T${validated.time}:00`)
+    // ✅ CRITICAL FIX: Create DateTime respecting Egypt Timezone
+    const dateTime = createDateAsCairoLocal(validated.date, validated.time)
     const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
     const duration = settings?.defaultAppointmentDuration || 30
 
-    const nextDay = new Date(dateTime)
-    nextDay.setDate(nextDay.getDate() + 1)
+    // Calculate boundaries in Cairo Time for Double Booking Check
+    const [y, m, d] = validated.date.split('-').map(Number)
+    const startOfDayUTC = new Date(Date.UTC(y, m - 1, d, 0, 0, 0))
+    const offset = getEgyptOffset(startOfDayUTC)
+    const startCairo = new Date(startOfDayUTC.getTime() + (offset * 60 * 60 * 1000))
+    const endCairo = new Date(startCairo.getTime() + (24 * 60 * 60 * 1000))
 
     const existingAppointments = await prisma.appointment.findMany({
       where: {
@@ -212,8 +286,8 @@ export async function createBooking(clinicId: string, rawData: unknown) {
         clinicId,
         status: { notIn: [AppointmentStatus.CANCELLED] },
         dateTime: {
-          gte: new Date(dateTime.getFullYear(), dateTime.getMonth(), dateTime.getDate()),
-          lt: nextDay,
+          gte: startCairo,
+          lt: endCairo,
         },
       },
       select: { dateTime: true },
@@ -222,8 +296,10 @@ export async function createBooking(clinicId: string, rawData: unknown) {
     const slotStartMinutes = dateTime.getHours() * 60 + dateTime.getMinutes()
     const slotEndMinutes = slotStartMinutes + duration
 
+    // ✅ FIX: Use Cairo Time for overlap checking
     for (const apt of existingAppointments) {
-      const aptStart = apt.dateTime.getHours() * 60 + apt.dateTime.getMinutes()
+      const aptTime = getCairoTimeParts(new Date(apt.dateTime))
+      const aptStart = aptTime.hours * 60 + aptTime.minutes
       const aptEnd = aptStart + duration
       if (slotStartMinutes < aptEnd && slotEndMinutes > aptStart) {
         return { success: false, error: "This slot is already booked. Please choose another." }
@@ -235,6 +311,7 @@ export async function createBooking(clinicId: string, rawData: unknown) {
         patientId: patient.id,
         doctorId: validated.doctorId,
         clinicId,
+        branchId: validated.branchId || null,
         dateTime,
         notes: validated.notes || "Online Booking",
         status: AppointmentStatus.SCHEDULED,
@@ -247,13 +324,12 @@ export async function createBooking(clinicId: string, rawData: unknown) {
         patientId: patient.id,
         doctorId: validated.doctorId,
         clinicId,
+        branchId: validated.branchId || null,
         status: "PENDING",
         source: "WEBSITE",
       },
     })
 
-    const doctor = await prisma.user.findUnique({ where: { id: validated.doctorId } })
-    
     if (doctor) {
       const bookingClinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } })
       
@@ -339,8 +415,6 @@ export async function confirmBooking(bookingId: string) {
 }
 
 // ── Admin: Cancel Booking ───────────────────────────
-// ── Admin: Cancel Booking ───────────────────────────
-// ✅ FIXED: Now sends cancellation notification
 export async function cancelBooking(bookingId: string) {
   // First get booking details before cancelling
   const booking = await prisma.booking.findUnique({
@@ -365,7 +439,7 @@ export async function cancelBooking(bookingId: string) {
     data: { status: AppointmentStatus.CANCELLED },
   })
 
-  // ✅ ADDED: Send cancellation notification
+  // Send cancellation notification
   try {
     if (booking.appointment && booking.doctor && booking.clinic) {
       await notifyAppointmentCancelled(
@@ -416,9 +490,9 @@ export async function getDoctorsByBranch(clinicId: string, branchId: string) {
       id: true, 
       name: true,
       allBranchAccess: true,
-      image: true,         // ✅ NEW
-      specialty: true,     // ✅ NEW
-      degree: true,        // ✅ NEW
+      image: true,
+      specialty: true,
+      degree: true,
       schedules: {
         where: { isAvailable: true },
         orderBy: { dayOfWeek: "asc" },
@@ -479,7 +553,7 @@ export async function checkInBooking(bookingId: string) {
     if (booking.appointmentId) {
       await prisma.appointment.update({
         where: { id: booking.appointmentId },
-        data: { status: "CONFIRMED", arrivedAt: now },
+        data: { status: AppointmentStatus.CONFIRMED, arrivedAt: now },
       })
     }
 

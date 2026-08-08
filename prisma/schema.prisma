@@ -137,6 +137,8 @@ model Branch {
   phone     String?
   email     String?
   managerId String?
+  nameAr    String?
+  nameEn    String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -197,6 +199,8 @@ model User {
   specialty       String?   
   degree          String?   
   password        String?
+  nameAr          String?
+  nameEn          String?
   role            Role    @default(RECEPTIONIST)
   allBranchAccess Boolean @default(false)
 
@@ -249,6 +253,8 @@ model Clinic {
   phone         String?
   logoUrl       String?  
   ownerId       String?
+  nameAr        String?
+  nameEn        String?  
   owner         User?                @relation("ClinicOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   users         User[]
   patients      Patient[]
