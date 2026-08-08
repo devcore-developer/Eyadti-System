@@ -2,7 +2,6 @@
 import { ImageResponse } from 'next/og'
 import { prisma } from '@/lib/db'
 
-export const runtime = 'edge'
 export const alt = 'Book your appointment now'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
@@ -35,7 +34,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        backgroundColor: '#F5F9FF', // background.main من الـ tokens
+        backgroundColor: '#F5F9FF',
         fontFamily: 'Cairo',
         padding: '60px',
       }}>
@@ -62,7 +61,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             backgroundColor: '#5BC0BE',
             color: 'white',
             padding: '10px 24px',
-            borderRadius: '12px', // radii.button
+            borderRadius: '12px',
             fontSize: '22px',
             fontWeight: 'bold',
           }}>
@@ -82,7 +81,6 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             مرحباً بك في
           </p>
           
-          {/* اسم العيادة */}
           <h1 style={{
             fontSize: '70px',
             fontWeight: 800,
