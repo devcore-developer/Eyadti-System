@@ -1,89 +1,132 @@
 "use server"
 
-import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/db"
+import { requireFeature } from "@/lib/services/feature-gate"
+import type { ActionResult } from "@/types"
 import { revalidatePath } from "next/cache"
 
-// 1. جلب صور المريض من الداتابيز
+// ✅ تم إضافة الفنكشن الناقصة اللي بتعملها الـ Page
 export async function getPatientGallery(patientId: string) {
-  const session = await auth()
-  if (!session?.user?.clinicId) {
-    return [] 
-  }
-
   try {
+    const session = await auth()
+    if (!session?.user?.clinicId) {
+      return { success: false, error: "Unauthorized" } as ActionResult
+    }
+
     const items = await prisma.galleryItem.findMany({
-      where: {
-        patientId: patientId,
-        clinicId: session.user.clinicId,
+      where: { 
+        patientId,
+        clinicId: session.user.clinicId 
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" }
     })
-    
-    return items
-  } catch (error) {
-    console.error("Failed to fetch gallery items:", error)
-    return []
+
+    return { success: true, data: items } as ActionResult<any[]>
+  } catch (error: any) {
+    console.error("Get gallery error:", error)
+    return { success: false, error: "Failed to fetch gallery items" } as ActionResult
   }
 }
 
-// 2. حفظ صور جديدة في الداتابيز (بعد رفعها على Cloudinary)
-export async function createGalleryItem(patientId: string, formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.clinicId) {
-    return { error: "Unauthorized" }
-  }
-
+export async function createGalleryItem(formData: FormData): Promise<ActionResult> {
   try {
-    // استخدام getAll عشان نجيب كل الروابط اللي اترفعت (المصفوفة)
-    const beforeImageUrls = formData.getAll("beforeImageUrls") as string[]
-    const afterImageUrls = formData.getAll("afterImageUrls") as string[]
+    const session = await auth()
+    if (!session?.user?.clinicId) {
+      return { success: false, error: "Unauthorized" }
+    }
+
+    // ✅ Server-Side Block: التأكد من أن الخطة تدعم الـ Gallery
+    await requireFeature(session.user.clinicId, "GALLERY")
+
+    const patientId = formData.get("patientId") as string
     const title = formData.get("title") as string
     const description = formData.get("description") as string
+    const beforeImageUrlsJson = formData.get("beforeImageUrls") as string
+    const afterImageUrlsJson = formData.get("afterImageUrls") as string
 
-    if (!beforeImageUrls.length || !afterImageUrls.length) {
-      return { error: "At least one before and one after image are required" }
+    if (!patientId) return { success: false, error: "Patient ID is required" }
+
+    let beforeImageUrls: string[] = []
+    let afterImageUrls: string[] = []
+
+    try {
+      beforeImageUrls = JSON.parse(beforeImageUrlsJson || "[]")
+      afterImageUrls = JSON.parse(afterImageUrlsJson || "[]")
+    } catch {
+      return { success: false, error: "Invalid image data format" }
+    }
+
+    if (beforeImageUrls.length === 0 && afterImageUrls.length === 0) {
+      return { success: false, error: "At least one before or after image is required" }
+    }
+
+    // التحقق من أن المريض تابع لنفس العيادة
+    const patient = await prisma.patient.findFirst({
+      where: { id: patientId, clinicId: session.user.clinicId }
+    })
+
+    if (!patient) {
+      return { success: false, error: "Patient not found" }
     }
 
     await prisma.galleryItem.create({
       data: {
+        clinicId: session.user.clinicId,
         patientId,
-        beforeImageUrls, // حفظ المصفوفة كاملة
-        afterImageUrls,  // حفظ المصفوفة كاملة
         title: title || null,
         description: description || null,
-        clinicId: session.user.clinicId,
-      },
+        beforeImageUrls,
+        afterImageUrls,
+      }
     })
 
     revalidatePath(`/patients/${patientId}`)
     return { success: true }
-  } catch (error) {
-    console.error("Failed to create gallery item:", error)
-    return { error: "Failed to save gallery item to database" }
+
+  } catch (error: any) {
+    // ✅ تم إزالة upgradeRequired عشان الـ Type مش بيقبلها، رسالة الخطأ كافية للـ UI
+    if (error.message?.includes("not available on your current plan")) {
+      return { success: false, error: error.message }
+    }
+    
+    console.error("Create gallery item error:", error)
+    return { success: false, error: "Failed to create gallery item" }
   }
 }
 
-// 3. مسح صورة من الداتابيز
-export async function deleteGalleryItem(id: string, patientId: string) {
-  const session = await auth()
-  if (!session?.user?.clinicId) {
-    return { error: "Unauthorized" }
-  }
-
+export async function deleteGalleryItem(itemId: string, patientId: string): Promise<ActionResult> {
   try {
-    await prisma.galleryItem.delete({
-      where: { 
-        id, 
-        clinicId: session.user.clinicId
-      },
+    const session = await auth()
+    if (!session?.user?.clinicId) {
+      return { success: false, error: "Unauthorized" }
+    }
+
+    // ✅ Server-Side Block
+    await requireFeature(session.user.clinicId, "GALLERY")
+
+    const item = await prisma.galleryItem.findFirst({
+      where: { id: itemId, clinicId: session.user.clinicId, patientId }
     })
+
+    if (!item) {
+      return { success: false, error: "Gallery item not found" }
+    }
+
+    await prisma.galleryItem.delete({
+      where: { id: itemId }
+    })
+
     revalidatePath(`/patients/${patientId}`)
     return { success: true }
-  } catch (error) {
-    console.error("Failed to delete gallery item:", error)
-    return { error: "Failed to delete" }
+
+  } catch (error: any) {
+    // ✅ تم إزالة upgradeRequired
+    if (error.message?.includes("not available on your current plan")) {
+      return { success: false, error: error.message }
+    }
+    
+    console.error("Delete gallery item error:", error)
+    return { success: false, error: "Failed to delete gallery item" }
   }
 }

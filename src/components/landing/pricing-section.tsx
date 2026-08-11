@@ -26,13 +26,22 @@ const planIconBgs: Record<string, string> = {
   enterprise: "bg-amber-50",
 }
 
+// ✅ تحديث المصفوفة لتشمل المميزات الأساسية والمتقدمة
 const featuresList = [
-  "Online Booking",
-  "Doctor Attendance",
-  "WhatsApp Automation",
-  "Advanced Analytics",
-  "Audit Logs",
-  "Before/After Gallery",
+  // ── Core Features (متاحة دائماً للخطط النشطة) ──
+  { key: "Patient Management", isCore: true },
+  { key: "Medical Files", isCore: true },
+  { key: "Digital Prescriptions", isCore: true },
+  { key: "Appointments", isCore: true },
+  { key: "Invoices & Billing", isCore: true },
+  
+  // ── Premium Features (تعتمد على الـ Plan Boolean Fields في الداتا بيز) ──
+  { key: "Advanced Analytics", planField: "analyticsEnabled" },
+  { key: "Online Booking", planField: "onlineBookingEnabled" },
+  { key: "Doctor Attendance", planField: "doctorAttendanceEnabled" },
+  { key: "WhatsApp Automation", planField: "whatsappEnabled" },
+  { key: "Audit Logs", planField: "auditLogsEnabled" },
+  { key: "Before/After Gallery", planField: "galleryEnabled" },
 ]
 
 function PlanValue({ value, isEnterprise }: { value: boolean | number | null; isEnterprise?: boolean }) {
@@ -55,6 +64,19 @@ function PlanValue({ value, isEnterprise }: { value: boolean | number | null; is
     )
   }
   return <span className="font-semibold text-sm text-slate-900">{value}</span>
+}
+
+// ✅ دالة ذكية لفحص المميزات (الأساسية دائماً true، المتقدمة تقرأ من الداتا بيز)
+const getFeatureValue = (feature: any, plan: any, isEnterprise: boolean) => {
+  if (feature.isCore) return true
+  if (isEnterprise) return true
+
+  if (feature.planField) {
+    const val = plan[feature.planField as keyof typeof plan]
+    return typeof val === "boolean" ? val : false
+  }
+  
+  return false
 }
 
 export default async function PricingSection() {
@@ -81,22 +103,6 @@ export default async function PricingSection() {
 
   const planOrder = ["standard", "professional", "enterprise"]
   const plans = rawPlans.sort((a, b) => planOrder.indexOf(a.slug) - planOrder.indexOf(b.slug))
-
-  // Build feature matrix from actual plan data
-  const featureFields: { key: string; planField: string }[] = [
-    { key: "Online Booking", planField: "onlineBookingEnabled" },
-    { key: "Doctor Attendance", planField: "doctorAttendanceEnabled" },
-    { key: "WhatsApp Automation", planField: "whatsappEnabled" },
-    { key: "Advanced Analytics", planField: "analyticsEnabled" },
-    { key: "Audit Logs", planField: "auditLogsEnabled" },
-    { key: "Before/After Gallery", planField: "galleryEnabled" },
-  ]
-
-  const getFeatureValue = (feature: { planField: string }, plan: any) => {
-    const val = plan[feature.planField as keyof typeof plan]
-    if (typeof val === "boolean") return val
-    return false
-  }
 
   const trustItems = [
     { icon: <CreditCard className="w-4 h-4 text-slate-400" />, title: "No credit card required", desc: "Start free" },
@@ -146,7 +152,6 @@ export default async function PricingSection() {
                   }
                 `}
               >
-                {/* Most Popular Badge */}
                 {isHighlighted && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
                     <span
@@ -158,11 +163,8 @@ export default async function PricingSection() {
                   </div>
                 )}
 
-                {/* ── Plan Header ─────────────────────── */}
                 <div className="flex items-center gap-3 mb-2">
-                  <div
-                    className={`flex items-center justify-center w-11 h-11 rounded-xl ${planIconBgs[plan.slug] || "bg-slate-100"}`}
-                  >
+                  <div className={`flex items-center justify-center w-11 h-11 rounded-xl ${planIconBgs[plan.slug] || "bg-slate-100"}`}>
                     {planIcons[plan.slug]}
                   </div>
                   <div>
@@ -175,20 +177,15 @@ export default async function PricingSection() {
                   {plan.description}
                 </p>
 
-                {/* ── Price ────────────────────────────── */}
                 <div className="mb-9">
                   {isEnterprise ? (
                     <div>
-                      <p className="text-sm font-medium mb-1" style={{ color: "#64748B" }}>
-                        Starting from
-                      </p>
+                      <p className="text-sm font-medium mb-1" style={{ color: "#64748B" }}>Starting from</p>
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-[52px] font-extrabold leading-none" style={{ color: "#0F172A" }}>
                           {plan.monthlyPrice.toLocaleString()}
                         </span>
-                        <span className="text-[15px] font-medium" style={{ color: "#64748B" }}>
-                          EGP / mo
-                        </span>
+                        <span className="text-[15px] font-medium" style={{ color: "#64748B" }}>EGP / mo</span>
                       </div>
                     </div>
                   ) : (
@@ -197,9 +194,7 @@ export default async function PricingSection() {
                         <span className="text-[52px] font-extrabold leading-none" style={{ color: "#0F172A" }}>
                           {plan.monthlyPrice.toLocaleString()}
                         </span>
-                        <span className="text-[15px] font-medium" style={{ color: "#64748B" }}>
-                          EGP / mo
-                        </span>
+                        <span className="text-[15px] font-medium" style={{ color: "#64748B" }}>EGP / mo</span>
                       </div>
                       {plan.yearlyPrice > 0 && (
                         <p className="text-[13px] font-medium mt-2" style={{ color: "#10B981" }}>
@@ -210,25 +205,19 @@ export default async function PricingSection() {
                   )}
                 </div>
 
-                {/* ── Limits ───────────────────────────── */}
                 <div className="space-y-0 mb-8 pb-8 border-b border-slate-100">
                   {(["Branches", "Doctors", "Users", "Monthly Visits"] as const).map((label) => {
                     const value =
-                      label === "Branches"
-                        ? plan.maxBranches
-                        : label === "Doctors"
-                        ? plan.maxDoctors
-                        : label === "Users"
-                        ? plan.maxUsers
-                        : plan.maxMonthlyVisits
+                      label === "Branches" ? plan.maxBranches :
+                      label === "Doctors" ? plan.maxDoctors :
+                      label === "Users" ? plan.maxUsers :
+                      plan.maxMonthlyVisits
 
                     return (
                       <div key={label} className="flex items-center justify-between py-2.5">
                         <div className="flex items-center gap-2.5">
                           <span style={{ color: "#94A3B8" }}>{limitIcons[label]}</span>
-                          <span className="text-[14px]" style={{ color: "#64748B" }}>
-                            {label}
-                          </span>
+                          <span className="text-[14px]" style={{ color: "#64748B" }}>{label}</span>
                         </div>
                         {isEnterprise ? (
                           <span className="font-bold text-sm text-amber-600">Customized</span>
@@ -240,25 +229,20 @@ export default async function PricingSection() {
                   })}
                 </div>
 
-                {/* ── Features ──────────────────────────── */}
+                {/* ✅ Features Matrix المحدثة */}
                 <div className="space-y-0 mb-8 flex-1">
-                  {featuresList.map((feature) => {
-                    const isIncluded = isEnterprise
-                      ? true
-                      : getFeatureValue(featureFields.find(f => f.key === feature)!, plan)
+                  {featuresList.map((feature: any) => {
+                    const isIncluded = getFeatureValue(feature, plan, isEnterprise)
 
                     return (
-                      <div key={feature} className="flex items-center justify-between py-2.5">
-                        <span className="text-[14px]" style={{ color: "#475569" }}>
-                          {feature}
-                        </span>
+                      <div key={feature.key} className="flex items-center justify-between py-2.5">
+                        <span className="text-[14px]" style={{ color: "#475569" }}>{feature.key}</span>
                         <PlanValue value={isIncluded} isEnterprise={isEnterprise} />
                       </div>
                     )
                   })}
                 </div>
 
-                {/* ── CTA ───────────────────────────────── */}
                 <div className="mt-auto pt-2">
                   {isCurrent ? (
                     <button
@@ -282,13 +266,8 @@ export default async function PricingSection() {
                       href={currentClinicId ? "/settings/billing" : "/signup"}
                       className={`
                         flex items-center justify-center gap-2 w-full h-[50px] rounded-[13px] text-[15px] font-semibold
-                        transition-all duration-200 ease-out
-                        hover:-translate-y-px
-                        ${
-                          isHighlighted
-                            ? "text-white shadow-md hover:shadow-lg"
-                            : "border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
-                        }
+                        transition-all duration-200 ease-out hover:-translate-y-px
+                        ${isHighlighted ? "text-white shadow-md hover:shadow-lg" : "border-2 border-blue-500 text-blue-600 hover:bg-blue-50"}
                       `}
                       style={isHighlighted ? { backgroundColor: "#3B82F6" } : undefined}
                     >
@@ -302,17 +281,12 @@ export default async function PricingSection() {
           })}
         </div>
 
-        {/* ── Trust Strip ─────────────────────────────── */}
         <div className="mt-12 md:mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-[900px] mx-auto">
           {trustItems.map((item) => (
             <div key={item.title} className="flex flex-col items-center text-center gap-1.5 py-3">
               {item.icon}
-              <span className="text-[13px] font-semibold" style={{ color: "#334155" }}>
-                {item.title}
-              </span>
-              <span className="text-[12px]" style={{ color: "#94A3B8" }}>
-                {item.desc}
-              </span>
+              <span className="text-[13px] font-semibold" style={{ color: "#334155" }}>{item.title}</span>
+              <span className="text-[12px]" style={{ color: "#94A3B8" }}>{item.desc}</span>
             </div>
           ))}
         </div>

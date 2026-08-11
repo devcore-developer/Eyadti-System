@@ -13,6 +13,7 @@ import { getPatientGallery } from "@/actions/gallery"
 import { PatientGallery } from "@/components/patients/patient-gallery"
 import { PatientHistorySection } from "@/components/patients/patient-history-section"
 import { PatientTabs } from "@/components/patients/patient-tabs"
+import { hasFeature } from "@/lib/services/feature-gate"
 
 export default async function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   let session
@@ -27,7 +28,10 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const { id } = await params
   const userRole = session.role
 
-  const [patient, timeline, galleryItems, clinic] = await Promise.all([
+  // ✅ التحقق من صلاحية الـ Gallery قبل جلب البيانات (توفيراً للموارد)
+  const galleryAccess = await hasFeature(session.clinicId, "GALLERY")
+
+  const [patient, timeline, galleryData, clinic] = await Promise.all([
     prisma.patient.findFirst({
       where: { id: id, clinicId: session.clinicId },
       include: {
@@ -43,7 +47,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       },
     }),
     getEntityTimeline("PATIENT", id),
-    getPatientGallery(id),
+    // ✅ لو مش عنده صلاحية، نرجع null عشان نوفر لود على الداتابيز
+    galleryAccess ? getPatientGallery(id) : Promise.resolve(null),
     session.clinicId ? prisma.clinic.findUnique({ where: { id: session.clinicId }, select: { name: true, settings: { select: { logoUrl: true, clinicName: true } } } }) : Promise.resolve(null)
   ])
 
@@ -247,7 +252,11 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
                 </div>
               )}
               <div className="mt-6">
-                <PatientGallery patientId={id} items={galleryItems} clinicLogo={clinic?.settings?.logoUrl} />
+                <PatientGallery 
+                  patientId={patient.id} 
+                  initialItems={(galleryData as any)?.data || []} 
+                  hasGalleryAccess={galleryAccess} 
+                />
               </div>
             </div>
 

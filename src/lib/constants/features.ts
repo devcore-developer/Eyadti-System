@@ -34,7 +34,7 @@ export const FEATURES = {
     label: "Advanced Analytics",
     description: "Detailed revenue, patient growth, and doctor performance insights",
     planField: "analyticsEnabled",
-    badge: "Professional",
+    badge: "Standard+",
   },
   WHATSAPP_INTEGRATION: {
     label: "WhatsApp Integration",
@@ -126,12 +126,12 @@ export const PLANS_CONFIG = {
     monthlyPrice: 600,
     yearlyPrice: 6000,
     maxDoctors: 2,
-    maxUsers: 3,              // ← تغيير من 2 إلى 3
+    maxUsers: 3,              
     maxPatients: 500,
     maxBranches: 1,
-    maxMonthlyVisits: 200,    // ← تم التأكد (صحيح)
+    maxMonthlyVisits: 200,    
     onlineBookingEnabled: false,
-    analyticsEnabled: false,
+    analyticsEnabled: true, // ✅ تم تفعيله للـ Standard
     whatsappEnabled: false,
     auditLogsEnabled: false,
     galleryEnabled: false,
@@ -192,14 +192,14 @@ export const FEATURE_MATRIX = {
   standard: {
     name: "Standard",
     features: [
+      // ✅ Core Features المضافة لتبدو الخطة جذابة
       { key: "Patient Management", included: true },
-      { key: "Patient Profiles", included: true },
-      { key: "New Visit", included: true },
-      { key: "Appointments", included: true },
-      { key: "Waiting Room", included: true },
-      { key: "Online Booking", included: false },
-      { key: "Basic Invoices & Billing", included: true },
-      { key: "Basic Prescriptions", included: true },
+      { key: "Patient Profiles & Medical Files", included: true },
+      { key: "New Visit & Consultation", included: true },
+      { key: "Appointments & Scheduling", included: true },
+      { key: "Waiting Room Queue", included: true },
+      { key: "Invoices & Basic Billing", included: true },
+      { key: "Digital Prescriptions", included: true },
       { key: "Basic Branch Management", included: true },
       { key: "Basic Dashboard", included: true },
       { key: "Basic Reports", included: true },
@@ -207,11 +207,13 @@ export const FEATURE_MATRIX = {
       { key: "Basic User Management", included: true },
       { key: "Basic Notifications", included: true },
       { key: "Doctor Schedules", included: true },
+      // ❌ Blocked Features
+      { key: "Online Booking", included: false },
       { key: "Doctor Attendance", included: false },
-      { key: "Doctor Absence Tracking", included: false },
-      { key: "Advanced Analytics", included: false },
-      { key: "Advanced Reports", included: false },
+      { key: "Advanced Analytics", included: true }, // ✅ تم تفعيله
       { key: "WhatsApp Automation", included: false },
+      { key: "Audit Logs", included: false },
+      { key: "Before/After Gallery", included: false },
     ],
   },
   professional: {
