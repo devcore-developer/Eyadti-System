@@ -67,11 +67,29 @@ export async function checkUsageLimit(clinicId: string, resource: ResourceKey): 
 }
 
 export async function enforceUsageLimit(clinicId: string, resource: ResourceKey): Promise<void> {
-  const result = await checkUsageLimit(clinicId, resource);
-  if (!result.allowed) {
+  const subscription = await getSubscription(clinicId);
+  if (!subscription) {
+    throw new Error("Subscription not found. Please contact support.");
+  }
+
+  if (
+    subscription.status !== SubscriptionStatus.TRIAL &&
+    subscription.status !== SubscriptionStatus.ACTIVE
+  ) {
+    throw new Error("Your subscription is not active. Please renew your plan to continue.");
+  }
+
+  const current = await getCurrentUsage(clinicId, resource);
+  const limit = getPlanLimit(subscription.plan, resource);
+
+  if (limit === null) return; // Unlimited plan
+
+  if (current >= limit) {
     const config = RESOURCE_CONFIG[resource];
-    const limitText = result.limit !== null ? `${result.limit} ${config.label.toLowerCase()}` : "unlimited";
-    throw new Error(`You have reached the ${limitText} limit on your current plan. Please upgrade to add more ${config.singular}.`);
+    const planName = subscription.plan.name || "current";
+    throw new Error(
+      `${config.label} limit reached. Your ${planName} plan allows a maximum of ${limit} ${config.label.toLowerCase()}. Please upgrade your plan to add more ${config.singular}.`
+    );
   }
 }
 

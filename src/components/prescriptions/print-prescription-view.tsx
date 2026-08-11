@@ -216,11 +216,57 @@ export default function PrintPrescriptionView({ prescription, clinic }: PrintPre
         .print-btn { background: #0f766e; color: white; border: none; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; font-family: 'Cairo', sans-serif; }
         .print-btn:hover { background: #0d9488; }
         @media print {
-          body.printing-prescription > div:not(:last-child), body.printing-prescription header, body.printing-prescription nav, body.printing-prescription aside, body.printing-prescription [data-slot="sidebar"], body.printing-prescription .sidebar, body.printing-prescription .no-print { display: none !important; }
-          body.printing-prescription main, body.printing-prescription .main-content, body.printing-prescription [data-slot="content"] { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
-          body { padding: 0 !important; margin: 0 !important; background: white !important; }
-          .prescription-page { box-shadow: none !important; border-radius: 0 !important; max-width: 100% !important; }
-          .header, .info-box.right-box, th, .instructions-text, .diagnosis-tag { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body.printing-prescription > *,
+          body.printing-prescription > * > *,
+          body.printing-prescription > * > * > *,
+          body.printing-prescription > * > * > * > *,
+          body.printing-prescription > * > * > * > * > * {
+            visibility: hidden !important;
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: static !important;
+          }
+
+          body.printing-prescription .prescription-page,
+          body.printing-prescription .prescription-page * {
+            visibility: visible !important;
+          }
+
+          body.printing-prescription {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: white !important;
+          }
+
+          .prescription-page {
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            max-width: 100% !important;
+            margin: 0 auto 40px !important;
+            position: relative !important;
+          }
+
+          .prescription-page:last-child {
+            margin-bottom: 0 !important;
+          }
+
+          .header,
+          .info-box.right-box,
+          th,
+          .instructions-text,
+          .diagnosis-tag {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .no-print {
+            display: none !important;
+          }
         }
       `}</style>
 

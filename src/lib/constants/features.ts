@@ -16,7 +16,7 @@ export const FEATURES = {
     label: "Online Booking",
     description: "Allow patients to book appointments through your public portal",
     planField: "onlineBookingEnabled",
-    badge: "Standard+",
+    badge: "Professional+",
   },
   DOCTOR_SCHEDULES: {
     label: "Doctor Schedules",
@@ -126,11 +126,11 @@ export const PLANS_CONFIG = {
     monthlyPrice: 600,
     yearlyPrice: 6000,
     maxDoctors: 2,
-    maxUsers: 2,
+    maxUsers: 3,              // ← تغيير من 2 إلى 3
     maxPatients: 500,
     maxBranches: 1,
-    maxMonthlyVisits: 200,
-    onlineBookingEnabled: true,
+    maxMonthlyVisits: 200,    // ← تم التأكد (صحيح)
+    onlineBookingEnabled: false,
     analyticsEnabled: false,
     whatsappEnabled: false,
     auditLogsEnabled: false,
@@ -197,7 +197,7 @@ export const FEATURE_MATRIX = {
       { key: "New Visit", included: true },
       { key: "Appointments", included: true },
       { key: "Waiting Room", included: true },
-      { key: "Online Booking", included: true },
+      { key: "Online Booking", included: false },
       { key: "Basic Invoices & Billing", included: true },
       { key: "Basic Prescriptions", included: true },
       { key: "Basic Branch Management", included: true },

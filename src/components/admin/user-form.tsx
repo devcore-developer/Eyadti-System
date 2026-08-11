@@ -1,11 +1,12 @@
 "use client"
 
-import { useTransition, useState, useEffect } from "react"
+import { useTransition, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createUser, updateUser } from "@/actions/admin"
 import type { ActionResult } from "@/types"
 import { Role } from "@prisma/client"
-import { Building2, Check } from "lucide-react"
+import { Building2, Check, Upload, Loader2, User } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type Branch = { id: string; name: string; code: string }
 
@@ -33,6 +34,11 @@ export function UserForm({ user, branches = [], userBranchIds = [], readOnlyRole
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [selectedBranches, setSelectedBranches] = useState<string[]>(userBranchIds)
   const [currentRole, setCurrentRole] = useState<Role>(user?.role ?? Role.RECEPTIONIST)
+  
+  // Profile Image Upload State
+  const [imageUrl, setImageUrl] = useState(user?.image || "")
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const isEdit = !!user?.id
   const isAdmin = currentRole === Role.ADMIN
@@ -53,11 +59,57 @@ export function UserForm({ user, branches = [], userBranchIds = [], readOnlyRole
     }
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("Only JPG, PNG, and WebP images are allowed.")
+      return
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Image size must be less than 2MB.")
+      return
+    }
+
+    setIsUploading(true)
+    setError(null)
+    
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+      
+      const data = await res.json()
+      
+      if (res.ok && data.url) {
+        setImageUrl(data.url)
+      } else {
+        setError(data.error || "Failed to upload image.")
+      }
+    } catch {
+      setError("Network error while uploading image.")
+    } finally {
+      setIsUploading(false)
+      // Reset input so the same file can be selected again
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setFieldErrors({})
+    
     const formData = new FormData(e.currentTarget)
+    
+    // Append image URL
+    formData.set("image", imageUrl)
     
     formData.delete('branchIds')
     selectedBranches.forEach(id => formData.append('branchIds', id))
@@ -148,6 +200,7 @@ export function UserForm({ user, branches = [], userBranchIds = [], readOnlyRole
             defaultValue={user?.role ?? ""}
             required
             disabled={readOnlyRole}
+            onChange={(e) => setCurrentRole(e.target.value as Role)}
             className={cn(
               "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
               readOnlyRole && "bg-gray-100 text-gray-500 cursor-not-allowed"
@@ -168,22 +221,53 @@ export function UserForm({ user, branches = [], userBranchIds = [], readOnlyRole
       {/* Profile Details Section */}
       <div className="border-t border-gray-200 pt-5">
         <h3 className="text-sm font-medium text-gray-900 mb-3">Profile Details</h3>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label htmlFor="image" className="block text-sm font-medium text-gray-700">
-              Profile Image URL
-            </label>
-            <input
-              id="image"
-              name="image"
-              type="url"
-              defaultValue={user?.image ?? ""}
-              placeholder="https://example.com/doctor-photo.jpg"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">Paste a direct link to the doctor's photo.</p>
+        
+        {/* Profile Image Upload */}
+        <div className="mb-5">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Profile Image
+          </label>
+          <input type="hidden" name="image" value={imageUrl} />
+          <div className="flex items-center gap-4">
+            <div className="relative h-20 w-20 rounded-full border-2 border-dashed border-gray-300 overflow-hidden bg-gray-50 flex items-center justify-center shrink-0">
+              {imageUrl ? (
+                <img src={imageUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User className="h-8 w-8 text-gray-300" />
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageUpload}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2 w-fit"
+              >
+                {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {imageUrl ? "Change Image" : "Upload Image"}
+              </button>
+              {imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setImageUrl("")}
+                  className="text-xs text-red-600 hover:underline w-fit"
+                >
+                  Remove image
+                </button>
+              )}
+              <p className="text-[10px] text-gray-500">JPG, PNG, WebP. Max 2MB.</p>
+            </div>
           </div>
+        </div>
 
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="specialty" className="block text-sm font-medium text-gray-700">
               Specialty
@@ -263,6 +347,3 @@ export function UserForm({ user, branches = [], userBranchIds = [], readOnlyRole
     </form>
   )
 }
-
-// Need cn utility for the disabled select styling
-import { cn } from "@/lib/utils"

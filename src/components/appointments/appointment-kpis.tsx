@@ -1,34 +1,40 @@
-import { CalendarCheck, Clock, CheckCircle, XCircle } from "lucide-react"
+"use client"
 
-interface AppointmentKPIsProps {
+import { Calendar, Clock, CheckCircle2, XCircle, UserX } from "lucide-react"
+
+type Props = {
   today: number
   upcoming: number
   completed: number
   cancelled: number
+  noShow?: number
 }
 
-export function AppointmentKPIs({ today, upcoming, completed, cancelled }: AppointmentKPIsProps) {
-  const kpiData = [
-    { title: "Today's Appointments", value: today, icon: CalendarCheck, accent: "text-[#5BC0BE]", iconBg: "bg-[#5BC0BE]/10", lightBg: "from-[#F5FFFF] to-[#EAFBF9]", shadow: "shadow-[0_15px_35px_rgba(91,192,190,0.12)]" },
-    { title: "Upcoming", value: upcoming, icon: Clock, accent: "text-[#6B9CFF]", iconBg: "bg-[#6B9CFF]/10", lightBg: "from-[#F8FFFF] to-[#EDF9FF]", shadow: "shadow-[0_15px_35px_rgba(107,156,255,0.12)]" },
-    { title: "Completed", value: completed, icon: CheckCircle, accent: "text-[#6BCB77]", iconBg: "bg-[#6BCB77]/10", lightBg: "from-[#F5FFF5] to-[#EAFFEA]", shadow: "shadow-[0_15px_35px_rgba(107,214,123,0.12)]" },
-    { title: "Cancelled", value: cancelled, icon: XCircle, accent: "text-[#EF6B6B]", iconBg: "bg-[#EF6B6B]/10", lightBg: "from-[#FFF5F5] to-[#FFEAEA]", shadow: "shadow-[0_15px_35px_rgba(239,107,107,0.12)]" },
-  ]
+const kpis = [
+  { key: "today", label: "Today", icon: Calendar, color: "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800" },
+  { key: "upcoming", label: "Scheduled", icon: Clock, color: "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800" },
+  { key: "completed", label: "Completed", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800" },
+  { key: "cancelled", label: "Cancelled", icon: XCircle, color: "text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-800 border-gray-200 dark:border-gray-700" },
+  { key: "noShow", label: "Missed", icon: UserX, color: "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950/50 border-red-200 dark:border-red-800" },
+]
+
+export function AppointmentKPIs({ today, upcoming, completed, cancelled, noShow = 0 }: Props) {
+  const values: Record<string, number> = { today, upcoming, completed, cancelled, noShow }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-      {kpiData.map((kpi, index) => {
-        const Icon = kpi.icon
-        return (
-          <div key={index} className={`p-6 rounded-[24px] border border-[rgba(148,163,184,0.1)] dark:border-[rgba(255,255,255,0.06)] bg-gradient-to-br ${kpi.lightBg} dark:from-[#223247] dark:to-[#1D2A3B] ${kpi.shadow} transition-all duration-200 hover:-translate-y-[3px] hover:shadow-lg animate-scale-in`}>
-            <div className={`p-3 rounded-xl ${kpi.iconBg} w-fit mb-4`}>
-              <Icon className={`h-6 w-6 ${kpi.accent}`} />
-            </div>
-            <h3 className="text-[32px] font-bold text-foreground">{kpi.value}</h3>
-            <p className="text-sm font-medium text-muted-foreground mt-1">{kpi.title}</p>
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {kpis.map((kpi) => (
+        <div
+          key={kpi.key}
+          className={`flex items-center gap-3 rounded-xl border p-3 md:p-4 transition-all hover:shadow-sm ${kpi.color}`}
+        >
+          <kpi.icon className="h-5 w-5 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xl md:text-2xl font-bold leading-none">{values[kpi.key]}</p>
+            <p className="text-[11px] md:text-xs text-muted-foreground mt-0.5 truncate">{kpi.label}</p>
           </div>
-        )
-      })}
+        </div>
+      ))}
     </div>
   )
 }

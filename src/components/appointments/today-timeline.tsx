@@ -31,7 +31,7 @@ export function TodayTimeline({ appointments = [] }: TodayTimelineProps) {
               <div className="flex-1 p-3 rounded-xl bg-white/50 dark:bg-[#1D2A3B]/50 border border-[rgba(148,163,184,0.05)] hover:shadow-md transition-all">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-foreground">{apt.patient.fullName}</p>
-                  <AppointmentStatusBadge status={apt.status} size="sm" />
+                  <AppointmentStatusBadge status={apt.status} compact />
                 </div>
                 <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" /> 

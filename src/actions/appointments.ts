@@ -8,6 +8,7 @@ import { AppointmentStatus } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { notifyAppointmentCreated, notifyAppointmentCancelled } from "@/lib/notifications/events"
 import { auditLog } from "@/lib/services/audit"
+import { getClinicPaymentPolicy, isPreVisitPaymentRequired } from "@/lib/actions/payment-workflow"
 
 async function enrichAppointmentData(appointment: any) {
   const patient = await prisma.patient.findUnique({ where: { id: appointment.patientId }, select: { fullName: true } })
@@ -18,7 +19,13 @@ async function enrichAppointmentData(appointment: any) {
 async function checkAppointmentConflict(clinicId: string, doctorId: string, dateTime: Date, excludeAppointmentId?: string): Promise<string | null> {
   const endTime = new Date(dateTime.getTime() + 60 * 60 * 1000)
   const conflictingAppointment = await prisma.appointment.findFirst({
-    where: { id: excludeAppointmentId ? { not: excludeAppointmentId } : undefined, clinicId, doctorId, status: { notIn: [AppointmentStatus.CANCELLED] }, dateTime: { gte: dateTime, lt: endTime } },
+    where: {
+      id: excludeAppointmentId ? { not: excludeAppointmentId } : undefined,
+      clinicId,
+      doctorId,
+      status: { notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW] },
+      dateTime: { gte: dateTime, lt: endTime }
+    },
     select: { id: true },
   })
   return conflictingAppointment ? "This doctor has a conflicting appointment at this time." : null
@@ -32,12 +39,25 @@ async function validateClinicEntities(patientId: string, doctorId: string, clini
   return null
 }
 
+// ══════════════════════════════════════════════════════════════
+// CREATE APPOINTMENT
+// Returns payment requirement info so frontend can show payment step
+// ══════════════════════════════════════════════════════════════
+
 export async function createAppointment(formData: FormData): Promise<ActionResult> {
   try {
     const { clinicId, userId } = await requireRole("SUPER_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST")
-    const raw = { patientId: formData.get("patientId") as string, doctorId: formData.get("doctorId") as string, date: formData.get("date") as string, time: formData.get("time") as string, notes: (formData.get("notes") as string) || "" }
+    const raw = {
+      patientId: formData.get("patientId") as string,
+      doctorId: formData.get("doctorId") as string,
+      date: formData.get("date") as string,
+      time: formData.get("time") as string,
+      notes: (formData.get("notes") as string) || ""
+    }
     const validated = appointmentCreateSchema.safeParse(raw)
-    if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]> }
+    if (!validated.success) {
+      return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]> }
+    }
 
     const dateTime = new Date(`${validated.data.date}T${validated.data.time}:00`)
     const entityError = await validateClinicEntities(validated.data.patientId, validated.data.doctorId, clinicId)
@@ -46,8 +66,19 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
     if (conflictError) return { success: false, error: conflictError }
 
     const appointment = await prisma.appointment.create({
-      data: { patientId: validated.data.patientId, doctorId: validated.data.doctorId, clinicId, dateTime, notes: validated.data.notes?.trim() || null, status: AppointmentStatus.SCHEDULED },
+      data: {
+        patientId: validated.data.patientId,
+        doctorId: validated.data.doctorId,
+        clinicId,
+        dateTime,
+        notes: validated.data.notes?.trim() || null,
+        status: AppointmentStatus.SCHEDULED,
+      },
     })
+
+    // ── Determine payment requirement ──
+    const requiresPrePayment = await isPreVisitPaymentRequired(clinicId)
+    const paymentPolicy = await getClinicPaymentPolicy(clinicId)
 
     if (appointment) {
       const patient = await prisma.patient.findUnique({ where: { id: validated.data.patientId }, select: { fullName: true, phone: true } })
@@ -59,21 +90,42 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
       const enrichedData = await enrichAppointmentData(appointment)
       await auditLog({ clinicId, userId, action: "CREATE", entityType: "APPOINTMENT", entityId: appointment.id, newValues: enrichedData })
     }
+
+    revalidatePath("/appointments")
+
+    // ── Return payment context for frontend ──
+    return {
+      success: true,
+      patientId: validated.data.patientId,
+      appointmentId: appointment.id,
+      requiresPayment: requiresPrePayment,
+      paymentPolicy,
+    }
   } catch (error: any) {
     if (error instanceof AuthorizationError || error instanceof AuthenticationError) return { success: false, error: error.message }
     console.error(error)
     return { success: false, error: "Failed to create appointment." }
   }
-  revalidatePath("/appointments")
-  return { success: true }
 }
+
+// ══════════════════════════════════════════════════════════════
+// UPDATE APPOINTMENT (unchanged logic, minor safety add)
+// ══════════════════════════════════════════════════════════════
 
 export async function updateAppointment(appointmentId: string, formData: FormData): Promise<ActionResult> {
   try {
     const { clinicId, userId, role } = await requireRole("SUPER_ADMIN", "ADMIN", "DOCTOR")
-    const raw = { patientId: formData.get("patientId") as string, doctorId: formData.get("doctorId") as string, date: formData.get("date") as string, time: formData.get("time") as string, notes: (formData.get("notes") as string) || "" }
+    const raw = {
+      patientId: formData.get("patientId") as string,
+      doctorId: formData.get("doctorId") as string,
+      date: formData.get("date") as string,
+      time: formData.get("time") as string,
+      notes: (formData.get("notes") as string) || ""
+    }
     const validated = appointmentUpdateSchema.safeParse(raw)
-    if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]> }
+    if (!validated.success) {
+      return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]> }
+    }
 
     const existingAppointment = await prisma.appointment.findFirst({ where: { id: appointmentId, clinicId } })
     if (!existingAppointment) return { success: false, error: "Appointment not found" }
@@ -85,7 +137,15 @@ export async function updateAppointment(appointmentId: string, formData: FormDat
     const conflictError = await checkAppointmentConflict(clinicId, validated.data.doctorId, dateTime, appointmentId)
     if (conflictError) return { success: false, error: conflictError }
 
-    const updatedAppointment = await prisma.appointment.update({ where: { id: appointmentId }, data: { patientId: validated.data.patientId, doctorId: validated.data.doctorId, dateTime, notes: validated.data.notes?.trim() || null } })
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        patientId: validated.data.patientId,
+        doctorId: validated.data.doctorId,
+        dateTime,
+        notes: validated.data.notes?.trim() || null
+      }
+    })
     const enrichedOld = await enrichAppointmentData(existingAppointment)
     const enrichedNew = await enrichAppointmentData(updatedAppointment)
     await auditLog({ clinicId, userId, action: "UPDATE", entityType: "APPOINTMENT", entityId: appointmentId, oldValues: enrichedOld, newValues: enrichedNew })
@@ -99,6 +159,11 @@ export async function updateAppointment(appointmentId: string, formData: FormDat
   return { success: true }
 }
 
+// ══════════════════════════════════════════════════════════════
+// CHANGE APPOINTMENT STATUS
+// Added: NO_SHOW handling, prevent status regression
+// ══════════════════════════════════════════════════════════════
+
 export async function changeAppointmentStatus(appointmentId: string, newStatus: AppointmentStatus): Promise<ActionResult> {
   try {
     const { clinicId, userId, role } = await requireRole("SUPER_ADMIN", "ADMIN", "DOCTOR")
@@ -107,12 +172,31 @@ export async function changeAppointmentStatus(appointmentId: string, newStatus: 
 
     const existingAppointment = await prisma.appointment.findFirst({ where: { id: appointmentId, clinicId } })
     if (!existingAppointment) return { success: false, error: "Appointment not found" }
+
     if (role === "DOCTOR") {
       if (existingAppointment.doctorId !== userId) return { success: false, error: "You can only change status of your own appointments." }
       if (validated.data.status !== AppointmentStatus.COMPLETED) return { success: false, error: "Doctors can only mark appointments as COMPLETED." }
     }
 
-    const updatedAppointment = await prisma.appointment.update({ where: { id: appointmentId }, data: { status: validated.data.status } })
+    // ── Prevent reverting COMPLETED → NO_SHOW ──
+    if (existingAppointment.status === AppointmentStatus.COMPLETED && newStatus === AppointmentStatus.NO_SHOW) {
+      return { success: false, error: "Cannot mark a completed appointment as no-show." }
+    }
+
+    // ── Prevent reverting CONFIRMED → NO_SHOW if visit exists ──
+    if (newStatus === AppointmentStatus.NO_SHOW) {
+      const hasVisit = await prisma.visit.findFirst({
+        where: { appointmentId }
+      })
+      if (hasVisit) {
+        return { success: false, error: "Cannot mark as no-show: patient has already checked in." }
+      }
+    }
+
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: validated.data.status }
+    })
 
     if (validated.data.status === AppointmentStatus.CANCELLED) {
       const patient = await prisma.patient.findUnique({ where: { id: existingAppointment.patientId }, select: { fullName: true, phone: true } })
@@ -124,7 +208,14 @@ export async function changeAppointmentStatus(appointmentId: string, newStatus: 
 
     const enrichedOld = await enrichAppointmentData(existingAppointment)
     const enrichedNew = await enrichAppointmentData(updatedAppointment)
-    await auditLog({ clinicId, userId, action: validated.data.status === AppointmentStatus.CANCELLED ? "CANCEL" : "UPDATE", entityType: "APPOINTMENT", entityId: appointmentId, oldValues: enrichedOld, newValues: enrichedNew })
+    await auditLog({
+      clinicId, userId,
+      action: (validated.data.status === AppointmentStatus.CANCELLED ? "CANCEL" : validated.data.status === AppointmentStatus.NO_SHOW ? "NO_SHOW" : "UPDATE") as any,
+      entityType: "APPOINTMENT",
+      entityId: appointmentId,
+      oldValues: enrichedOld,
+      newValues: enrichedNew
+    })
   } catch (error: any) {
     if (error instanceof AuthorizationError || error instanceof AuthenticationError) return { success: false, error: error.message }
     console.error(error)
@@ -135,13 +226,20 @@ export async function changeAppointmentStatus(appointmentId: string, newStatus: 
   return { success: true }
 }
 
+// ══════════════════════════════════════════════════════════════
+// DELETE APPOINTMENT (soft delete via CANCELLED status)
+// ══════════════════════════════════════════════════════════════
+
 export async function deleteAppointment(appointmentId: string): Promise<ActionResult> {
   try {
     const { clinicId, userId } = await requireRole("SUPER_ADMIN", "ADMIN")
     const existingAppointment = await prisma.appointment.findFirst({ where: { id: appointmentId, clinicId } })
     if (!existingAppointment) return { success: false, error: "Appointment not found" }
 
-    const updatedAppointment = await prisma.appointment.update({ where: { id: appointmentId }, data: { status: AppointmentStatus.CANCELLED } })
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: AppointmentStatus.CANCELLED }
+    })
     const patient = await prisma.patient.findUnique({ where: { id: existingAppointment.patientId }, select: { fullName: true, phone: true } })
     const clinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } })
     if (patient) {

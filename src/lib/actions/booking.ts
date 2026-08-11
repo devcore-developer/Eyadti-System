@@ -232,6 +232,10 @@ export async function createBooking(clinicId: string, rawData: unknown) {
 
     const validated = bookingFormSchema.parse(rawData)
 
+    // ✅ FIX: Prevent bypassing monthly visit limits via online bookings
+    const { enforceUsageLimit } = await import("@/lib/services/usage-limits")
+    await enforceUsageLimit(clinicId, "MONTHLY_VISITS")
+
     // ✅ SECURE: Verify Doctor belongs to this Clinic
     const doctor = await prisma.user.findFirst({
       where: { id: validated.doctorId, clinicId, role: "DOCTOR" }

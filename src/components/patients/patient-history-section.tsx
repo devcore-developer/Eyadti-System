@@ -433,13 +433,7 @@ export function PatientHistorySection({
       {/* ── Add Dialog (controlled) ── */}
       <Dialog open={openDialog !== null} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className="dark:bg-[#223247] !overflow-visible"
-          onInteractOutside={(e) => {
-            if (e.target instanceof HTMLElement && e.target.closest('#medical-autocomplete-portal')) {
-              e.preventDefault()
-            }
-          }}
-        >
+          className="dark:bg-[#223247] !overflow-visible">
           <DialogHeader>
             <DialogTitle>{openDialog ? dialogTitles[openDialog] : ""}</DialogTitle>
             <DialogDescription className="sr-only">{openDialog ? dialogDescriptions[openDialog] : ""}</DialogDescription>

@@ -1,10 +1,12 @@
 // src/lib/validations/settings.ts
 
 import { z } from "zod"
+import { PaymentWorkflow } from "@prisma/client"
 
 export const clinicSettingsSchema = z.object({
   clinicName: z.string().min(2, "Clinic name must be at least 2 characters"),
   address: z.string().optional().or(z.literal("")),
+  locationUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
   phone: z.string().min(1, "Phone is required").regex(/^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/, "Invalid phone number"),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
@@ -16,6 +18,8 @@ export const clinicSettingsSchema = z.object({
   timeFormat: z.enum(["12h", "24h"]),
   enableNotifications: z.boolean(),
   enableOnlineBooking: z.boolean(),
+  paymentWorkflow: z.nativeEnum(PaymentWorkflow).optional().default("PAY_AFTER_VISIT"),
+  
   
   // ↓↓↓ أضف الخانتين دول هنا ↓↓↓
   whatsappInstanceName: z.string().optional().or(z.literal("")),

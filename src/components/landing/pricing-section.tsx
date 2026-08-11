@@ -42,8 +42,8 @@ function PlanValue({ value, isEnterprise }: { value: boolean | number | null; is
         <Check className="w-3.5 h-3.5 text-emerald-600" strokeWidth={2.5} />
       </span>
     ) : (
-      <span className="flex items-center justify-center w-5 h-5">
-        <X className="w-3.5 h-3.5 text-slate-300" strokeWidth={2} />
+      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-red-50">
+        <X className="w-3.5 h-3.5 text-red-500" strokeWidth={2.5} />
       </span>
     )
   }
@@ -83,13 +83,19 @@ export default async function PricingSection() {
   const plans = rawPlans.sort((a, b) => planOrder.indexOf(a.slug) - planOrder.indexOf(b.slug))
 
   // Build feature matrix from actual plan data
-  const featureMatrix: Record<string, boolean> = {
-    "Online Booking": plans[0]?.onlineBookingEnabled ?? false,
-    "Doctor Attendance": plans[1]?.doctorAttendanceEnabled ?? false,
-    "WhatsApp Automation": plans[1]?.whatsappEnabled ?? false,
-    "Advanced Analytics": plans[1]?.analyticsEnabled ?? false,
-    "Audit Logs": plans[1]?.auditLogsEnabled ?? false,
-    "Before/After Gallery": plans[1]?.galleryEnabled ?? false,
+  const featureFields: { key: string; planField: string }[] = [
+    { key: "Online Booking", planField: "onlineBookingEnabled" },
+    { key: "Doctor Attendance", planField: "doctorAttendanceEnabled" },
+    { key: "WhatsApp Automation", planField: "whatsappEnabled" },
+    { key: "Advanced Analytics", planField: "analyticsEnabled" },
+    { key: "Audit Logs", planField: "auditLogsEnabled" },
+    { key: "Before/After Gallery", planField: "galleryEnabled" },
+  ]
+
+  const getFeatureValue = (feature: { planField: string }, plan: any) => {
+    const val = plan[feature.planField as keyof typeof plan]
+    if (typeof val === "boolean") return val
+    return false
   }
 
   const trustItems = [
@@ -239,13 +245,7 @@ export default async function PricingSection() {
                   {featuresList.map((feature) => {
                     const isIncluded = isEnterprise
                       ? true
-                      : plan.slug === "professional"
-                      ? featureMatrix[feature] ?? false
-                      : plan.slug === "standard"
-                      ? feature === "Online Booking"
-                        ? true
-                        : false
-                      : false
+                      : getFeatureValue(featureFields.find(f => f.key === feature)!, plan)
 
                     return (
                       <div key={feature} className="flex items-center justify-between py-2.5">

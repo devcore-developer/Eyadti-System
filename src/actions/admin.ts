@@ -7,6 +7,7 @@ import type { ActionResult } from "@/types"
 import { hashPassword } from "@/lib/password"
 import { revalidatePath } from "next/cache"
 import { Role } from "@prisma/client"
+import { enforceUsageLimit } from "@/lib/services/usage-limits" // ← إضافة الاستيراد
 
 function handleAuthError(error: unknown): ActionResult {
   if (error instanceof AuthenticationError) return { success: false, error: error.message }
@@ -49,42 +50,71 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Clinic not found. Please log out and log in again to refresh your session." }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // ✅ FIX: فرض حدود الخطة قبل الإنشاء
+    // ═══════════════════════════════════════════════════════════
+    await enforceUsageLimit(session.clinicId, "USERS")
+
+    if (validated.data.role === Role.DOCTOR) {
+      await enforceUsageLimit(session.clinicId, "DOCTORS")
+    }
+
     // FIX #25: Use hashPassword for consistent salt rounds (12)
     const hashedPassword = await hashPassword(validated.data.password)
 
-    const newUser = await prisma.user.create({
-      data: {
-        name: validated.data.name,
-        email: validated.data.email,
-        password: hashedPassword,
-        role: validated.data.role,
-        clinicId: session.clinicId,
-        image: validated.data.image || null,
-        specialty: validated.data.specialty || null,
-        degree: validated.data.degree || null,
-      },
-    })
+    const isAdminRole = validated.data.role === Role.ADMIN
 
-    if (validated.data.branchIds && validated.data.branchIds.length > 0) {
-      if (validated.data.role === Role.DOCTOR) {
-        await prisma.doctorBranch.createMany({
-          data: validated.data.branchIds.map(branchId => ({
-            doctorId: newUser.id,
-            branchId,
-          })),
+    // ═══════════════════════════════════════════════════════════
+    // ✅ FIX: Transaction لضمان سلامة البيانات
+    // ═══════════════════════════════════════════════════════════
+    await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          name: validated.data.name,
+          email: validated.data.email,
+          password: hashedPassword,
+          role: validated.data.role,
+          clinicId: session.clinicId,
+          image: validated.data.image || null,
+          specialty: validated.data.specialty || null,
+          degree: validated.data.degree || null,
+          allBranchAccess: isAdminRole,
+        },
+      })
+
+      if (!isAdminRole && validated.data.branchIds && validated.data.branchIds.length > 0) {
+        // أمان: التحقق من أن كل الفرع تابع لهذه العيادة
+        const validBranches = await tx.branch.findMany({
+          where: { id: { in: validated.data.branchIds }, clinicId: session.clinicId }
         })
-      } else {
-        await prisma.userBranch.createMany({
-          data: validated.data.branchIds.map(branchId => ({
-            userId: newUser.id,
-            branchId,
-          })),
-        })
+        if (validBranches.length !== validated.data.branchIds.length) {
+          throw new Error("Invalid branch selection. You can only assign branches belonging to your clinic.")
+        }
+
+        if (validated.data.role === Role.DOCTOR) {
+          await tx.doctorBranch.createMany({
+            data: validated.data.branchIds.map(branchId => ({
+              doctorId: newUser.id,
+              branchId,
+            })),
+          })
+        } else {
+          await tx.userBranch.createMany({
+            data: validated.data.branchIds.map(branchId => ({
+              userId: newUser.id,
+              branchId,
+            })),
+          })
+        }
       }
-    }
+    })
   } catch (error) {
     if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
       return handleAuthError(error)
+    }
+    // التقاط أخطاء الحدود والأمان
+    if (error instanceof Error && (error.message.includes("limit") || error.message.includes("Invalid branch"))) {
+      return { success: false, error: error.message }
     }
     console.error(error)
     return { success: false, error: "Failed to create user." }
@@ -148,6 +178,9 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       }
     }
 
+    const newRole = validated.data.role || existingUser.role
+    const isNewRoleAdmin = newRole === Role.ADMIN
+
     // الحقول الأساسية المتاحة للجميع
     const updateData: any = {
       name: validated.data.name,
@@ -155,11 +188,12 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       image: validated.data.image || null,
       specialty: validated.data.specialty || null,
       degree: validated.data.degree || null,
+      allBranchAccess: isNewRoleAdmin,
     }
 
     // تغيير الدور متاح لـ ADMIN فقط — حماية من تصعيد الصلاحيات
     if (!isSelfEdit) {
-      updateData.role = validated.data.role
+      updateData.role = newRole
     }
 
     // تغيير كلمة المرور متاح للجميع (بالتشفير)
@@ -167,44 +201,69 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       updateData.password = await hashPassword(validated.data.password)
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    })
+    // ═══════════════════════════════════════════════════════════
+    // ✅ FIX: Transaction لأمان الفروع
+    // ═══════════════════════════════════════════════════════════
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: updateData,
+      })
 
-    // إدارة الفروع متاحة لـ ADMIN فقط
-    if (!isSelfEdit && validated.data.branchIds) {
-      if (validated.data.role === Role.DOCTOR) {
-        await prisma.$transaction([
-          prisma.doctorBranch.deleteMany({ where: { doctorId: userId } }),
-          prisma.doctorBranch.createMany({
-            data: validated.data.branchIds.map(branchId => ({
-              doctorId: userId,
-              branchId,
-            })),
-          }),
-        ])
-      } else {
-        await prisma.$transaction([
-          prisma.userBranch.deleteMany({ where: { userId } }),
-          prisma.userBranch.createMany({
-            data: validated.data.branchIds.map(branchId => ({
-              userId,
-              branchId,
-            })),
-          }),
-        ])
+      // إدارة الفروع متاحة لـ ADMIN فقط
+      if (!isSelfEdit && validated.data.branchIds) {
+        if (newRole === Role.DOCTOR) {
+          await tx.doctorBranch.deleteMany({ where: { doctorId: userId } })
+          
+          if (!isNewRoleAdmin && validated.data.branchIds.length > 0) {
+            const validBranches = await tx.branch.findMany({
+              where: { id: { in: validated.data.branchIds }, clinicId: session.clinicId }
+            })
+            if (validBranches.length !== validated.data.branchIds.length) {
+              throw new Error("Invalid branch selection.")
+            }
+            
+            await tx.doctorBranch.createMany({
+              data: validated.data.branchIds.map(branchId => ({
+                doctorId: userId,
+                branchId,
+              })),
+            })
+          }
+        } else {
+          await tx.userBranch.deleteMany({ where: { userId } })
+          
+          if (!isNewRoleAdmin && validated.data.branchIds.length > 0) {
+            const validBranches = await tx.branch.findMany({
+              where: { id: { in: validated.data.branchIds }, clinicId: session.clinicId }
+            })
+            if (validBranches.length !== validated.data.branchIds.length) {
+              throw new Error("Invalid branch selection.")
+            }
+            
+            await tx.userBranch.createMany({
+              data: validated.data.branchIds.map(branchId => ({
+                userId,
+                branchId,
+              })),
+            })
+          }
+        }
       }
-    }
+    })
   } catch (error) {
     if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
       return handleAuthError(error)
+    }
+    if (error instanceof Error && error.message.includes("Invalid branch")) {
+      return { success: false, error: error.message }
     }
     console.error(error)
     return { success: false, error: "Failed to update user." }
   }
 
   revalidatePath("/admin/users")
+  revalidatePath(`/admin/users/edit/${userId}`)
   return { success: true }
 }
 
@@ -256,4 +315,48 @@ export async function updateClinicSettings(formData: FormData): Promise<ActionRe
   revalidatePath("/admin/settings")
   revalidatePath("/dashboard")
   return { success: true }
+}
+
+// ─── Delete User ──────────────────────────────────────────────────
+export async function deleteUser(userId: string): Promise<ActionResult> {
+  try {
+    const session = await requireRole("ADMIN")
+
+    // منع المستخدم من حذف نفسه
+    if (session.userId === userId) {
+      return { success: false, error: "You cannot delete your own account." }
+    }
+
+    const userToDelete = await prisma.user.findFirst({
+      where: { id: userId, clinicId: session.clinicId },
+    })
+
+    if (!userToDelete) {
+      return { success: false, error: "User not found in your clinic." }
+    }
+
+    // منع الأدمن من حذف سوبر أدمن
+    if (userToDelete.role === "SUPER_ADMIN" && session.role !== "SUPER_ADMIN") {
+      return { success: false, error: "Only Super Admins can delete other Super Admins." }
+    }
+
+    await prisma.user.delete({
+      where: { id: userId },
+    })
+
+    revalidatePath("/admin/users")
+    return { success: true }
+  } catch (error: any) {
+    if (error.code === 'P2003') {
+      return { 
+        success: false, 
+        error: "Cannot delete this user because they have associated records (e.g., appointments or invoices). Please reassign their records first." 
+      }
+    }
+    if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
+      return handleAuthError(error)
+    }
+    console.error(error)
+    return { success: false, error: "Failed to delete user." }
+  }
 }

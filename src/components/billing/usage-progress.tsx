@@ -1,4 +1,4 @@
-// src/components/billing/usage-progress.tsx
+// src/components/billing/usage-progress.tsx - استبدل بالكامل
 
 import { UsageStat } from "@/types/subscription";
 import {
@@ -6,6 +6,7 @@ import {
   Users,
   UserCheck,
   Building2,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Users,
   UserCheck,
   Building2,
+  Activity,
 };
 
 interface UsageProgressProps {
@@ -27,20 +29,41 @@ export function UsageProgress({ stat, compact = false }: UsageProgressProps) {
   const percentage = isUnlimited
     ? 0
     : Math.min(100, Math.round((stat.current / stat.limit!) * 100));
-  const isNearLimit = !isUnlimited && percentage >= 80;
-  const isAtLimit = !isUnlimited && stat.current >= stat.limit!;
+  
+  // ═══════════════════════════════════════════════════════════
+  // ✅ FIX: منطق الحالات المعدّل
+  // - Near Limit: 80% أو أكثر ولكن أقل من الحد
+  // - Limit Reached: يساوي الحد بالضبط
+  // - Exceeded: تجاوز الحد (حالة غير طبيعية)
+  // ═══════════════════════════════════════════════════════════
+  const isExceeded = !isUnlimited && stat.current > stat.limit!;
+  const isAtLimit = !isUnlimited && !isExceeded && stat.current >= stat.limit!;
+  const isNearLimit = !isUnlimited && !isAtLimit && !isExceeded && percentage >= 80;
 
-  const barColor = isAtLimit
+  const barColor = isExceeded
+    ? "bg-red-700"
+    : isAtLimit
     ? "bg-red-500"
     : isNearLimit
     ? "bg-amber-500"
     : "bg-indigo-500";
 
-  const textColor = isAtLimit
+  const textColor = isExceeded
+    ? "text-red-700"
+    : isAtLimit
     ? "text-red-600"
     : isNearLimit
     ? "text-amber-600"
     : "text-gray-700";
+
+  const getStatusLabel = (): string | null => {
+    if (isExceeded) return "Exceeded";
+    if (isAtLimit) return "Limit Reached";
+    if (isNearLimit) return "Near Limit";
+    return null;
+  }
+
+  const statusLabel = getStatusLabel();
 
   if (compact) {
     return (
@@ -48,13 +71,25 @@ export function UsageProgress({ stat, compact = false }: UsageProgressProps) {
         <div
           className={cn(
             "flex items-center justify-center w-9 h-9 rounded-lg",
-            isAtLimit ? "bg-red-100" : isNearLimit ? "bg-amber-100" : "bg-indigo-100"
+            isExceeded 
+              ? "bg-red-200" 
+              : isAtLimit 
+              ? "bg-red-100" 
+              : isNearLimit 
+              ? "bg-amber-100" 
+              : "bg-indigo-100"
           )}
         >
           <Icon
             className={cn(
               "w-4.5 h-4.5",
-              isAtLimit ? "text-red-600" : isNearLimit ? "text-amber-600" : "text-indigo-600"
+              isExceeded
+                ? "text-red-700"
+                : isAtLimit
+                ? "text-red-600"
+                : isNearLimit
+                ? "text-amber-600"
+                : "text-indigo-600"
             )}
           />
         </div>
@@ -72,7 +107,7 @@ export function UsageProgress({ stat, compact = false }: UsageProgressProps) {
             <div className="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
                 className={cn("h-full rounded-full transition-all", barColor)}
-                style={{ width: `${percentage}%` }}
+                style={{ width: `${Math.min(percentage, 100)}%` }}
               />
             </div>
           )}
@@ -90,13 +125,25 @@ export function UsageProgress({ stat, compact = false }: UsageProgressProps) {
         <div
           className={cn(
             "flex items-center justify-center w-10 h-10 rounded-lg",
-            isAtLimit ? "bg-red-100" : isNearLimit ? "bg-amber-100" : "bg-indigo-100"
+            isExceeded
+              ? "bg-red-200"
+              : isAtLimit
+              ? "bg-red-100"
+              : isNearLimit
+              ? "bg-amber-100"
+              : "bg-indigo-100"
           )}
         >
           <Icon
             className={cn(
               "w-5 h-5",
-              isAtLimit ? "text-red-600" : isNearLimit ? "text-amber-600" : "text-indigo-600"
+              isExceeded
+                ? "text-red-700"
+                : isAtLimit
+                ? "text-red-600"
+                : isNearLimit
+                ? "text-amber-600"
+                : "text-indigo-600"
             )}
           />
         </div>
@@ -109,9 +156,18 @@ export function UsageProgress({ stat, compact = false }: UsageProgressProps) {
             </span>
           </p>
         </div>
-        {isAtLimit && (
-          <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-full">
-            Limit Reached
+        {statusLabel && (
+          <span
+            className={cn(
+              "text-xs font-semibold px-2 py-1 rounded-full",
+              isExceeded
+                ? "text-red-700 bg-red-200 border border-red-300"
+                : isAtLimit
+                ? "text-red-600 bg-red-50"
+                : "text-amber-600 bg-amber-50"
+            )}
+          >
+            {statusLabel}
           </span>
         )}
       </div>
@@ -124,13 +180,16 @@ export function UsageProgress({ stat, compact = false }: UsageProgressProps) {
                 "h-full rounded-full transition-all duration-500",
                 barColor
               )}
-              style={{ width: `${percentage}%` }}
+              style={{ width: `${Math.min(percentage, 100)}%` }}
             />
           </div>
           <div className="flex justify-between text-xs text-gray-500">
             <span>{percentage}% used</span>
             <span>
-              {stat.limit! - stat.current} remaining
+              {isExceeded 
+                ? `${stat.current - stat.limit!} over limit`
+                : `${stat.limit! - stat.current} remaining`
+              }
             </span>
           </div>
         </div>

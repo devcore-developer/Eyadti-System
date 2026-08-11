@@ -51,13 +51,16 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
   const isDoctor = userRole === "DOCTOR"
   const isReception = userRole === "RECEPTIONIST"
-  const isMedical = userRole === "SUPER_ADMIN" || userRole === "ADMIN" || isDoctor
+  // من يستطيع رؤية الأقسام الطبية (بما في ذلك الوصفات)
+  const canViewMedical = userRole === "SUPER_ADMIN" || userRole === "ADMIN" || isDoctor || isReception
+  // من يستطيع إنشاء/تعديل الأقسام الطبية
+  const canEditMedical = userRole === "SUPER_ADMIN" || userRole === "ADMIN" || isDoctor
   const isBilling = userRole === "SUPER_ADMIN" || userRole === "ADMIN" || isReception
   const isAdmin = userRole === "SUPER_ADMIN" || userRole === "ADMIN"
-  const showEdit = isMedical
+  const showEdit = canEditMedical
   const showDelete = isAdmin
-  const canAddVisit = isMedical
-  const canUpload = isMedical || isReception
+  const canAddVisit = canEditMedical
+  const canUpload = canEditMedical || isReception
 
   function formatDate(date: Date | string | null | undefined): string {
     if (!date) return "—"
@@ -104,7 +107,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <Stethoscope className="h-4 w-4" /> New Visit
           </Link>
         )}
-        {isMedical && (
+        {canViewMedical && (
           <Link href={`/patients/${patient.id}/prescriptions/new`} className="sm:inline-flex items-center justify-center gap-2 rounded-xl bg-white dark:bg-[#223247] border px-5 py-2.5 text-sm font-semibold text-foreground hover:shadow-md transition-all">
             <Pill className="h-4 w-4 text-[#6B9CFF]" /> Prescription
           </Link>
@@ -186,12 +189,12 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             </div>
 
             {/* Prescriptions Section — DOCTOR and ADMIN only */}
-            {isMedical && (
+            {canViewMedical && (
               <div id="prescriptions">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-semibold text-foreground">Prescriptions</h2>
                   <div className="flex items-center gap-3">
-                    {canAddVisit && <Link href={`/patients/${patient.id}/prescriptions/new`} className="text-sm font-semibold text-[#6B9CFF]">+ New Rx</Link>}
+                    {canEditMedical && <Link href={`/patients/${patient.id}/prescriptions/new`} className="text-sm font-semibold text-[#6B9CFF]">+ New Rx</Link>}
                     <Link href={`/patients/${patient.id}/prescriptions`} className="text-sm font-semibold text-[#6B9CFF]">View all →</Link>
                   </div>
                 </div>

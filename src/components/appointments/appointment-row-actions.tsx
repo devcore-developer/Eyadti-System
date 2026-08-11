@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { deleteAppointment } from "@/actions/appointments"
-import { checkInAppointment } from "@/actions/unified-appointment" // ✨ الـ Action الجديد
 import { AppointmentStatus } from "@prisma/client"
 import Link from "next/link"
+import { toast } from "sonner"
+import { CheckInButton } from "./check-in-button"
 
 type Props = {
   appointmentId: string
@@ -13,46 +14,41 @@ type Props = {
   doctorId: string
   role: string
   userId: string
+  patientId: string
+  patientName: string
+  clinicId: string
+  branchId?: string
+  isEmergency?: boolean
 }
 
-export function AppointmentRowActions({ appointmentId, status, doctorId, role, userId }: Props) {
+export function AppointmentRowActions({ 
+  appointmentId, status, doctorId, role, userId,
+  patientId, patientName, clinicId, branchId, isEmergency = false,
+}: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
 
   const isDoctorOwner = role === "DOCTOR" && doctorId === userId
   const canEdit = (role === "SUPER_ADMIN" || role === "ADMIN" || isDoctorOwner) && status === AppointmentStatus.SCHEDULED
-  
-  // ✨ شروط الأزرار الجديدة بناءً على الـ Workflow الجديد
   const canCheckIn = (role === "SUPER_ADMIN" || role === "ADMIN" || role === "RECEPTIONIST") && status === AppointmentStatus.SCHEDULED
-  const canCancel = (role === "SUPER_ADMIN" || role === "ADMIN") && status !== AppointmentStatus.CANCELLED && status !== AppointmentStatus.COMPLETED
+  const canCancel = (role === "SUPER_ADMIN" || role === "ADMIN") && status !== AppointmentStatus.CANCELLED && status !== AppointmentStatus.COMPLETED && status !== AppointmentStatus.NO_SHOW
 
-  // ✨ دالة الـ Check-in الجديدة
-  function handleCheckIn() {
-    setError(null)
+  function handleCancel() {
     startTransition(async () => {
-      const result = await checkInAppointment(appointmentId)
+      const result = await deleteAppointment(appointmentId)
       if (!result.success) {
-        setError(result.error ?? "Check-in failed")
+        toast.error(result.error || "Failed to cancel")
       } else {
+        toast.success("Appointment cancelled")
         router.refresh()
       }
     })
   }
 
-  function handleCancel() {
-    setError(null)
-    startTransition(async () => {
-      const result = await deleteAppointment(appointmentId)
-      if (!result.success) setError(result.error ?? null)
-      else router.refresh()
-    })
-  }
+  const isViewOnly = status === AppointmentStatus.COMPLETED || status === AppointmentStatus.NO_SHOW
 
   return (
     <div className="flex items-center justify-end gap-2">
-      {error && <span className="text-xs text-red-600">{error}</span>}
-      
       <Link href={`/appointments/${appointmentId}`} className="text-gray-600 hover:text-gray-900 text-xs">
         View
       </Link>
@@ -63,24 +59,22 @@ export function AppointmentRowActions({ appointmentId, status, doctorId, role, u
         </Link>
       )}
 
-      {/* ✨ زر الـ Check-in الجديد */}
       {canCheckIn && (
-        <button
-          onClick={handleCheckIn}
-          disabled={isPending}
-          className="rounded-md bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-200 disabled:opacity-50"
-        >
-          {isPending ? "..." : "✓ Check-in"}
-        </button>
+        <CheckInButton
+          appointmentId={appointmentId}
+          patientId={patientId}
+          patientName={patientName}
+          clinicId={clinicId}
+          branchId={branchId}
+          isEmergency={isEmergency}
+        />
       )}
-
-      {/* لا نحتاج أزرار Start Consultation أو Complete هنا، لأن هذا يتم من الـ Waiting Room الآن */}
 
       {canCancel && (
         <button
           onClick={handleCancel}
           disabled={isPending}
-          className="text-red-600 hover:text-red-800 disabled:opacity-50 text-xs"
+          className="text-red-600 hover:text-red-800 disabled:opacity-50 text-xs transition-colors"
         >
           Cancel
         </button>

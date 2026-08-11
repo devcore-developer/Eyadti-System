@@ -1,20 +1,34 @@
-// src/app/(dashboard)/invoices/new/page.tsx
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { InvoiceForm } from "@/components/invoices/invoice-form"
 
-export default async function NewInvoicePage() {
+export default async function NewInvoicePage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    visitId?: string
+    patientId?: string
+    doctorId?: string
+    appointmentId?: string
+  }>
+}) {
   const session = await auth()
   if (!session?.user) redirect("/login")
   if (session.user.role !== "ADMIN" && session.user.role !== "RECEPTIONIST") redirect("/invoices")
+
+  const params = await searchParams
 
   const patients = await prisma.patient.findMany({
     where: { clinicId: session.user.clinicId },
     select: { id: true, fullName: true },
     orderBy: { fullName: "asc" },
   })
+
+  // Check if this is a redirect from Waiting Room billing
+  const isFromWaitingRoom = !!params.visitId
+  const preselectedPatientId = params.patientId || ""
 
   return (
     <div className="space-y-6">
@@ -26,13 +40,21 @@ export default async function NewInvoicePage() {
           ← Back to Invoices
         </Link>
         <h1 className="mt-1 text-2xl font-bold text-gray-900">
-          Create New Invoice
+          {isFromWaitingRoom ? "Complete Visit Billing" : "Create New Invoice"}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Fill in the details and add items to the invoice.
+          {isFromWaitingRoom
+            ? "Record payment and close the visit."
+            : "Fill in the details and add items to the invoice."}
         </p>
       </div>
-      <InvoiceForm patients={patients} />
+      <InvoiceForm
+        patients={patients}
+        preselectedPatientId={preselectedPatientId}
+        visitId={params.visitId}
+        doctorId={params.doctorId}
+        appointmentId={params.appointmentId}
+      />
     </div>
   )
 }

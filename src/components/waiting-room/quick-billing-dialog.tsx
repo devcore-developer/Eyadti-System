@@ -1,118 +1,186 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { createVisitInvoice } from "@/actions/visit-billing"
+import { useRouter } from "next/navigation"
+import { completePostVisitPayment } from "@/lib/actions/payment-workflow"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { PaymentMethod } from "@prisma/client"
+import { CreditCard } from "lucide-react"
 import { toast } from "sonner"
-import { Receipt } from "lucide-react"
 
 type Props = {
   visitId: string
   patientId: string
   doctorId: string
   patientName: string
+  appointmentId?: string | null
 }
 
-const nativeSelectClasses = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-
-export function QuickBillingDialog({ visitId, patientId, doctorId, patientName }: Props) {
-  const [isOpen, setIsOpen] = useState(false)
+export function QuickBillingDialog({ visitId, patientId, doctorId, patientName, appointmentId }: Props) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [total, setTotal] = useState(0)
-  const [paid, setPaid] = useState(0)
+  const [amount, setAmount] = useState("")
+  const [paidAmount, setPaidAmount] = useState("")
+  const [method, setMethod] = useState<PaymentMethod>(PaymentMethod.CASH)
+  const [description, setDescription] = useState("Medical Consultation / Procedure")
 
-  const balance = total - paid
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    
+    const totalAmount = parseFloat(amount)
+    const totalPaid = parseFloat(paidAmount)
+
+    if (!totalAmount || totalAmount <= 0) {
+      toast.error("Please enter a valid amount")
+      return
+    }
+    if (isNaN(totalPaid) || totalPaid < 0) {
+      toast.error("Please enter a valid paid amount")
+      return
+    }
+    if (totalPaid > totalAmount) {
+      toast.error("Paid amount cannot exceed total amount")
+      return
+    }
+
     startTransition(async () => {
-      const result = await createVisitInvoice(formData)
+      // We need clinicId — get it from a hidden approach or pass it
+      // Since this is in the waiting room, we rely on the server action
+      // to extract clinicId from the session
+      const result = await completePostVisitPayment({
+        appointmentId: appointmentId || null,
+        visitId,
+        patientId,
+        totalAmount,
+        paidAmount: totalPaid,
+        paymentMethod: method,
+        description: description || "Medical Consultation / Procedure",
+        clinicId: "", // Server action will get this from session
+        doctorId,
+      })
+
       if (result.success) {
-        toast.success(`Invoice created for ${patientName}. Visit Completed!`)
-        setIsOpen(false)
+        toast.success(totalPaid >= totalAmount ? "Payment complete — visit closed" : "Payment recorded")
+        setOpen(false)
+        setAmount("")
+        setPaidAmount("")
+        setDescription("Medical Consultation / Procedure")
+        router.refresh()
       } else {
-        toast.error(result.error || "Failed to process billing")
+        toast.error(result.error || "Billing failed")
       }
     })
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {/* ✨ زر الدفع يأخذ العرض الكامل على الموبايل */}
-        <Button size="sm" className="w-full sm:w-auto gap-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white h-10 sm:h-9">
-          <Receipt className="h-4 w-4" /> Collect Payment
+        <Button
+          size="sm"
+          className="w-full gap-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white h-10 sm:h-9 hover:from-orange-600 hover:to-amber-600"
+        >
+          <CreditCard className="h-4 w-4" /> Complete & Bill
         </Button>
       </DialogTrigger>
-      {/* ✨ الـ Dialog سيفتح تلقائياً كـ Bottom Sheet على الموبايل بفضل تعديلات المرحلة 3 */}
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-orange-500" /> Quick Billing - {patientName}
-          </DialogTitle>
+          <DialogTitle>Complete Visit & Bill</DialogTitle>
+          <DialogDescription>
+            Patient: <span className="font-semibold">{patientName}</span>
+          </DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <input type="hidden" name="visitId" value={visitId} />
-          <input type="hidden" name="patientId" value={patientId} />
-          <input type="hidden" name="doctorId" value={doctorId} />
 
-          <div>
-            <Label>Description</Label>
-            <Input name="description" defaultValue="Medical Services" required />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="qb-description">Description</Label>
+            <Input
+              id="qb-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Consultation / Procedure"
+            />
           </div>
 
-          {/* ✨ عمود واحد على الموبايل، وعمودين على الـ Desktop */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label>Total Amount (EGP) *</Label>
-              <Input 
-                name="totalAmount" 
-                type="number" 
-                min="0" 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="qb-amount">Total Amount</Label>
+              <Input
+                id="qb-amount"
+                type="number"
                 step="0.01"
-                required 
-                onChange={(e) => setTotal(parseFloat(e.target.value) || 0)}
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                required
               />
             </div>
-            <div>
-              <Label>Paid Now (EGP)</Label>
-              <Input 
-                name="paidAmount" 
-                type="number" 
-                min="0" 
+            <div className="space-y-2">
+              <Label htmlFor="qb-paid">Paid Now</Label>
+              <Input
+                id="qb-paid"
+                type="number"
                 step="0.01"
-                defaultValue={0}
-                onChange={(e) => setPaid(parseFloat(e.target.value) || 0)}
+                min="0"
+                value={paidAmount}
+                onChange={(e) => setPaidAmount(e.target.value)}
+                placeholder="0.00"
+                required
               />
             </div>
           </div>
 
-          {balance > 0 && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-              Pending Balance: <span className="font-bold">{balance.toFixed(2)} EGP</span>
+          {amount && paidAmount && parseFloat(paidAmount) < parseFloat(amount) && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                Remaining: <span className="font-bold">{(parseFloat(amount) - parseFloat(paidAmount)).toFixed(2)}</span> EGP
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Invoice will be marked as partially paid</p>
             </div>
           )}
 
-          <div>
+          <div className="space-y-2">
             <Label>Payment Method</Label>
-            {/* ✨ استخدام Native Select لضمان عمله داخل الـ Bottom Sheet على الموبايل */}
-            <select name="paymentMethod" defaultValue="CASH" className={nativeSelectClasses}>
-              <option value="CASH">Cash</option>
-              <option value="CARD">Card</option>
-              <option value="BANK_TRANSFER">Bank Transfer</option>
-              <option value="INSURANCE">Insurance</option>
-            </select>
+            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CASH">Cash</SelectItem>
+                <SelectItem value="CARD">Card</SelectItem>
+                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                <SelectItem value="INSURANCE">Insurance</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <Button type="submit" disabled={isPending} className="w-full h-12 text-base bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
-            {isPending ? "Processing..." : "Confirm & Complete Visit"}
-          </Button>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
+              {isPending ? "Processing..." : "Complete & Record Payment"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

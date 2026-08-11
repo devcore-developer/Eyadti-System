@@ -53,8 +53,17 @@ export function AutocompleteInput({
 
     startTransition(async () => {
       const data = await searchFnRef(debouncedQuery)
-      setResults(data)
-      setIsOpen(data.length > 0 || allowCustom)
+
+      // Deduplicate by normalized label
+      const seen = new Map<string, AutocompleteOption>()
+      for (const item of data) {
+        const key = item.label.toLowerCase().trim()
+        if (!seen.has(key)) seen.set(key, item)
+      }
+      const deduped = Array.from(seen.values())
+
+      setResults(deduped)
+      setIsOpen(deduped.length > 0 || allowCustom)
       setHighlightIndex(-1)
     })
   }, [debouncedQuery, searchFnRef, allowCustom])

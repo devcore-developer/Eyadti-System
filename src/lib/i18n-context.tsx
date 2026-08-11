@@ -47,13 +47,27 @@ const enDictionary: Record<string, string> = {
   "TABLE.VIEW": "View",
   "TABLE.EDIT": "Edit",
   "TABLE.DELETE": "Delete", 
+    // Lowercase variants for table headers
+  "table.patient": "Patient",
+  "table.doctor": "Doctor",
+  "table.date": "Date",
+  "table.time": "Time",
+  "table.phone": "Phone",
+  "table.email": "Email",
+  "table.dob": "Date of Birth",
+  "table.gender": "Gender",
+  "table.actions": "Actions",
+  "table.action": "Action",
+  "table.view": "View",
+  "table.edit": "Edit",
+  "table.delete": "Delete",
   "menu.accountSettings": "Account Settings",
   "menu.logout": "Logout",
   "menu.profile": "Profile",
   "menu.clinicSettings": "Clinic Settings",
   "menu.helpSupport": "Help & Support",
   "lang.ar": "Arabic",
-  
+
   // Common Actions & Misc
   "common.save": "Save",
   "common.cancel": "Cancel",

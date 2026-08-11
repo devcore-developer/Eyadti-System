@@ -11,6 +11,7 @@ import {
   workingHoursArraySchema,
   doctorScheduleArraySchema,
 } from "@/lib/validations/settings"
+import { getSubscription } from "@/lib/services/subscription"
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -80,18 +81,28 @@ export async function updateClinicSettings(clinicId: string, rawData: unknown) {
   }
 
   try {
-    let paymentWorkflow: string | undefined = undefined;
-    if (rawData && typeof rawData === 'object' && 'paymentWorkflow' in rawData) {
-      paymentWorkflow = (rawData as any).paymentWorkflow;
-      delete (rawData as any).paymentWorkflow; 
-    }
+    // ═══════════════════════════════════════════════════
+    // ✅ SERVER-SIDE ENFORCEMENT: Force plan limits
+    // ═══════════════════════════════════════════════════
+    const subscription = await getSubscription(clinicId)
+    const plan = subscription?.plan
 
     const validated = clinicSettingsSchema.parse(rawData)
 
+    // If plan doesn't have online booking, force disable
+    if (!plan?.onlineBookingEnabled) {
+      validated.enableOnlineBooking = false
+    }
+
+    // If plan doesn't have WhatsApp, force clear instance name
+    if (!plan?.whatsappEnabled) {
+      validated.whatsappInstanceName = ""
+    }
+
     await prisma.clinicSettings.upsert({
       where: { clinicId },
-      update: { ...validated, paymentWorkflow } as any,
-      create: { clinicId, ...validated, paymentWorkflow: paymentWorkflow || "PAY_AFTER_VISIT" } as any,
+      update: validated,
+      create: { clinicId, ...validated },
     })
 
     revalidatePath("/settings/clinics")

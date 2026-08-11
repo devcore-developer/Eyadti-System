@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { getClinicSettings, getWorkingHours, getClinicDoctors } from "@/lib/actions/settings"
+import { getSubscription } from "@/lib/services/subscription"
 import { ClinicSettingsForm } from "@/components/settings/clinic-settings-form"
 import { ClinicLogoUpload } from "@/components/settings/clinic-logo-upload"
 import { WorkingHoursForm } from "@/components/settings/working-hours-form"
@@ -14,17 +15,14 @@ export default async function ClinicSettingsPage() {
   const session = await auth()
   if (!session?.user?.clinicId) redirect("/login")
 
-  // ── SERVER-LEVEL AUTHORIZATION: Block DOCTOR from this page entirely ──
   if (session.user.role === "DOCTOR") {
     redirect("/settings")
   }
 
   const clinicId = session.user.clinicId
-  
-  // ADMIN and SUPER_ADMIN can edit; RECEPTIONIST is read-only
   const isReadOnly = !["SUPER_ADMIN", "ADMIN"].includes(session.user.role)
 
-  const [settings, workingHours, doctors, branches] = await Promise.all([
+  const [settings, workingHours, doctors, branches, subscription] = await Promise.all([
     getClinicSettings(clinicId),
     getWorkingHours(clinicId),
     getClinicDoctors(clinicId),
@@ -33,7 +31,13 @@ export default async function ClinicSettingsPage() {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    getSubscription(clinicId),
   ])
+
+  const canUseWhatsApp = subscription?.plan.whatsappEnabled ?? false
+  const canUseOnlineBooking = subscription?.plan.onlineBookingEnabled ?? false
+  // System Preferences should be hidden for Standard/Free Trial
+  const canUseSystemPreferences = canUseOnlineBooking || canUseWhatsApp
 
   return (
     <div className="space-y-6">
@@ -61,7 +65,14 @@ export default async function ClinicSettingsPage() {
       <div className="grid gap-6">
         <ClinicLogoUpload clinicId={clinicId} logoUrl={settings?.logoUrl || null} isReadOnly={isReadOnly} />
         
-        <ClinicSettingsForm clinicId={clinicId} settings={settings} isReadOnly={isReadOnly} />
+        <ClinicSettingsForm 
+          clinicId={clinicId} 
+          settings={settings} 
+          isReadOnly={isReadOnly}
+          canUseOnlineBooking={canUseOnlineBooking}
+          canUseWhatsApp={canUseWhatsApp}
+          canUseSystemPreferences={canUseSystemPreferences}
+        />
 
         <WorkingHoursForm clinicId={clinicId} initialData={workingHours as any} isReadOnly={isReadOnly} />
 

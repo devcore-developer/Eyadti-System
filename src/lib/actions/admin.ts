@@ -1,3 +1,5 @@
+// src/lib/actions/admin.ts - استبدل دالة createUser بالكامل
+
 "use server"
 
 import { prisma } from "@/lib/db"
@@ -7,6 +9,7 @@ import type { ActionResult } from "@/types"
 import { hash } from "bcryptjs"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
+import { enforceUsageLimit } from "@/lib/services/usage-limits"  // ← إضافة الاستيراد
 
 function handleAuthError(error: unknown): ActionResult {
   if (error instanceof AuthenticationError) return { success: false, error: error.message }
@@ -31,31 +34,109 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     const existingUser = await prisma.user.findUnique({ where: { email: validated.data.email } })
     if (existingUser) return { success: false, error: "Email is already in use." }
     
+    // ═══════════════════════════════════════════════════
+    // ✅ FIX: Enforce Plan Limits
+    // ═══════════════════════════════════════════════════
+    await enforceUsageLimit(session.clinicId, "USERS")
+    if (validated.data.role === "DOCTOR") {
+      await enforceUsageLimit(session.clinicId, "DOCTORS")
+    }
+    
     const hashedPassword = await hash(validated.data.password, 10)
-    await prisma.user.create({
-      data: {
-        name: validated.data.name,
-        email: validated.data.email,
-        password: hashedPassword,
-        role: validated.data.role,
-        clinicId: session.clinicId,
-      },
+    const image = (formData.get("image") as string) || null
+    const specialty = (formData.get("specialty") as string) || null
+    const degree = (formData.get("degree") as string) || null
+    const branchIds = formData.getAll("branchIds") as string[]
+    const isAdminRole = validated.data.role === "ADMIN"
+    
+    // ═══════════════════════════════════════════════════
+    // ✅ FIX: Transactional User + Branch Creation
+    // ═══════════════════════════════════════════════════
+    await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          name: validated.data.name,
+          email: validated.data.email,
+          password: hashedPassword,
+          role: validated.data.role,
+          clinicId: session.clinicId,
+          image,
+          specialty,
+          degree,
+          allBranchAccess: isAdminRole,
+        },
+      })
+
+      if (!isAdminRole && branchIds.length > 0) {
+        // SECURITY: Validate that all branches belong to the current clinic
+        const validBranches = await tx.branch.findMany({
+          where: { id: { in: branchIds }, clinicId: session.clinicId }
+        })
+        if (validBranches.length !== branchIds.length) {
+          throw new Error("Invalid branch selection. You can only assign branches belonging to your clinic.")
+        }
+        
+        await tx.userBranch.createMany({
+          data: branchIds.map(branchId => ({ userId: newUser.id, branchId })),
+          skipDuplicates: true,
+        })
+      }
     })
   } catch (error) {
+    if (error instanceof Error && (error.message.includes("limit") || error.message.includes("Invalid branch"))) {
+      return { success: false, error: error.message }
+    }
     return handleAuthError(error)
   }
   revalidatePath("/admin/users")
   return { success: true }
 }
 
+export async function deleteUser(userId: string): Promise<ActionResult> {
+  try {
+    const session = await requireRole("ADMIN");
+
+    // منع المستخدم من حذف نفسه
+    if (session.userId === userId) {
+      return { success: false, error: "You cannot delete your own account." };
+    }
+
+    const userToDelete = await prisma.user.findFirst({
+      where: { id: userId, clinicId: session.clinicId },
+    });
+
+    if (!userToDelete) {
+      return { success: false, error: "User not found in your clinic." };
+    }
+
+    // منع الأدمن العادي من حذف سوبر أدمن
+    if (userToDelete.role === "SUPER_ADMIN" && session.role !== "SUPER_ADMIN") {
+      return { success: false, error: "Only Super Admins can delete other Super Admins." };
+    }
+
+    // محاولة الحذف (ستفشل إذا كان هناك سجلات مرتبطة مثل المواعيد)
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (error: any) {
+    // التعامل مع خطأ قيود المفتاح الخارجي في Prisma
+    if (error.code === 'P2003') {
+      return { 
+        success: false, 
+        error: "Cannot delete this user because they have associated records (e.g., appointments or invoices). Please reassign their records first." 
+      };
+    }
+    return handleAuthError(error);
+  }
+}
+
 export async function updateUser(userId: string, formData: FormData): Promise<ActionResult> {
   try {
-    // ── Use requireSelfEdit instead of requireRole("ADMIN") ──
-    // This allows DOCTOR and RECEPTION to edit their own profile.
-    // ADMIN/SUPER_ADMIN can still edit any user (enforced at page level).
     const session = await requireSelfEdit()
 
-    // ── Security: User can ONLY edit their OWN record ──
     if (session.userId !== userId) {
       return { success: false, error: "You can only edit your own account." }
     }
@@ -65,8 +146,7 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
     })
     if (!existingUser) return { success: false, error: "User not found in your clinic." }
 
-    // ── Security: Prevent role changes for non-admin users ──
-    // Even though the frontend disables the Role field, enforce at server level.
+    // Security: Prevent role changes for non-admin users
     if (session.role !== "SUPER_ADMIN" && session.role !== "ADMIN") {
       const incomingRole = formData.get("role") as string
       if (incomingRole && incomingRole !== existingUser.role) {
@@ -74,8 +154,8 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       }
     }
 
-    // ── Admin-specific: prevent removing own Admin role ──
-    if (existingUser.id === session.userId && formData.get("role") !== "ADMIN") {
+    // Admin-specific: prevent removing own Admin role
+    if (existingUser.id === session.userId && formData.get("role") !== "ADMIN" && existingUser.role === "ADMIN") {
       return { success: false, error: "You cannot remove your own Admin role." }
     }
 
@@ -89,18 +169,65 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
     const validated = updateUserSchema.safeParse(raw)
     if (!validated.success) return { success: false, error: "Validation failed", fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]> }
 
-    // For non-admin: always keep the existing role
+    const image = (formData.get("image") as string) || null
+    const specialty = (formData.get("specialty") as string) || null
+    const degree = (formData.get("degree") as string) || null
+    
+    const newRole = (session.role === "SUPER_ADMIN" || session.role === "ADMIN") 
+      ? (validated.data.role || existingUser.role) 
+      : existingUser.role;
+    const isNewRoleAdmin = newRole === "ADMIN"
+
     const updateData: any = { 
       name: validated.data.name, 
       email: validated.data.email, 
-      role: existingUser.role 
+      role: newRole,
+      image: image || existingUser.image,
+      specialty: specialty || existingUser.specialty,
+      degree: degree || existingUser.degree,
+      allBranchAccess: isNewRoleAdmin,
     }
     if (validated.data.password && validated.data.password.trim() !== "") {
       updateData.password = await hash(validated.data.password, 10)
     }
 
-    await prisma.user.update({ where: { id: userId }, data: updateData })
+    // ═══════════════════════════════════════════════════
+    // ✅ FIX: Admins can update branches, Self-edit skips branches
+    // ═══════════════════════════════════════════════════
+    if (session.role === "SUPER_ADMIN" || session.role === "ADMIN") {
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: userId }, data: updateData })
+        
+        // Always clear old branches first
+        await tx.userBranch.deleteMany({ where: { userId } })
+        
+        // Assign new branches if not an admin
+        if (!isNewRoleAdmin) {
+          const branchIds = formData.getAll("branchIds") as string[]
+          if (branchIds.length > 0) {
+            const validBranches = await tx.branch.findMany({
+              where: { id: { in: branchIds }, clinicId: session.clinicId }
+            })
+            if (validBranches.length !== branchIds.length) {
+              throw new Error("Invalid branch selection. You can only assign branches belonging to your clinic.")
+            }
+            await tx.userBranch.createMany({
+              data: branchIds.map(branchId => ({ userId, branchId })),
+              skipDuplicates: true,
+            })
+          }
+        }
+      })
+    } else {
+      // Non-admin self-edit: update basic profile + image only
+      delete updateData.allBranchAccess
+      delete updateData.role
+      await prisma.user.update({ where: { id: userId }, data: updateData })
+    }
   } catch (error) {
+    if (error instanceof Error && error.message.includes("Invalid branch")) {
+      return { success: false, error: error.message }
+    }
     return handleAuthError(error)
   }
   revalidatePath("/admin/users")

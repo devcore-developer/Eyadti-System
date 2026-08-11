@@ -9,7 +9,6 @@ import { MobileCard, MobileCardItem } from "@/components/ui/mobile-card"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { Users, Phone, Mail, Calendar, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useLang } from "@/lib/i18n-context"
 
 type PatientRow = {
   id: string
@@ -51,15 +50,14 @@ function buildPageUrl(page: number, searchParams: Record<string, string>): strin
 
 export function PatientTable({ patients, role, currentPage, totalPages, searchParams }: Props) {
   const isDesktop = useMediaQuery("(min-width: 768px)")
-  const { t } = useLang()
 
   if (patients.length === 0) {
     return (
       <EmptyState 
         icon={Users} 
-        title={t("empty.noPatients")} 
-        description={t("empty.noPatientsDesc")} 
-        actionLabel={t("empty.addPatient")}
+        title="No patients found" 
+        description="Try adjusting your search or add a new patient to get started." 
+        actionLabel="Add Patient"
         onAction={() => window.location.href = "/patients/new"}
       />
     )
@@ -86,20 +84,20 @@ export function PatientTable({ patients, role, currentPage, totalPages, searchPa
             </div>
 
             <div className="border-t border-border pt-2 space-y-1">
-              <MobileCardItem label={<><Phone className="h-3 w-3 ms-1.5 inline" /> {t("table.phone")}</>} value={patient.phone || "—"} />
-              <MobileCardItem label={<><Mail className="h-3 w-3 ms-1.5 inline" /> {t("table.email")}</>} value={patient.email || "—"} />
+              <MobileCardItem label={<><Phone className="h-3 w-3 mr-1.5 inline" /> Phone</>} value={patient.phone || "—"} />
+              <MobileCardItem label={<><Mail className="h-3 w-3 mr-1.5 inline" /> Email</>} value={patient.email || "—"} />
             </div>
 
             <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
               <Link href={`/patients/${patient.id}`} className="flex-1">
                 <Button variant="outline" size="sm" className="w-full rounded-xl h-9 text-xs font-semibold">
-                  {t("table.viewProfile")}
+                  View Profile
                 </Button>
               </Link>
               {(role === "SUPER_ADMIN" || role === "ADMIN" || role === "DOCTOR") && (
                 <Link href={`/patients/edit/${patient.id}`} className="flex-1">
                   <Button variant="ghost" size="sm" className="w-full rounded-xl h-9 text-xs font-semibold">
-                    {t("table.edit")}
+                    Edit
                   </Button>
                 </Link>
               )}
@@ -112,16 +110,16 @@ export function PatientTable({ patients, role, currentPage, totalPages, searchPa
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-4">
-            <p className="text-sm text-muted-foreground">{t("table.pageOf").replace("{current}", String(currentPage)).replace("{total}", String(totalPages))}</p>
+            <p className="text-sm text-muted-foreground">Page <span className="font-semibold text-foreground">{currentPage}</span> of {totalPages}</p>
             <div className="flex gap-2">
               {currentPage > 1 && (
                 <Link href={buildPageUrl(currentPage - 1, searchParams)}>
-                  <Button variant="outline" size="sm" className="rounded-xl">{t("table.previous")}</Button>
+                  <Button variant="outline" size="sm" className="rounded-xl">Previous</Button>
                 </Link>
               )}
               {currentPage < totalPages && (
                 <Link href={buildPageUrl(currentPage + 1, searchParams)}>
-                  <Button size="sm" className="rounded-xl">{t("table.next")}</Button>
+                  <Button size="sm" className="rounded-xl">Next</Button>
                 </Link>
               )}
             </div>
@@ -140,13 +138,13 @@ export function PatientTable({ patients, role, currentPage, totalPages, searchPa
         <table className="min-w-full">
           <thead className="premium-table-header">
             <tr className="border-b border-border">
-              {[t("table.patient"), t("table.phone"), t("table.email"), t("table.dob"), t("table.gender")].map((h) => (
-                <th key={h} className="px-6 py-4 text-start text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {["Patient", "Phone", "Email", "Date of Birth", "Gender"].map((h) => (
+                <th key={h} className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {h}
                 </th>
               ))}
-              <th className="px-6 py-4 text-end text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {t("table.actions")}
+              <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Actions
               </th>
             </tr>
           </thead>
@@ -169,11 +167,11 @@ export function PatientTable({ patients, role, currentPage, totalPages, searchPa
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">{patient.email || "—"}</td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">{formatDate(patient.dateOfBirth)}</td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">{genderLabel(patient.gender)}</td>
-                <td className="whitespace-nowrap px-6 py-4 text-end text-sm">
+                <td className="whitespace-nowrap px-6 py-4 text-right text-sm">
                   <div className="flex items-center justify-end gap-3 opacity-70 group-hover:opacity-100 transition-opacity">
-                    <Link href={`/patients/${patient.id}`} className="text-xs font-semibold text-[#6B9CFF] hover:underline">{t("table.view")}</Link>
+                    <Link href={`/patients/${patient.id}`} className="text-xs font-semibold text-[#6B9CFF] hover:underline">View</Link>
                     {(role === "SUPER_ADMIN" || role === "ADMIN" || role === "DOCTOR") && (
-                      <Link href={`/patients/edit/${patient.id}`} className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">{t("table.edit")}</Link>
+                      <Link href={`/patients/edit/${patient.id}`} className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">Edit</Link>
                     )}
                     {(role === "SUPER_ADMIN" || role === "ADMIN") && (
                       <PatientDeleteButton patientId={patient.id} />
@@ -188,16 +186,16 @@ export function PatientTable({ patients, role, currentPage, totalPages, searchPa
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-muted/20">
-          <p className="text-sm text-muted-foreground">{t("table.pageOf").replace("{current}", String(currentPage)).replace("{total}", String(totalPages))}</p>
+          <p className="text-sm text-muted-foreground">Page <span className="font-semibold text-foreground">{currentPage}</span> of {totalPages}</p>
           <div className="flex gap-2">
             {currentPage > 1 && (
               <Link href={buildPageUrl(currentPage - 1, searchParams)}>
-                <Button variant="outline" size="sm" className="rounded-xl">{t("table.previous")}</Button>
+                <Button variant="outline" size="sm" className="rounded-xl">Previous</Button>
               </Link>
             )}
             {currentPage < totalPages && (
               <Link href={buildPageUrl(currentPage + 1, searchParams)}>
-                <Button size="sm" className="rounded-xl">{t("table.next")}</Button>
+                <Button size="sm" className="rounded-xl">Next</Button>
               </Link>
             )}
           </div>

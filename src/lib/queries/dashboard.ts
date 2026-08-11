@@ -1,11 +1,9 @@
-// lib/queries/dashboard.ts
-
 import { prisma } from "@/lib/db"
 import { getDateRange, type FilterPeriod } from "@/lib/utils/date-filters"
 import { startOfMonth, subMonths, format, startOfDay, endOfDay } from "date-fns"
 
 // ───────────────────────────────────────
-// Summary Stats
+// Summary Stats — FIXED: Revenue from Payments
 // ───────────────────────────────────────
 export async function getDashboardStats(clinicId: string, period: FilterPeriod) {
   const { from, to } = getDateRange(period)
@@ -32,13 +30,14 @@ export async function getDashboardStats(clinicId: string, period: FilterPeriod) 
     prisma.appointment.count({
       where: { clinicId, dateTime: { gte: new Date() }, status: "SCHEDULED" },
     }),
-    prisma.invoice.aggregate({
+    // ═══ FIXED: Sum from Payment table, not Invoice.amount ═══
+    prisma.payment.aggregate({
       _sum: { amount: true },
-      where: { clinicId, status: "PAID" },
+      where: { clinicId, method: { not: "REFUND" } },
     }),
-    prisma.invoice.aggregate({
+    prisma.payment.aggregate({
       _sum: { amount: true },
-      where: { clinicId, status: "PAID", createdAt: { gte: from, lte: to } },
+      where: { clinicId, method: { not: "REFUND" }, createdAt: { gte: from, lte: to } },
     }),
     prisma.invoice.count({
       where: { clinicId, status: { in: ["UNPAID", "PARTIAL"] } },
@@ -62,15 +61,16 @@ export async function getDashboardStats(clinicId: string, period: FilterPeriod) 
 }
 
 // ───────────────────────────────────────
-// Chart Data (Last 12 Months) - FIXED
+// Chart Data (Last 12 Months) — FIXED
 // ───────────────────────────────────────
 export async function getChartData(clinicId: string) {
   const now = new Date()
   const twelveMonthsAgo = subMonths(startOfMonth(now), 11)
 
-  const [invoices, appointments, patients] = await Promise.all([
-    prisma.invoice.findMany({
-      where: { clinicId, status: "PAID", createdAt: { gte: twelveMonthsAgo } },
+  // ═══ FIXED: Fetch payments instead of invoices for revenue ═══
+  const [payments, appointments, patients] = await Promise.all([
+    prisma.payment.findMany({
+      where: { clinicId, method: { not: "REFUND" }, createdAt: { gte: twelveMonthsAgo } },
       select: { amount: true, createdAt: true },
     }),
     prisma.appointment.findMany({
@@ -90,9 +90,10 @@ export async function getChartData(clinicId: string) {
     const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59)
     const monthName = format(date, "MMM")
 
-    const monthRevenue = invoices
-      .filter(inv => inv.createdAt >= monthStart && inv.createdAt <= monthEnd)
-      .reduce((sum, inv) => sum + Number(inv.amount), 0)
+    // ═══ FIXED: Revenue from actual payments, not invoices ═══
+    const monthRevenue = payments
+      .filter(p => p.createdAt >= monthStart && p.createdAt <= monthEnd)
+      .reduce((sum, p) => sum + Number(p.amount), 0)
 
     const monthAppointments = appointments.filter(apt => apt.dateTime >= monthStart && apt.dateTime <= monthEnd).length
 
@@ -104,9 +105,8 @@ export async function getChartData(clinicId: string) {
       appointments: monthAppointments || 0,
       patients: monthPatients || 0,
     })
-  } // ✅ FIXED: Closing brace is now correctly placed
+  }
 
-  // ✅ FIXED: Empty data check is now OUTSIDE the for loop
   if (months.every(m => m.revenue === 0 && m.appointments === 0 && m.patients === 0)) {
     return [
       { name: "Jan", revenue: 0, appointments: 0, patients: 0 },
@@ -128,7 +128,7 @@ export async function getChartData(clinicId: string) {
 }
 
 // ───────────────────────────────────────
-// Recent Activity - HIGHLY OPTIMIZED
+// Recent Activity
 // ───────────────────────────────────────
 export async function getRecentActivity(clinicId: string) {
   const [patients, appointments, invoices] = await Promise.all([
@@ -201,13 +201,13 @@ export async function getDoctorAnalytics(clinicId: string) {
   const doctorIds = doctors.map(d => d.id)
 
   const appointmentCounts = await prisma.appointment.groupBy({
-    by: ['doctorId'],
+    by: ["doctorId"],
     where: { clinicId, doctorId: { in: doctorIds } },
     _count: { id: true },
   })
 
   const uniquePatientCounts = await prisma.appointment.groupBy({
-    by: ['doctorId'],
+    by: ["doctorId"],
     where: { clinicId, doctorId: { in: doctorIds } },
     _count: { patientId: true },
   })
@@ -215,7 +215,7 @@ export async function getDoctorAnalytics(clinicId: string) {
   const analytics = doctors.map(doctor => {
     const countData = appointmentCounts.find(c => c.doctorId === doctor.id)
     const patientData = uniquePatientCounts.find(p => p.doctorId === doctor.id)
-    
+
     return {
       id: doctor.id,
       name: `Dr. ${doctor.name}`,

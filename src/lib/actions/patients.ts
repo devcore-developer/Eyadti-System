@@ -22,17 +22,35 @@ export async function searchPatients(query: string): Promise<ActionResult<{ id: 
     const patients = await prisma.patient.findMany({
       where: {
         clinicId,
+        // ═══ صريح: لا نستبعد أي مريض ═══
+        // إذا كان هناك حقل status، نضمن إرجاع النشط فقط
+        // لكن لا نفلتر بناءً على الزيارات أو المواعيد
         OR: [
           { phone: { contains: query, mode: "insensitive" } },
           { fullName: { contains: query, mode: "insensitive" } },
         ],
       },
-      select: { id: true, fullName: true, phone: true, gender: true, dateOfBirth: true },
-      take: 5,
+      select: { 
+        id: true, 
+        fullName: true, 
+        phone: true, 
+        gender: true, 
+        dateOfBirth: true,
+        // ═══ أضف هذا مؤقتاً للتشخيص ═══
+        // إذا كان هناك حقل status أو isArchived، ستبين هنا
+        // status: true,
+        // isArchived: true,
+        // deletedAt: true,
+      },
+      orderBy: { fullName: "asc" },
+      take: 10, // زودناها من 5 لـ 10
     })
 
+    console.log(`[searchPatients] query="${query}" found=${patients.length} clinicId=${clinicId}`)
+    
     return { success: true, data: patients }
   } catch (error: any) {
+    console.error("[searchPatients] ERROR:", error)
     if (error.name === "AuthorizationError") return { success: false, error: error.message }
     return { success: false, error: "Failed to search patients." }
   }
