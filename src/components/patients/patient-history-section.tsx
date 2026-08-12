@@ -433,7 +433,7 @@ export function PatientHistorySection({
       {/* ── Add Dialog (controlled) ── */}
       <Dialog open={openDialog !== null} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className="dark:bg-[#223247] !overflow-visible">
+          className="dark:bg-[#223247]">
           <DialogHeader>
             <DialogTitle>{openDialog ? dialogTitles[openDialog] : ""}</DialogTitle>
             <DialogDescription className="sr-only">{openDialog ? dialogDescriptions[openDialog] : ""}</DialogDescription>

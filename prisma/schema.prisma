@@ -201,6 +201,8 @@ model User {
   password        String?
   nameAr          String?
   nameEn          String?
+  resetToken       String?
+  resetTokenExpires DateTime?
   role            Role    @default(RECEPTIONIST)
   allBranchAccess Boolean @default(false)
 

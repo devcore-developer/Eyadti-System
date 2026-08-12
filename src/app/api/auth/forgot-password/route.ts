@@ -1,49 +1,63 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { randomBytes } from "crypto"
+import { randomUUID } from "crypto"
+import { sendPasswordResetEmail } from "@/lib/email"
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { email } = await request.json()
+    const { email } = await req.json()
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 })
+    if (!email || typeof email !== "string") {
+      // Don't reveal — always same response
+      return NextResponse.json(
+        { message: "If an account exists with that email, you will receive a reset link." },
+        { status: 200 }
+      )
     }
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: email.toLowerCase().trim() },
+      select: { id: true, name: true, email: true },
     })
 
-    // Always return success to prevent email enumeration
-    if (!user || !user.email) {
-      return NextResponse.json({ success: true })
+    // Security: don't reveal whether email exists
+    if (!user) {
+      return NextResponse.json(
+        { message: "If an account exists with that email, you will receive a reset link." },
+        { status: 200 }
+      )
     }
 
-    // Delete any existing tokens for this user
-    await prisma.verificationToken.deleteMany({
-      where: { identifier: email },
-    })
+    const token = randomUUID()
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
-    // Generate secure token
-    const token = randomBytes(32).toString("hex")
-    const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-
-    await prisma.verificationToken.create({
+    await prisma.user.update({
+      where: { id: user.id },
       data: {
-        identifier: email,
-        token,
-        expires,
+        resetToken: token,
+        resetTokenExpires: expiresAt,
       },
     })
 
-    // TODO: Send email with reset link
-    // The link should be: `${process.env.NEXTAUTH_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`
-    // For now, log it (remove in production)
-    console.log(`Reset token for ${email}: ${token}`)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`
 
-    return NextResponse.json({ success: true })
+    await sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      resetUrl,
+    })
+
+    return NextResponse.json(
+      { message: "If an account exists with that email, you will receive a reset link." },
+      { status: 200 }
+    )
   } catch (error) {
-    console.error("Forgot password error:", error)
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
+    console.error("[FORGOT_PASSWORD_ERROR]", error)
+    // Still return 200 to prevent email enumeration
+    return NextResponse.json(
+      { message: "If an account exists with that email, you will receive a reset link." },
+      { status: 200 }
+    )
   }
 }
