@@ -1,3 +1,5 @@
+// src/app/(landing)/terms/page.tsx
+
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -96,9 +98,7 @@ const sections = [
 function TableOfContents({ activeId }: { activeId: string }) {
   return (
     <nav className="sticky top-24">
-      <h3
-        className="text-[11px] font-semibold uppercase tracking-widest mb-4 text-slate-400"
-      >
+      <h3 className="text-[11px] font-semibold uppercase tracking-widest mb-4 text-muted-foreground">
         Contents
       </h3>
       <ol className="space-y-0.5">
@@ -106,12 +106,11 @@ function TableOfContents({ activeId }: { activeId: string }) {
           <li key={section.id}>
             <a
               href={`#${section.id}`}
-              className={`block py-[15px] pl-4 text-[13px] transition-all duration-150 border-l-2 border-transparent hover:border-blue-400 hover:text-blue-600 rounded-lg ${
+              className={`block py-[15px] pl-4 text-[13px] transition-all duration-150 border-l-2 hover:text-primary rounded-lg ${
                 activeId === section.id
-                  ? "text-blue-600 border-blue-400 bg-blue-50/50 font-medium"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "text-primary border-primary bg-primary/5 font-medium"
+                  : "text-muted-foreground border-transparent hover:border-primary/50 hover:text-foreground"
               }`}
-              style={{ borderLeftWidth: "2px" }}
             >
               {section.title}
             </a>
@@ -125,17 +124,9 @@ function TableOfContents({ activeId }: { activeId: string }) {
 export default function TermsPage() {
   const lastUpdated = "August 7, 2026"
   const [activeSection, setActiveSection] = useState<string>("")
-  // تم تعديل السطر التالي لإصلاح خطأ TypeScript
   const sectionRefs = useRef<(HTMLElement | null)[]>([])
 
   useEffect(() => {
-    const observers: IntersectionObserver[] = []
-
-    sections.forEach((section) => {
-      const ref = document.getElementById(section.id)
-      sectionRefs.current.push(ref)
-    })
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -148,46 +139,37 @@ export default function TermsPage() {
     )
 
     sections.forEach((section, index) => {
-      if (sectionRefs.current[index]) {
-        observer.observe(sectionRefs.current[index])
+      const ref = document.getElementById(section.id)
+      sectionRefs.current[index] = ref
+      if (ref) {
+        observer.observe(ref)
       }
     })
 
-    return () => {
-      observers.forEach((o) => o.disconnect())
-    }
-  }, [sections])
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <>
       <Navbar />
-      <main className="min-h-screen" style={{ backgroundColor: "#F7FAFC" }}>
+      <main className="min-h-screen bg-background">
         {/* Hero */}
         <section className="pt-16 md:pt-20 pb-6 md:pb-8 px-5 md:px-8">
           <div className="max-w-[1150px] mx-auto text-center">
             <div className="flex items-center justify-center gap-3 mb-5">
-              <div
-                className="flex items-center justify-center w-12 h-12 rounded-xl"
-                style={{ backgroundColor: "#EFF6FF" }}
-              >
-                <FileText className="w-6 h-6 text-blue-600" />
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10">
+                <FileText className="w-6 h-6 text-primary" />
               </div>
             </div>
-            <h1
-              className="text-[40px] md:text-[44px] font-bold leading-[1.1] mb-3"
-              style={{ color: "#0F172A" }}
-            >
+            <h1 className="text-[40px] md:text-[44px] font-bold leading-[1.1] mb-3 text-foreground">
               Terms & Conditions
             </h1>
-            <p
-              className="text-[16px] leading-[1.6] max-w-[600px] mx-auto mb-2"
-              style={{ color: "#64748B" }}
-            >
+            <p className="text-[16px] leading-[1.6] max-w-[600px] mx-auto mb-2 text-muted-foreground">
               Please read these terms carefully before using Nexora Clinic System.
             </p>
             <div className="flex items-center justify-center gap-1.5">
-              <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
-              <p className="text-[13px]" style={{ color: "#94A3B8" }}>
+              <CalendarDays className="w-3.5 h-3.5 text-muted-foreground/70" />
+              <p className="text-[13px] text-muted-foreground/70">
                 Last updated: {lastUpdated}
               </p>
             </div>
@@ -204,11 +186,8 @@ export default function TermsPage() {
               </div>
 
               {/* Document */}
-              <div
-                className="flex-1 bg-white rounded-[18px] border p-6 md:p-10 lg:p-12"
-                style={{ borderColor: "#E2E8F0", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 20px rgba(0,0,0,0.02)" }}
-              >
-                <div className="prose max-w-none" style={{ color: "#334155" }}>
+              <div className="flex-1 bg-card rounded-[18px] border border-border p-6 md:p-10 lg:p-12">
+                <div className="prose max-w-none">
                   {sections.map((section, index) => (
                     <section
                       key={section.id}
@@ -216,21 +195,14 @@ export default function TermsPage() {
                       className="scroll-mt-16 first:mt-0"
                     >
                       <div className="flex items-center gap-3 mb-4">
-                        <span
-                          className="flex items-center justify-center w-8 h-8 rounded-lg text-white text-[12px] font-bold"
-                          style={{ backgroundColor: "#3B82F6" }}
-                        >
+                        <span className="flex items-center justify-center w-8 h-8 rounded-lg text-primary-foreground text-[12px] font-bold bg-primary">
                           {String(index + 1).padStart(2, "0")}
                         </span>
-                        <h2
-                          className="text-[20px] md:text-[22px] font-bold leading-[1.3] text-slate-900"
-                        >
+                        <h2 className="text-[20px] md:text-[22px] font-bold leading-[1.3] text-foreground">
                           {section.title}
                         </h2>
                       </div>
-                      <div
-                        className="text-[15px] leading-[1.8] whitespace-pre-wrap text-slate-700"
-                      >
+                      <div className="text-[15px] leading-[1.8] whitespace-pre-wrap text-foreground/70">
                         {section.content}
                       </div>
                     </section>

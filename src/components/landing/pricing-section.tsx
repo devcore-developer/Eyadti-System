@@ -15,27 +15,23 @@ const limitIcons: Record<string, React.ReactNode> = {
 }
 
 const planIcons: Record<string, React.ReactNode> = {
-  standard: <Building2 className="w-5 h-5 text-slate-500" />,
-  professional: <Sparkles className="w-5 h-5 text-blue-600" />,
-  enterprise: <Building2 className="w-5 h-5 text-amber-600" />,
+  standard: <Building2 className="w-5 h-5 text-muted-foreground" />,
+  professional: <Sparkles className="w-5 h-5 text-primary" />,
+  enterprise: <Building2 className="w-5 h-5 text-warning" />,
 }
 
 const planIconBgs: Record<string, string> = {
-  standard: "bg-slate-100",
-  professional: "bg-blue-50",
-  enterprise: "bg-amber-50",
+  standard: "bg-muted",
+  professional: "bg-primary/10",
+  enterprise: "bg-warning/10",
 }
 
-// ✅ تحديث المصفوفة لتشمل المميزات الأساسية والمتقدمة
 const featuresList = [
-  // ── Core Features (متاحة دائماً للخطط النشطة) ──
   { key: "Patient Management", isCore: true },
   { key: "Medical Files", isCore: true },
   { key: "Digital Prescriptions", isCore: true },
   { key: "Appointments", isCore: true },
   { key: "Invoices & Billing", isCore: true },
-  
-  // ── Premium Features (تعتمد على الـ Plan Boolean Fields في الداتا بيز) ──
   { key: "Advanced Analytics", planField: "analyticsEnabled" },
   { key: "Online Booking", planField: "onlineBookingEnabled" },
   { key: "Doctor Attendance", planField: "doctorAttendanceEnabled" },
@@ -47,35 +43,32 @@ const featuresList = [
 function PlanValue({ value, isEnterprise }: { value: boolean | number | null; isEnterprise?: boolean }) {
   if (typeof value === "boolean") {
     return value ? (
-      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-50">
-        <Check className="w-3.5 h-3.5 text-emerald-600" strokeWidth={2.5} />
+      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-success/10">
+        <Check className="w-3.5 h-3.5 text-success" strokeWidth={2.5} />
       </span>
     ) : (
-      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-red-50">
-        <X className="w-3.5 h-3.5 text-red-500" strokeWidth={2.5} />
+      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-destructive/10">
+        <X className="w-3.5 h-3.5 text-destructive" strokeWidth={2.5} />
       </span>
     )
   }
   if (value === -1 || value === null) {
     return (
-      <span className="font-bold text-sm {isEnterprise ? 'text-amber-600' : 'text-blue-600'}">
+      <span className={`font-bold text-sm ${isEnterprise ? "text-warning" : "text-primary"}`}>
         {isEnterprise ? "Custom" : "Unlimited"}
       </span>
     )
   }
-  return <span className="font-semibold text-sm text-slate-900">{value}</span>
+  return <span className="font-semibold text-sm text-foreground">{value}</span>
 }
 
-// ✅ دالة ذكية لفحص المميزات (الأساسية دائماً true، المتقدمة تقرأ من الداتا بيز)
 const getFeatureValue = (feature: any, plan: any, isEnterprise: boolean) => {
   if (feature.isCore) return true
   if (isEnterprise) return true
-
   if (feature.planField) {
     const val = plan[feature.planField as keyof typeof plan]
     return typeof val === "boolean" ? val : false
   }
-  
   return false
 }
 
@@ -105,33 +98,30 @@ export default async function PricingSection() {
   const plans = rawPlans.sort((a, b) => planOrder.indexOf(a.slug) - planOrder.indexOf(b.slug))
 
   const trustItems = [
-    { icon: <CreditCard className="w-4 h-4 text-slate-400" />, title: "No credit card required", desc: "Start free" },
-    { icon: <ShieldCheck className="w-4 h-4 text-slate-400" />, title: "Secure & Reliable", desc: "HIPAA-ready" },
-    { icon: <Headphones className="w-4 h-4 text-slate-400" />, title: "24/7 Support", desc: "Always here" },
-    { icon: <ArrowRight className="w-4 h-4 text-slate-400" />, title: "Upgrade Anytime", desc: "No lock-in" },
+    { icon: <CreditCard className="w-4 h-4 text-muted-foreground" />, title: "No credit card required", desc: "Start free" },
+    { icon: <ShieldCheck className="w-4 h-4 text-muted-foreground" />, title: "Secure & Reliable", desc: "HIPAA-ready" },
+    { icon: <Headphones className="w-4 h-4 text-muted-foreground" />, title: "24/7 Support", desc: "Always here" },
+    { icon: <ArrowRight className="w-4 h-4 text-muted-foreground" />, title: "Upgrade Anytime", desc: "No lock-in" },
   ]
 
   return (
-    <section id="pricing" className="relative" style={{ backgroundColor: "#F7FAFF" }}>
+    <section id="pricing" className="relative bg-muted/30">
       <div className="max-w-[1200px] mx-auto px-5 md:px-8 py-20 md:py-24">
-        {/* ── Header ──────────────────────────────────── */}
+        {/* Header */}
         <div className="text-center mb-14 md:mb-16">
-          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-blue-600 mb-4">
+          <span className="inline-block text-xs font-semibold tracking-widest uppercase text-primary mb-4">
             Simple, transparent pricing
           </span>
-          <h2
-            className="text-[36px] md:text-[42px] font-extrabold leading-[1.1] mb-5"
-            style={{ color: "#0F172A" }}
-          >
+          <h2 className="text-[36px] md:text-[42px] font-extrabold leading-[1.1] mb-5 text-foreground">
             Choose the Right Plan for Your Clinic
           </h2>
-          <p className="text-base md:text-[17px] leading-relaxed max-w-[660px] mx-auto" style={{ color: "#64748B" }}>
+          <p className="text-base md:text-[17px] leading-relaxed max-w-[660px] mx-auto text-muted-foreground">
             Start your {TRIAL_DURATION_DAYS}-day free trial today. No credit card required.
             Upgrade anytime as your clinic grows.
           </p>
         </div>
 
-        {/* ── Cards Grid ─────────────────────────────── */}
+        {/* Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
           {plans.map((plan) => {
             const isHighlighted = plan.slug === "professional"
@@ -142,62 +132,59 @@ export default async function PricingSection() {
               <div
                 key={plan.id}
                 className={`
-                  relative bg-white rounded-[22px] p-7 md:p-8 flex flex-col
+                  relative bg-card rounded-[22px] p-7 md:p-8 flex flex-col
                   transition-all duration-200 ease-out
                   hover:-translate-y-0.5
                   ${
                     isHighlighted
-                      ? "border-2 border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.1),0_8px_40px_rgba(59,130,246,0.08)] z-10"
-                      : "border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                      ? "border-2 border-primary shadow-[0_0_0_1px_rgba(91,192,190,0.1),0_8px_40px_rgba(91,192,190,0.08)] z-10"
+                      : "border border-border"
                   }
                 `}
               >
                 {isHighlighted && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
-                    <span
-                      className="inline-flex items-center px-4 py-1.5 rounded-full text-[12px] font-bold tracking-wide text-white shadow-md"
-                      style={{ backgroundColor: "#3B82F6" }}
-                    >
+                    <span className="inline-flex items-center px-4 py-1.5 rounded-full text-[12px] font-bold tracking-wide text-primary-foreground bg-primary shadow-md">
                       MOST POPULAR
                     </span>
                   </div>
                 )}
 
                 <div className="flex items-center gap-3 mb-2">
-                  <div className={`flex items-center justify-center w-11 h-11 rounded-xl ${planIconBgs[plan.slug] || "bg-slate-100"}`}>
+                  <div className={`flex items-center justify-center w-11 h-11 rounded-xl ${planIconBgs[plan.slug] || "bg-muted"}`}>
                     {planIcons[plan.slug]}
                   </div>
                   <div>
-                    <h3 className="text-[22px] font-bold leading-tight" style={{ color: "#0F172A" }}>
+                    <h3 className="text-[22px] font-bold leading-tight text-foreground">
                       {plan.name}
                     </h3>
                   </div>
                 </div>
-                <p className="text-sm leading-relaxed mb-9" style={{ color: "#64748B" }}>
+                <p className="text-sm leading-relaxed mb-9 text-muted-foreground">
                   {plan.description}
                 </p>
 
                 <div className="mb-9">
                   {isEnterprise ? (
                     <div>
-                      <p className="text-sm font-medium mb-1" style={{ color: "#64748B" }}>Starting from</p>
+                      <p className="text-sm font-medium mb-1 text-muted-foreground">Starting from</p>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-[52px] font-extrabold leading-none" style={{ color: "#0F172A" }}>
+                        <span className="text-[52px] font-extrabold leading-none text-foreground">
                           {plan.monthlyPrice.toLocaleString()}
                         </span>
-                        <span className="text-[15px] font-medium" style={{ color: "#64748B" }}>EGP / mo</span>
+                        <span className="text-[15px] font-medium text-muted-foreground">EGP / mo</span>
                       </div>
                     </div>
                   ) : (
                     <div>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-[52px] font-extrabold leading-none" style={{ color: "#0F172A" }}>
+                        <span className="text-[52px] font-extrabold leading-none text-foreground">
                           {plan.monthlyPrice.toLocaleString()}
                         </span>
-                        <span className="text-[15px] font-medium" style={{ color: "#64748B" }}>EGP / mo</span>
+                        <span className="text-[15px] font-medium text-muted-foreground">EGP / mo</span>
                       </div>
                       {plan.yearlyPrice > 0 && (
-                        <p className="text-[13px] font-medium mt-2" style={{ color: "#10B981" }}>
+                        <p className="text-[13px] font-medium mt-2 text-success">
                           {plan.yearlyPrice.toLocaleString()} EGP / year — Save 2 months
                         </p>
                       )}
@@ -205,7 +192,7 @@ export default async function PricingSection() {
                   )}
                 </div>
 
-                <div className="space-y-0 mb-8 pb-8 border-b border-slate-100">
+                <div className="space-y-0 mb-8 pb-8 border-b border-border">
                   {(["Branches", "Doctors", "Users", "Monthly Visits"] as const).map((label) => {
                     const value =
                       label === "Branches" ? plan.maxBranches :
@@ -216,11 +203,11 @@ export default async function PricingSection() {
                     return (
                       <div key={label} className="flex items-center justify-between py-2.5">
                         <div className="flex items-center gap-2.5">
-                          <span style={{ color: "#94A3B8" }}>{limitIcons[label]}</span>
-                          <span className="text-[14px]" style={{ color: "#64748B" }}>{label}</span>
+                          <span className="text-muted-foreground">{limitIcons[label]}</span>
+                          <span className="text-[14px] text-muted-foreground">{label}</span>
                         </div>
                         {isEnterprise ? (
-                          <span className="font-bold text-sm text-amber-600">Customized</span>
+                          <span className="font-bold text-sm text-warning">Customized</span>
                         ) : (
                           <PlanValue value={value} />
                         )}
@@ -229,14 +216,14 @@ export default async function PricingSection() {
                   })}
                 </div>
 
-                {/* ✅ Features Matrix المحدثة */}
+                {/* Features Matrix */}
                 <div className="space-y-0 mb-8 flex-1">
                   {featuresList.map((feature: any) => {
                     const isIncluded = getFeatureValue(feature, plan, isEnterprise)
 
                     return (
                       <div key={feature.key} className="flex items-center justify-between py-2.5">
-                        <span className="text-[14px]" style={{ color: "#475569" }}>{feature.key}</span>
+                        <span className="text-[14px] text-foreground/70">{feature.key}</span>
                         <PlanValue value={isIncluded} isEnterprise={isEnterprise} />
                       </div>
                     )
@@ -247,7 +234,7 @@ export default async function PricingSection() {
                   {isCurrent ? (
                     <button
                       disabled
-                      className="w-full h-[50px] rounded-[13px] text-[15px] font-semibold border-2 border-slate-200 text-slate-400 cursor-not-allowed"
+                      className="w-full h-[50px] rounded-[13px] text-[15px] font-semibold border-2 border-border text-muted-foreground cursor-not-allowed"
                     >
                       {isTrial ? "Current Trial Plan" : "Current Plan"}
                     </button>
@@ -256,7 +243,7 @@ export default async function PricingSection() {
                       href="https://wa.me/201275976195?text=I'm interested in the Enterprise plan"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full h-[50px] rounded-[13px] text-[15px] font-semibold border-2 border-amber-400 text-amber-600 hover:bg-amber-50 transition-colors duration-200"
+                      className="flex items-center justify-center gap-2 w-full h-[50px] rounded-[13px] text-[15px] font-semibold border-2 border-warning text-warning hover:bg-warning/10 transition-colors duration-200"
                     >
                       Contact Sales
                       <ArrowRight className="w-4 h-4" />
@@ -267,9 +254,8 @@ export default async function PricingSection() {
                       className={`
                         flex items-center justify-center gap-2 w-full h-[50px] rounded-[13px] text-[15px] font-semibold
                         transition-all duration-200 ease-out hover:-translate-y-px
-                        ${isHighlighted ? "text-white shadow-md hover:shadow-lg" : "border-2 border-blue-500 text-blue-600 hover:bg-blue-50"}
+                        ${isHighlighted ? "text-primary-foreground bg-primary shadow-md hover:shadow-lg" : "border-2 border-primary text-primary hover:bg-primary/10"}
                       `}
-                      style={isHighlighted ? { backgroundColor: "#3B82F6" } : undefined}
                     >
                       {currentClinicId ? "Upgrade Now" : "Start Free Trial"}
                       <ArrowRight className="w-4 h-4" />
@@ -285,8 +271,8 @@ export default async function PricingSection() {
           {trustItems.map((item) => (
             <div key={item.title} className="flex flex-col items-center text-center gap-1.5 py-3">
               {item.icon}
-              <span className="text-[13px] font-semibold" style={{ color: "#334155" }}>{item.title}</span>
-              <span className="text-[12px]" style={{ color: "#94A3B8" }}>{item.desc}</span>
+              <span className="text-[13px] font-semibold text-foreground/70">{item.title}</span>
+              <span className="text-[12px] text-muted-foreground">{item.desc}</span>
             </div>
           ))}
         </div>
