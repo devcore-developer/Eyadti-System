@@ -13,6 +13,8 @@ import { InvoiceKPIs } from "@/components/invoices/invoice-kpis"
 import { InvoiceAnalytics } from "@/components/invoices/invoice-analytics"
 import { QuickInvoiceActions } from "@/components/invoices/quick-invoice-actions"
 import { ReportsSnapshot } from "@/components/invoices/reports-snapshot"
+import { hasFeature } from "@/lib/services/feature-gate"
+import { getSubscription } from "@/lib/services/subscription"
 
 const PAGE_SIZE = 20
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
@@ -73,8 +75,12 @@ export default async function InvoicesPage({
 }: {
   searchParams: SearchParams
 }) {
-  // ── SERVER-LEVEL AUTHORIZATION: Only financial roles can access this page ──
   const { clinicId, role } = await requireFinancialAccess()
+
+  // ── Plan-based feature gating for financial analytics ──
+  const subscription = await getSubscription(clinicId)
+  const isTrial = subscription?.status === "TRIAL"
+  const showFinancialAnalytics = isTrial || await hasFeature(clinicId, "ADVANCED_ANALYTICS")
 
   const params = await searchParams
   const page = Math.max(1, Number(params.page) || 1)
@@ -97,14 +103,13 @@ export default async function InvoicesPage({
     total,
     monthlyPaidAgg,
     prevMonthlyPaidAgg,
-    prevOutstandingAgg,
     totalPaidAgg,
-    outstandingAgg,
     monthlyInvoiceCount,
     totalInvoiceCount,
     chartRawData,
     branchRevenueRaw,
-    outstandingInvoices,
+    allOutstandingWithPayments,
+    doctorRevenueRaw,
     recentPaidWithItems,
   ] = await Promise.all([
     prisma.invoice.findMany({
@@ -133,16 +138,7 @@ export default async function InvoicesPage({
       _count: true,
     }),
     prisma.invoice.aggregate({
-      where: { ...baseWhere, status: { in: ["UNPAID", "PARTIAL", "OVERDUE"] } as any, createdAt: { gte: prevMonthStart, lte: prevMonthEnd } },
-      _sum: { amount: true },
-    }),
-    prisma.invoice.aggregate({
       where: { ...baseWhere, status: "PAID" },
-      _sum: { amount: true },
-      _count: true,
-    }),
-    prisma.invoice.aggregate({
-      where: { ...baseWhere, status: { in: ["UNPAID", "PARTIAL", "OVERDUE"] } as any },
       _sum: { amount: true },
       _count: true,
     }),
@@ -161,6 +157,7 @@ export default async function InvoicesPage({
       _sum: { amount: true },
       _count: true,
     }),
+    // ── FIXED: Fetch all outstanding invoices WITH payments for accurate calculation ──
     prisma.invoice.findMany({
       where: { ...baseWhere, status: { in: ["UNPAID", "PARTIAL", "OVERDUE"] } as any },
       select: {
@@ -171,13 +168,18 @@ export default async function InvoicesPage({
         createdAt: true,
         patient: { select: { id: true, fullName: true, phone: true } },
         payments: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { createdAt: true, amount: true },
+          where: { method: { not: "REFUND" } },
+          select: { amount: true, createdAt: true },
         },
-      } as any,
+      },
       orderBy: { amount: "desc" },
-      take: 20,
+    }),
+    // ── NEW: Revenue by doctor through appointments ──
+    prisma.invoice.groupBy({
+      by: ["appointmentId"],
+      where: { ...baseWhere, status: "PAID", appointmentId: { not: null } },
+      _sum: { amount: true },
+      _count: true,
     }),
     prisma.invoice.findMany({
       where: { ...baseWhere, status: "PAID" },
@@ -191,15 +193,30 @@ export default async function InvoicesPage({
     }),
   ])
 
+  // ── Branch name resolution ──
   const branchIds = branchRevenueRaw.map((r) => r.branchId).filter(Boolean) as string[]
   const branches = branchIds.length > 0
     ? await prisma.branch.findMany({
-        where: { id: { in: branchIds } },
+        where: { id: { in: branchIds }, clinicId },
         select: { id: true, name: true },
       })
     : []
   const branchMap = Object.fromEntries(branches.map((b) => [b.id, b.name]))
 
+  // ── Doctor name resolution for revenue ──
+  const aptIds = doctorRevenueRaw.map((r) => r.appointmentId).filter(Boolean) as string[]
+  const appointments = aptIds.length > 0
+    ? await prisma.appointment.findMany({
+        where: { id: { in: aptIds }, clinicId },
+        select: { id: true, doctor: { select: { id: true, name: true } } },
+      })
+    : []
+  const aptDoctorMap = new Map<string, { id: string; name: string }>()
+  for (const apt of appointments) {
+    if (apt.doctor) aptDoctorMap.set(apt.id, { id: apt.doctor.id, name: apt.doctor.name })
+  }
+
+  // ── Invoice list processing ──
   const invoices = (rawInvoices as any[]).map((inv: any) => ({
     ...inv,
     amount: Number(inv.amount),
@@ -213,12 +230,62 @@ export default async function InvoicesPage({
     })) || [],
   }))
 
+  // ── FIXED: Accurate outstanding = invoice amount MINUS actual payments received ──
+  let accurateOutstanding = 0
+  let outstandingInvoiceCount = 0
+  const patientOutstandingMap = new Map<
+    string,
+    {
+      patientId: string
+      patientName: string
+      patientPhone: string
+      totalDue: number
+      invoiceCount: number
+      lastPaymentDate: string | null
+    }
+  >()
+
+  for (const inv of allOutstandingWithPayments as any[]) {
+    const invAmount = Number(inv.amount)
+    const totalPaid = inv.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+    const remaining = Math.max(0, invAmount - totalPaid)
+
+    if (remaining > 0) {
+      accurateOutstanding += remaining
+      outstandingInvoiceCount++
+    }
+
+    const patientId = inv.patient?.id
+    if (!patientId) continue
+
+    const existing = patientOutstandingMap.get(patientId) || {
+      patientId,
+      patientName: inv.patient?.fullName || "Unknown",
+      patientPhone: inv.patient?.phone || "",
+      totalDue: 0,
+      invoiceCount: 0,
+      lastPaymentDate: null as string | null,
+    }
+    existing.totalDue += remaining
+    if (remaining > 0) existing.invoiceCount++
+    if (inv.payments?.[0]?.createdAt) {
+      const payDate = new Date(inv.payments[0].createdAt).toISOString()
+      if (!existing.lastPaymentDate || payDate > existing.lastPaymentDate) {
+        existing.lastPaymentDate = payDate
+      }
+    }
+    patientOutstandingMap.set(patientId, existing)
+  }
+
+  const outstandingPatientsData = Array.from(patientOutstandingMap.values())
+    .sort((a, b) => b.totalDue - a.totalDue)
+    .slice(0, 10)
+
+  // ── KPI calculations ──
   const monthlyRevenue = Number(monthlyPaidAgg._sum?.amount || 0)
   const prevMonthRevenue = Number(prevMonthlyPaidAgg._sum?.amount || 0)
   const totalRevenue = Number(totalPaidAgg._sum?.amount || 0)
-  const outstandingBalance = Number(outstandingAgg._sum?.amount || 0)
-  const prevOutstanding = Number(prevOutstandingAgg._sum?.amount || 0)
-  const totalExpected = totalRevenue + outstandingBalance
+  const totalExpected = totalRevenue + accurateOutstanding
   const collectionRate = totalExpected > 0
     ? Math.round((totalRevenue / totalExpected) * 100)
     : 0
@@ -229,6 +296,7 @@ export default async function InvoicesPage({
 
   const monthlyChartData = processMonthlyData(chartRawData)
 
+  // ── Top services ──
   const serviceMap = new Map<string, { revenue: number; count: number }>()
   for (const inv of recentPaidWithItems) {
     for (const item of inv.items) {
@@ -243,52 +311,26 @@ export default async function InvoicesPage({
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5)
 
+  // ── Revenue by branch (real data, tenant-scoped) ──
   const revenueByBranchData = branchRevenueRaw.map((r) => ({
     branchId: r.branchId || null,
-    branchName: r.branchId ? branchMap[r.branchId] || "Unknown Branch" : "Main Branch",
+    branchName: r.branchId ? branchMap[r.branchId] || "Unknown Branch" : "Unassigned",
     revenue: Number(r._sum.amount || 0),
     invoiceCount: r._count,
   }))
 
-  const patientOutstandingMap = new Map<
-    string,
-    {
-      patientId: string
-      patientName: string
-      patientPhone: string
-      totalDue: number
-      invoiceCount: number
-      lastPaymentDate: string | null
-    }
-  >()
-
-  for (const inv of outstandingInvoices as any[]) {
-    const patientId = inv.patient?.id || inv.patientId
-    const patientName = inv.patient?.fullName || "Unknown"
-    const patientPhone = inv.patient?.phone || ""
-    
-    const existing = patientOutstandingMap.get(patientId) || {
-      patientId,
-      patientName,
-      patientPhone,
-      totalDue: 0,
-      invoiceCount: 0,
-      lastPaymentDate: null as string | null,
-    }
-    existing.totalDue += Number(inv.amount)
-    existing.invoiceCount += 1
-    if (inv.payments?.[0]?.createdAt) {
-      const payDate = new Date(inv.payments[0].createdAt).toISOString()
-      if (!existing.lastPaymentDate || payDate > existing.lastPaymentDate) {
-        existing.lastPaymentDate = payDate
-      }
-    }
-    patientOutstandingMap.set(patientId, existing)
+  // ── Revenue by doctor (real data, tenant-scoped) ──
+  const doctorRevenueMap = new Map<string, { name: string; revenue: number; invoiceCount: number }>()
+  for (const r of doctorRevenueRaw) {
+    const doc = r.appointmentId ? aptDoctorMap.get(r.appointmentId) : null
+    if (!doc) continue
+    const existing = doctorRevenueMap.get(doc.id) || { name: doc.name, revenue: 0, invoiceCount: 0 }
+    existing.revenue += Number(r._sum.amount || 0)
+    existing.invoiceCount += r._count
+    doctorRevenueMap.set(doc.id, existing)
   }
-
-  const outstandingPatientsData = Array.from(patientOutstandingMap.values())
-    .sort((a, b) => b.totalDue - a.totalDue)
-    .slice(0, 10)
+  const revenueByDoctorData = Array.from(doctorRevenueMap.values())
+    .sort((a, b) => b.revenue - a.revenue)
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const canCreate = role === "SUPER_ADMIN" || role === "ADMIN" || role === "RECEPTIONIST"
@@ -299,35 +341,41 @@ export default async function InvoicesPage({
 
   return (
     <div className="space-y-8 animate-fade pb-20">
-      
-      <InvoiceHeader 
+      <InvoiceHeader
         monthlyRevenue={monthlyRevenue}
         collectionRate={collectionRate}
-        outstandingBalance={outstandingBalance}
+        outstandingBalance={accurateOutstanding}
       />
-      
-      <InvoiceKPIs 
+
+      <InvoiceKPIs
         monthlyRevenue={monthlyRevenue}
         totalRevenue={totalRevenue}
-        outstandingBalance={outstandingBalance}
+        outstandingBalance={accurateOutstanding}
         collectionRate={collectionRate}
+        outstandingInvoiceCount={outstandingInvoiceCount}
+        outstandingPatients={outstandingPatientsData}
       />
 
-      <InvoiceAnalytics 
-        data={monthlyChartData}
-      />
-
-      <ReportsSnapshot />
+      {/* ── Plan-gated financial analytics ── */}
+      {showFinancialAnalytics && (
+        <>
+          <InvoiceAnalytics data={monthlyChartData} />
+          <ReportsSnapshot
+            revenueByDoctor={revenueByDoctorData}
+            revenueByBranch={revenueByBranchData}
+          />
+        </>
+      )}
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <Suspense 
+        <Suspense
           fallback={
             <div className="h-12 w-full max-w-xl bg-muted/50 rounded-2xl animate-pulse" />
           }
         >
           <InvoiceFilters />
         </Suspense>
-        
+
         {canCreate && (
           <Link href="/invoices/new" className="w-full md:w-auto">
             <Button className="w-full md:w-auto gap-2 bg-gradient-to-r from-[#5BC0BE] to-[#6B9CFF] text-white shadow-[0_8px_20px_rgba(107,156,255,0.20)] hover:-translate-y-0.5 hover:shadow-xl transition-all duration-200 rounded-xl px-5 py-3 text-sm font-semibold">
