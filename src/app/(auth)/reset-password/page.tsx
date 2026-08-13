@@ -134,7 +134,7 @@ function ResetPasswordContent() {
               minLength={8}
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 w-full rounded-lg border border-input bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-[border-color,box-shadow]"
               placeholder="At least 8 characters"
             />
           </div>
@@ -147,7 +147,7 @@ function ResetPasswordContent() {
               minLength={8}
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 w-full rounded-lg border border-input bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-[border-color,box-shadow]"
               placeholder="Repeat your password"
             />
           </div>
