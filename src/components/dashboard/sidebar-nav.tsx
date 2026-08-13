@@ -1,5 +1,3 @@
-// src/components/dashboard/sidebar-nav.tsx - استبدل بالكامل
-
 "use client"
 
 import Link from "next/link"
@@ -23,13 +21,13 @@ import {
   Zap,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
-import { useSubscription } from "@/hooks/use-subscription"  // ← إضافة الاستيراد
+import { useSubscription } from "@/hooks/use-subscription"
 
 type NavItem = {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
-  featureKey?: string  // ← إضافة خاصية الميزة
+  featureKey?: string
 }
 
 type NavSection = {
@@ -48,7 +46,6 @@ const baseNav: NavItem[] = [
 const operationalNav: NavItem[] = [
   { name: "New Visit", href: "/reception/new", icon: UserPlus },
   { name: "Waiting Room", href: "/waiting-room", icon: Monitor },
-  // ← إضافة featureKey للتحكم بالظهور
   { name: "Online Bookings", href: "/appointments/online", icon: Globe, featureKey: "ONLINE_BOOKING" },
 ]
 
@@ -59,12 +56,11 @@ const financialNav: NavItem[] = [
 const adminSectionNav: NavItem[] = [
   { name: "Users & Roles", href: "/admin/users", icon: Shield },
   { name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
-  // ← إضافة featureKey للتحكم بالظهور
   { name: "Public Booking", href: "/book", icon: Globe, featureKey: "ONLINE_BOOKING" },
   { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
-  // ← إضافة featureKey للتحكم بالظهور
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText, featureKey: "AUDIT_LOGS" },
   { name: "Branches", href: "/settings/branches", icon: Building2 },
+  { name: "Doctor Attendance", href: "/settings/clinics", icon: Activity, featureKey: "DOCTOR_ATTENDANCE" },
 ]
 
 const superAdminSectionNav: NavItem[] = [
@@ -130,16 +126,13 @@ function getNavForRole(role: string): NavSection[] {
 export function SidebarNav({ userRole }: { userRole: string }) {
   const pathname = usePathname()
   const sections = getNavForRole(userRole)
-  const { hasFeatureAccess } = useSubscription()  // ← استخدام الـ hook
+  const { hasFeatureAccess } = useSubscription()
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/")
   }
 
   function renderNavItem(item: NavItem, isPlatformStyle = false) {
-    // ═══════════════════════════════════════════════════════════
-    // ✅ FIX: إخفاء العناصر التي تتطلب ميزات غير متاحة
-    // ═══════════════════════════════════════════════════════════
     if (item.featureKey && !hasFeatureAccess(item.featureKey as any)) {
       return null
     }
