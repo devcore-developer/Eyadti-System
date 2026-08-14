@@ -6,6 +6,7 @@ import {
   getChartData,
   getRecentActivity,
   getDoctorAnalytics,
+  getAttendanceStats,
 } from "@/lib/queries/dashboard"
 import { type FilterPeriod } from "@/lib/utils/date-filters"
 import { formatCurrency } from "@/lib/utils/date-filters"
@@ -31,7 +32,6 @@ import { MobileDashboard } from "./mobile-dashboard"
 import { prisma } from "@/lib/db"
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner"
 import { AttendanceKPIs } from "@/components/dashboard/attendance-kpis"
-import { getAttendanceStats } from "@/lib/actions/attendance"
 
 export const dynamic = "force-dynamic"
 

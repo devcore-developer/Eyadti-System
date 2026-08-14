@@ -19,11 +19,13 @@ export function Sidebar({
   user, 
   branches, 
   selectedBranchId,
+  features,
   isMobile = false 
 }: { 
   user?: UserData;
   branches: Branch[];
   selectedBranchId: string | null;
+  features?: Record<string, boolean>;
   isMobile?: boolean;
 }) {
   const userRole = user?.role || ""
@@ -63,7 +65,7 @@ export function Sidebar({
       )}
 
       <div className="flex-1 overflow-y-auto min-h-0 px-2.5 py-2 overscroll-contain hide-scrollbar">
-        <SidebarNav userRole={userRole} />
+        <SidebarNav userRole={userRole} features={features} />
       </div>
 
       <div className="mt-auto border-t border-gray-200/60 dark:border-white/[0.06] p-3">

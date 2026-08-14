@@ -227,3 +227,67 @@ export async function getDoctorAnalytics(clinicId: string) {
 
   return analytics.sort((a, b) => b.appointmentCount - a.appointmentCount)
 }
+
+// ───────────────────────────────────────
+// Attendance Stats (Today)
+// ───────────────────────────────────────
+export async function getAttendanceStats(clinicId: string) {
+  const todayStart = startOfDay(new Date())
+  const todayEnd = endOfDay(new Date())
+
+  const [
+    totalDoctors,
+    presentCount,
+    absentCount,
+    finishedCount,
+    branchData,
+  ] = await Promise.all([
+    prisma.user.count({
+      where: { clinicId, role: "DOCTOR" },
+    }),
+    prisma.doctorAttendance.count({
+      where: {
+        clinicId,
+        date: { gte: todayStart, lte: todayEnd },
+        status: "PRESENT",
+      },
+    }),
+    prisma.doctorAttendance.count({
+      where: {
+        clinicId,
+        date: { gte: todayStart, lte: todayEnd },
+        status: "ABSENT",
+      },
+    }),
+    prisma.doctorAttendance.count({
+      where: {
+        clinicId,
+        date: { gte: todayStart, lte: todayEnd },
+        status: "CHECKED_OUT",
+      },
+    }),
+    prisma.branch.findMany({
+      where: { clinicId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        _count: {
+          select: { doctorBranches: true },
+        },
+      },
+    }),
+  ])
+
+  return {
+    totalDoctors,
+    present: presentCount,
+    late: 0,
+    absent: absentCount,
+    finished: finishedCount,
+    branchCoverage: branchData.map(b => ({
+      branchId: b.id,
+      branchName: b.name,
+      doctorCount: b._count.doctorBranches,
+    })),
+  }
+}

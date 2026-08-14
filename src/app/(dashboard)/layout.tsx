@@ -12,6 +12,7 @@ import { getSelectedBranch } from "@/lib/actions/branch-context"
 import { SubscriptionGuard } from "@/components/billing/subscription-guard"
 import { cn } from "@/lib/utils"
 import { getSupportModeClinicData } from "@/lib/actions/super-admin"
+import { getFeatureAccess } from "@/lib/services/feature-gate"
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +40,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
         select: { status: true, trialEndsAt: true, endDate: true, currentPeriodEnd: true } 
       }) 
     : null) : null
+
+  // ── Use the proven getFeatureAccess from feature-gate.ts ──
+  const features = session.user.clinicId
+    ? await getFeatureAccess(session.user.clinicId)
+    : {}
 
   if (!isSupportMode && !isSuperAdmin && subscription?.status === "SUSPENDED") {
     redirect("/suspended")
@@ -84,9 +90,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isSupportMode && "pt-10" 
       )}>
         
-        {/* ── Desktop Sidebar (Flexbox يقلب مكانه تلقائياً في RTL) ── */}
+        {/* ── Desktop Sidebar ── */}
         <div className="hidden lg:flex print:hidden">
-          <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} />
+          <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} features={features} />
         </div>
         
         <div className="flex flex-1 flex-col overflow-hidden min-w-0 print:overflow-visible">
@@ -94,16 +100,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {/* ── Mobile Top Navbar ── */}
           <header className="lg:hidden print:hidden sticky top-0 z-40 h-16 border-b border-gray-200 dark:border-white/[0.06] bg-white px-4 flex items-center">
             <MobileNav clinicName={clinic?.name || "Nexora Clinic"}>
-              <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} isMobile />
+              <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} isMobile features={features} />
             </MobileNav>
             
-            {/* ⬇️⬇️⬇️ تغيير ml-3 لـ ms-3 (Start Margin) ⬇️⬇⬇️ */}
             <div className="flex items-center gap-2 ms-3 min-w-0">
               <img src="/dashboard-logo.png" alt="Nexora" className="h-[22px] w-[22px] object-contain shrink-0" />
               <h1 className="text-[16px] font-semibold text-gray-900 dark:text-white truncate">{clinic?.name || "Nexora Clinic"}</h1>
             </div>
 
-            {/* ⬇️⬇️⬇️ تغيير ml-auto لـ ms-auto ⬇️⬇⬇️ */}
             <div className="flex items-center gap-3 ms-auto shrink-0">
               {session.user.id && session.user.clinicId && (
                 <NotificationBell userId={session.user.id} clinicId={session.user.clinicId} />

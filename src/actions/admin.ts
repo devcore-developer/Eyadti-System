@@ -1,3 +1,5 @@
+// src/actions/admin.ts - استبدل دالة createUser بالكامل
+
 "use server"
 
 import { prisma } from "@/lib/db"
@@ -7,7 +9,7 @@ import type { ActionResult } from "@/types"
 import { hashPassword } from "@/lib/password"
 import { revalidatePath } from "next/cache"
 import { Role } from "@prisma/client"
-import { enforceUsageLimit } from "@/lib/services/usage-limits" // ← إضافة الاستيراد
+import { enforceUsageLimit } from "@/lib/services/usage-limits"
 
 function handleAuthError(error: unknown): ActionResult {
   if (error instanceof AuthenticationError) return { success: false, error: error.message }
@@ -51,22 +53,19 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // ✅ FIX: فرض حدود الخطة قبل الإنشاء
+    // ✅ FIX: Enforce USERS limit only — no separate DOCTORS quota
+    // Doctors are regular users counted against the total user limit
     // ═══════════════════════════════════════════════════════════
     await enforceUsageLimit(session.clinicId, "USERS")
+    // ❌ REMOVED: Separate doctor quota check
+    // if (validated.data.role === Role.DOCTOR) {
+    //   await enforceUsageLimit(session.clinicId, "DOCTORS")
+    // }
 
-    if (validated.data.role === Role.DOCTOR) {
-      await enforceUsageLimit(session.clinicId, "DOCTORS")
-    }
-
-    // FIX #25: Use hashPassword for consistent salt rounds (12)
     const hashedPassword = await hashPassword(validated.data.password)
 
     const isAdminRole = validated.data.role === Role.ADMIN
 
-    // ═══════════════════════════════════════════════════════════
-    // ✅ FIX: Transaction لضمان سلامة البيانات
-    // ═══════════════════════════════════════════════════════════
     await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
@@ -83,7 +82,6 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       })
 
       if (!isAdminRole && validated.data.branchIds && validated.data.branchIds.length > 0) {
-        // أمان: التحقق من أن كل الفرع تابع لهذه العيادة
         const validBranches = await tx.branch.findMany({
           where: { id: { in: validated.data.branchIds }, clinicId: session.clinicId }
         })
@@ -112,7 +110,6 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     if ((error as any)?.name === "AuthenticationError" || (error as any)?.name === "AuthorizationError") {
       return handleAuthError(error)
     }
-    // التقاط أخطاء الحدود والأمان
     if (error instanceof Error && (error.message.includes("limit") || error.message.includes("Invalid branch"))) {
       return { success: false, error: error.message }
     }
@@ -130,8 +127,6 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
     let session: Awaited<ReturnType<typeof requireRole>>
     let isSelfEdit = false
 
-    // ADMIN/SUPER_ADMIN → صلاحية كاملة
-    // DOCTOR/RECEPTIONIST → fall back لـ self-edit
     try {
       session = await requireRole("ADMIN")
     } catch (error) {
@@ -139,11 +134,10 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
         session = await requireSelfEdit()
         isSelfEdit = true
       } else {
-        throw error // أعد رمي AuthenticationError
+        throw error
       }
     }
 
-    // حماية: Self-edit يسمح فقط بتعديل نفسه
     if (isSelfEdit && userId !== session.userId) {
       return { success: false, error: "You can only update your own profile." }
     }
@@ -153,7 +147,6 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
     })
     if (!existingUser) return { success: false, error: "User not found in your clinic." }
 
-    // حماية Admin فقط: منع إزالة دور الأدمن من نفسه
     if (!isSelfEdit && existingUser.id === session.userId && formData.get("role") !== "ADMIN") {
       return { success: false, error: "You cannot remove your own Admin role." }
     }
@@ -181,7 +174,6 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
     const newRole = validated.data.role || existingUser.role
     const isNewRoleAdmin = newRole === Role.ADMIN
 
-    // الحقول الأساسية المتاحة للجميع
     const updateData: any = {
       name: validated.data.name,
       email: validated.data.email,
@@ -191,26 +183,20 @@ export async function updateUser(userId: string, formData: FormData): Promise<Ac
       allBranchAccess: isNewRoleAdmin,
     }
 
-    // تغيير الدور متاح لـ ADMIN فقط — حماية من تصعيد الصلاحيات
     if (!isSelfEdit) {
       updateData.role = newRole
     }
 
-    // تغيير كلمة المرور متاح للجميع (بالتشفير)
     if (validated.data.password && validated.data.password.trim() !== "") {
       updateData.password = await hashPassword(validated.data.password)
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // ✅ FIX: Transaction لأمان الفروع
-    // ═══════════════════════════════════════════════════════════
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },
         data: updateData,
       })
 
-      // إدارة الفروع متاحة لـ ADMIN فقط
       if (!isSelfEdit && validated.data.branchIds) {
         if (newRole === Role.DOCTOR) {
           await tx.doctorBranch.deleteMany({ where: { doctorId: userId } })
@@ -287,7 +273,6 @@ export async function updateClinicSettings(formData: FormData): Promise<ActionRe
       }
     }
 
-    // FIX #26: Generate slug from name when name changes
     const newSlug = validated.data.name
       .trim()
       .toLowerCase()
@@ -322,7 +307,6 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   try {
     const session = await requireRole("ADMIN")
 
-    // منع المستخدم من حذف نفسه
     if (session.userId === userId) {
       return { success: false, error: "You cannot delete your own account." }
     }
@@ -335,7 +319,6 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
       return { success: false, error: "User not found in your clinic." }
     }
 
-    // منع الأدمن من حذف سوبر أدمن
     if (userToDelete.role === "SUPER_ADMIN" && session.role !== "SUPER_ADMIN") {
       return { success: false, error: "Only Super Admins can delete other Super Admins." }
     }

@@ -131,7 +131,7 @@ export const PLANS_CONFIG = {
     maxBranches: 1,
     maxMonthlyVisits: 200,    
     onlineBookingEnabled: false,
-    analyticsEnabled: true, // ✅ تم تفعيله للـ Standard
+    analyticsEnabled: true,
     whatsappEnabled: false,
     auditLogsEnabled: false,
     galleryEnabled: false,
@@ -147,11 +147,14 @@ export const PLANS_CONFIG = {
     description: "For growing clinics and medical centers",
     monthlyPrice: 1000,
     yearlyPrice: 10000,
-    maxDoctors: 15,
-    maxUsers: 15,
-    maxPatients: -1,
-    maxBranches: 5,
-    maxMonthlyVisits: -1,
+    // ═══════════════════════════════════════════════════════════
+    // ✅ FIX: Removed separate doctor quota — doctors are users
+    // ═══════════════════════════════════════════════════════════
+    maxDoctors: -1,        // Changed from 15 → -1 (no separate quota)
+    maxUsers: 10,          // Changed from 15 → 10
+    maxPatients: -1,       // Unlimited
+    maxBranches: 3,        // Changed from 5 → 3
+    maxMonthlyVisits: -1,  // Unlimited
     onlineBookingEnabled: true,
     analyticsEnabled: true,
     whatsappEnabled: true,
@@ -192,7 +195,6 @@ export const FEATURE_MATRIX = {
   standard: {
     name: "Standard",
     features: [
-      // ✅ Core Features المضافة لتبدو الخطة جذابة
       { key: "Patient Management", included: true },
       { key: "Patient Profiles & Medical Files", included: true },
       { key: "New Visit & Consultation", included: true },
@@ -207,10 +209,9 @@ export const FEATURE_MATRIX = {
       { key: "Basic User Management", included: true },
       { key: "Basic Notifications", included: true },
       { key: "Doctor Schedules", included: true },
-      // ❌ Blocked Features
       { key: "Online Booking", included: false },
       { key: "Doctor Attendance", included: false },
-      { key: "Advanced Analytics", included: true }, // ✅ تم تفعيله
+      { key: "Advanced Analytics", included: true },
       { key: "WhatsApp Automation", included: false },
       { key: "Audit Logs", included: false },
       { key: "Before/After Gallery", included: false },

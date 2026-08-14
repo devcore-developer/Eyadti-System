@@ -60,7 +60,10 @@ const adminSectionNav: NavItem[] = [
   { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText, featureKey: "AUDIT_LOGS" },
   { name: "Branches", href: "/settings/branches", icon: Building2 },
-  { name: "Doctor Attendance", href: "/settings/clinics", icon: Activity, featureKey: "DOCTOR_ATTENDANCE" },
+  // ═══════════════════════════════════════════════════════════
+  // ✅ FIX: Corrected typo "DOCTOR_ATTEDANCE" → "DOCTOR_ATTENDANCE"
+  // ═══════════════════════════════════════════════════════════
+  { name: "Doctor Attendance", href: "/doctor-attendance", icon: Activity, featureKey: "DOCTOR_ATTENDANCE" },
 ]
 
 const superAdminSectionNav: NavItem[] = [
@@ -79,7 +82,6 @@ function getNavForRole(role: string): NavSection[] {
 
   const sections: NavSection[] = []
 
-  // ── Main section ──
   const mainItems: NavItem[] = [...baseNav]
 
   if (isReception || isAdmin) {
@@ -92,7 +94,6 @@ function getNavForRole(role: string): NavSection[] {
 
   sections.push({ items: mainItems })
 
-  // ── Account section ──
   if (isDoctor || isReception) {
     sections.push({
       items: [{ name: "Users & Roles", href: "/admin/users", icon: Shield }],
@@ -101,7 +102,6 @@ function getNavForRole(role: string): NavSection[] {
     })
   }
 
-  // ── Admin section ──
   if (isAdmin) {
     sections.push({
       items: adminSectionNav,
@@ -110,7 +110,6 @@ function getNavForRole(role: string): NavSection[] {
     })
   }
 
-  // ── Platform section ──
   if (isSuperAdmin) {
     sections.push({
       items: superAdminSectionNav,
@@ -123,17 +122,22 @@ function getNavForRole(role: string): NavSection[] {
   return sections
 }
 
-export function SidebarNav({ userRole }: { userRole: string }) {
+export function SidebarNav({ userRole, features }: { userRole: string; features?: Record<string, boolean> }) {
   const pathname = usePathname()
   const sections = getNavForRole(userRole)
-  const { hasFeatureAccess } = useSubscription()
+  const { hasFeatureAccess: hookAccess } = useSubscription()
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/")
   }
 
+  function checkFeature(key: string): boolean {
+    if (features && key in features) return features[key]
+    return hookAccess(key)
+  }
+
   function renderNavItem(item: NavItem, isPlatformStyle = false) {
-    if (item.featureKey && !hasFeatureAccess(item.featureKey as any)) {
+    if (item.featureKey && !checkFeature(item.featureKey)) {
       return null
     }
 

@@ -47,7 +47,6 @@ export async function checkUsageLimit(clinicId: string, resource: ResourceKey): 
     return { allowed: false, current: 0, limit: 0, remaining: 0 };
   }
 
-  // FIX #40: Check subscription status before allowing anything
   if (
     subscription.status !== SubscriptionStatus.TRIAL &&
     subscription.status !== SubscriptionStatus.ACTIVE
@@ -97,7 +96,11 @@ export async function getUsageStats(clinicId: string): Promise<UsageStat[]> {
   const subscription = await getSubscription(clinicId);
   if (!subscription) return [];
 
-  const resources: ResourceKey[] = ["DOCTORS", "USERS", "PATIENTS", "BRANCHES", "MONTHLY_VISITS"];
+  // ═══════════════════════════════════════════════════════════
+  // ✅ FIX: Removed "DOCTORS" from display — no separate quota
+  // Doctors are counted as part of USERS
+  // ═══════════════════════════════════════════════════════════
+  const resources: ResourceKey[] = ["USERS", "PATIENTS", "BRANCHES", "MONTHLY_VISITS"];
   const stats: UsageStat[] = [];
 
   for (const resource of resources) {
