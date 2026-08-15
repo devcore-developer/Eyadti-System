@@ -38,9 +38,12 @@ export function AttendancePanel({ clinicId }: AttendancePanelProps) {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const handleCheckIn = async (doctorId: string, branchId: string | null) => {
+  // ═══════════════════════════════════════════════════════════
+  // ✅ FIX: Reordered arguments to match (attendanceId, doctorId)
+  // ═══════════════════════════════════════════════════════════
+  const handleCheckIn = async (doctorId: string, attendanceId: string | null) => {
     setActionLoading(doctorId)
-    const result = await checkInDoctor(doctorId, branchId)
+    const result = await checkInDoctor(attendanceId, doctorId)
     if (result.success) {
       showSuccess("Checked In", "Doctor has been marked as present.")
       loadData()
@@ -144,7 +147,8 @@ export function AttendancePanel({ clinicId }: AttendancePanelProps) {
                   <Button
                     size="sm"
                     className="h-8 text-xs gap-1 bg-[#5BC0BE] hover:bg-[#5BC0BE]/90 text-white"
-                    onClick={() => handleCheckIn(doc.doctorId, doc.branchId)}
+                    // ✅ FIX: Pass (doctorId, attendanceId)
+                    onClick={() => handleCheckIn(doc.doctorId, doc.attendanceId)}
                     disabled={actionLoading === doc.doctorId}
                   >
                     {actionLoading === doc.doctorId ? (

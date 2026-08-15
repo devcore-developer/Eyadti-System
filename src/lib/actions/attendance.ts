@@ -6,6 +6,54 @@ import { auditLog } from "@/lib/services/audit"
 import { revalidatePath } from "next/cache"
 import type { ActionResult } from "@/types"
 
+// ─── Get Today's Attendance for Panel ─────────────────────
+
+export async function getTodayAttendance(clinicId: string) {
+  const session = await auth()
+  if (!session?.user) return []
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  // جلب كل الأطباء في العيادة
+  const doctors = await prisma.user.findMany({
+    where: { clinicId, role: "DOCTOR" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  })
+
+  // جلب سجلات الحضور لليوم
+  const records = await prisma.doctorAttendance.findMany({
+    where: { 
+      clinicId, 
+      date: { gte: today, lt: tomorrow } 
+    },
+    include: { 
+      branch: { select: { id: true, name: true } } 
+    },
+  })
+
+  // إنشاء خريطة للوصول السريع
+  const recordMap = new Map(records.map(r => [r.doctorId, r]))
+
+  // دمج البيانات
+  return doctors.map(doc => {
+    const record = recordMap.get(doc.id)
+    return {
+      doctorId: doc.id,
+      doctorName: doc.name,
+      branchId: record?.branchId || null,
+      branchName: record?.branch?.name || null,
+      status: record?.status || "ABSENT",
+      checkInTime: record?.checkInTime?.toISOString() || null,
+      checkOutTime: record?.checkOutTime?.toISOString() || null,
+      attendanceId: record?.id || null,
+    }
+  })
+}
+
 // ─── Check In Doctor ────────────────────────────────────────
 
 export async function checkInDoctor(
