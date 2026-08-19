@@ -6,11 +6,10 @@ import { X, Plus } from "lucide-react"
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-full min-h-dvh bg-[#F5F7FB] overflow-x-hidden">
+    <div className="w-full min-h-dvh bg-[#F5F7FB] dark:bg-[#0F172A] overflow-x-hidden">
       <div 
         className="px-4 pt-5 space-y-5 w-full max-w-[500px] mx-auto"
         style={{ 
-          // مسافة تحت بالظبط بتساوي ارتفاع النافبار (64) + مسافة أمان (24)
           paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px) + 24px)' 
         }}
       >
@@ -23,7 +22,7 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
 export function MobileBottomNav({ links }: { links: { label: string; href: string; icon: React.ReactNode; active?: boolean }[] }) {
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#17212F] border-t border-gray-100 dark:border-white/[0.06]"
       style={{
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         height: "calc(64px + env(safe-area-inset-bottom, 0px))",
@@ -76,7 +75,7 @@ export function MobileFab({ actions }: { actions: { label: string; href: string;
       )}
 
       <div
-        className="absolute bottom-[68px] right-0 w-48 bg-white rounded-2xl border border-gray-100/80 overflow-hidden"
+        className="absolute bottom-[68px] right-0 w-48 bg-white dark:bg-[#223247] rounded-2xl border border-gray-100/80 dark:border-white/[0.06] overflow-hidden"
         style={{
           boxShadow: "0 16px 40px rgba(0,0,0,0.10)",
           transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -90,10 +89,10 @@ export function MobileFab({ actions }: { actions: { label: string; href: string;
           <button
             key={action.label}
             onClick={() => { router.push(action.href); setIsOpen(false) }}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left transition-colors active:bg-gray-100"
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/[0.06] text-left transition-colors active:bg-gray-100 dark:active:bg-white/[0.08]"
           >
-            <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500">{action.icon}</div>
-            <span className="text-[13px] font-medium text-gray-700">{action.label}</span>
+            <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-white/[0.06] flex items-center justify-center text-gray-500 dark:text-gray-400">{action.icon}</div>
+            <span className="text-[13px] font-medium text-gray-700 dark:text-gray-200">{action.label}</span>
           </button>
         ))}
       </div>

@@ -98,7 +98,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="flex flex-1 flex-col overflow-hidden min-w-0 print:overflow-visible">
           
           {/* ── Mobile Top Navbar ── */}
-          <header className="lg:hidden print:hidden sticky top-0 z-40 h-16 border-b border-gray-200 dark:border-white/[0.06] bg-white px-4 flex items-center">
+          <header className="lg:hidden print:hidden sticky top-0 z-40 h-16 border-b border-gray-200 dark:border-white/[0.06] bg-white dark:bg-[#17212F] px-4 flex items-center">
             <MobileNav clinicName={clinic?.name || "Nexora Clinic"}>
               <Sidebar user={session.user} branches={branches} selectedBranchId={selectedBranchId} isMobile features={features} />
             </MobileNav>
