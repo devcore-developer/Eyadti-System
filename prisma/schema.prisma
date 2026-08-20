@@ -279,7 +279,7 @@ model Clinic {
   operationalStatus String @default("ACTIVE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  clinicServices        ClinicService[]
   @@index([ownerId])
   @@index([phone])
   @@map("clinics")
@@ -1146,4 +1146,24 @@ model DoctorAttendance {
   @@index([clinicId, date])
   @@index([branchId, date])
   @@map("doctor_attendance")
+}
+
+// ── Clinic Services / Pricing Catalog ──────────────
+
+model ClinicService {
+  id          String   @id @default(cuid())
+  clinicId    String
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  category    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, name])
+  @@index([clinicId, isActive])
+  @@map("clinic_services")
 }

@@ -5,7 +5,7 @@ import { QueueCard } from "@/components/waiting-room/queue-card"
 import { VisitStatus, PaymentMethod, PaymentWorkflow } from "@prisma/client"
 import type { PaymentStatusInfo } from "@/lib/actions/payment-workflow"
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // Helper: Get payment info for a single appointment
 // ══════════════════════════════════════════════════
 async function getAppointmentPaymentStatus(appointmentId: string): Promise<PaymentStatusInfo> {
@@ -36,7 +36,7 @@ export default async function WaitingRoomPage() {
 
   const clinicId = session.user.clinicId
 
-  // ══════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════
   // GET PAYMENT POLICY
   // ══════════════════════════════════════════════════
   const settings = await prisma.clinicSettings.findUnique({
@@ -55,7 +55,6 @@ export default async function WaitingRoomPage() {
     VisitStatus.PROCEDURE,
   ]
 
-  // Only include BILLING for non-pre-visit payment workflows
   if (workflow !== PaymentWorkflow.PAY_BEFORE_VISIT) {
     activeVisitStatuses.push(VisitStatus.BILLING)
   }
@@ -76,9 +75,20 @@ export default async function WaitingRoomPage() {
     ],
   })
 
-  // ══════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════
+  // CALCULATE WAITING POSITION (before serialization)
+  // ══════════════════════════════════════════════
+  const waitingQueue = activeVisits
+    .filter(v => v.status === VisitStatus.WAITING)
+    .sort((a, b) => (a.queueNumber ?? Infinity) - (b.queueNumber ?? Infinity))
+  const waitingPositionMap = new Map<string, number>()
+  waitingQueue.forEach((v, idx) => {
+    waitingPositionMap.set(v.id, idx + 1)
+  })
+
+  // ════════════════════════════════════════════════
   // ENRICH WITH PAYMENT CONTEXT (per visit)
-  // ══════════════════════════════════════════════════
+  // ════════════════════════════════════════════════
   const serializedVisits = await Promise.all(activeVisits.map(async (v) => {
     let paymentInfo: PaymentStatusInfo | null = null
     let showBillingAction = false
@@ -88,7 +98,6 @@ export default async function WaitingRoomPage() {
       paymentInfo = await getAppointmentPaymentStatus(v.appointmentId)
     }
 
-    // ═══ BILLING LOGIC BASED ON POLICY ═══
     if (workflow === PaymentWorkflow.PAY_AFTER_VISIT) {
       if (v.status === VisitStatus.BILLING) {
         showBillingAction = true
@@ -100,12 +109,10 @@ export default async function WaitingRoomPage() {
         if (paymentInfo && paymentInfo.remaining > 0) {
           billingActionLabel = `Complete Payment (${paymentInfo.remaining.toFixed(2)} remaining)`
         } else {
-          // No remaining balance - can complete directly
           showBillingAction = false
         }
       }
     } else if (workflow === PaymentWorkflow.PAY_BEFORE_VISIT) {
-      // ═══ FIX: NEVER show billing action for pre-visit payment ═══
       showBillingAction = false
     }
 
@@ -121,12 +128,11 @@ export default async function WaitingRoomPage() {
       priority: v.priority,
       status: v.status,
       checkedInAt: v.checkedInAt ? v.checkedInAt.toISOString() : null,
-      // ═══ FIX: Use appointment dateTime as scheduled time, not visitDate ═══
       scheduledTime: v.appointment?.dateTime?.toISOString() || v.visitDate.toISOString(),
-      // Payment context
       paymentInfo,
       showBillingAction,
       billingActionLabel,
+      waitingPosition: waitingPositionMap.get(v.id) ?? null,
     }
   }))
 
@@ -162,7 +168,6 @@ export default async function WaitingRoomPage() {
               <p className="text-xs text-purple-600 dark:text-purple-400">Procedure</p>
             </div>
           )}
-          {/* ═══ FIX: Only show Billing count for non-pre-visit workflows ═══ */}
           {billingCount > 0 && workflow !== PaymentWorkflow.PAY_BEFORE_VISIT && (
             <div className="bg-orange-50 border border-orange-200 dark:bg-orange-950/30 dark:border-orange-800 rounded-xl px-4 py-2 text-center flex-1 sm:flex-none">
               <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">{billingCount}</p>
@@ -198,6 +203,7 @@ export default async function WaitingRoomPage() {
               billingActionLabel={visit.billingActionLabel}
               paymentInfo={visit.paymentInfo}
               clinicId={clinicId}
+              waitingPosition={visit.waitingPosition}
             />
           ))}
         </div>

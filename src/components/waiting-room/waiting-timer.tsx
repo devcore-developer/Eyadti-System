@@ -13,12 +13,11 @@ type Props = {
   isEmergency?: boolean
 }
 
-function formatHHMMSS(ms: number): string {
-  const totalSeconds = Math.floor(Math.abs(ms) / 1000)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+function formatMinutes(ms: number): string {
+  const totalMinutes = Math.round(Math.abs(ms) / 60000)
+  if (totalMinutes === 0) return "0 minutes"
+  if (totalMinutes === 1) return "1 minute"
+  return `${totalMinutes} minutes`
 }
 
 export function WaitingTimer({ scheduledTime, checkedInAt, isEmergency }: Props) {
@@ -29,16 +28,14 @@ export function WaitingTimer({ scheduledTime, checkedInAt, isEmergency }: Props)
     function calculate() {
       const now = new Date()
 
-      // ── Emergency patients: time since arrival ──
+      // ── Emergency: time since arrival ──
       if (isEmergency && checkedInAt) {
         const arrived = new Date(checkedInAt)
         const diffMs = now.getTime() - arrived.getTime()
-        const diffMins = Math.round(diffMs / 60000)
-
-        if (diffMins < 1) {
+        if (diffMs < 60000) {
           setDisplay({ text: "Just arrived", type: "emergency" })
         } else {
-          setDisplay({ text: `${formatHHMMSS(diffMs)} wait`, type: "emergency" })
+          setDisplay({ text: `Waiting for ${formatMinutes(diffMs)}`, type: "emergency" })
         }
         return
       }
@@ -48,12 +45,10 @@ export function WaitingTimer({ scheduledTime, checkedInAt, isEmergency }: Props)
         if (checkedInAt) {
           const arrived = new Date(checkedInAt)
           const diffMs = now.getTime() - arrived.getTime()
-          const diffMins = Math.round(diffMs / 60000)
-
-          if (diffMins < 1) {
+          if (diffMs < 60000) {
             setDisplay({ text: "Just arrived", type: "arrived" })
           } else {
-            setDisplay({ text: `${formatHHMMSS(diffMs)} wait`, type: "waiting" })
+            setDisplay({ text: `Waiting for ${formatMinutes(diffMs)}`, type: "waiting" })
           }
         } else {
           setDisplay({ text: "N/A", type: "arrived" })
@@ -67,19 +62,15 @@ export function WaitingTimer({ scheduledTime, checkedInAt, isEmergency }: Props)
 
       if (diffMs < 0) {
         // FUTURE: appointment hasn't started yet
-        setDisplay({ text: `Starts in ${formatHHMMSS(diffMs)}`, type: "countdown" })
+        setDisplay({ text: `Starts in ${formatMinutes(diffMs)}`, type: "countdown" })
       } else {
         // PAST/DUE: appointment time reached or passed
-        setDisplay({ text: `Waiting for ${formatHHMMSS(diffMs)}`, type: "waiting" })
+        setDisplay({ text: `Waiting for ${formatMinutes(diffMs)}`, type: "waiting" })
       }
     }
 
-    // Calculate immediately
     calculate()
-
-    // Update every second for a live timer
     intervalRef.current = setInterval(calculate, 1000)
-
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
@@ -88,15 +79,13 @@ export function WaitingTimer({ scheduledTime, checkedInAt, isEmergency }: Props)
     }
   }, [scheduledTime, checkedInAt, isEmergency])
 
-  // ── Color logic ──
   const colorClass = {
     countdown: "text-blue-600 dark:text-blue-400",
     waiting: (() => {
-      // Parse HH:MM:SS from display to determine if overdue > 30 min
-      const match = display.text.match(/(\d{2}):(\d{2}):(\d{2})/)
+      const match = display.text.match(/(\d+)\s+minute/)
       if (match) {
-        const totalSeconds = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3])
-        if (totalSeconds > 30 * 60) return "text-red-600 dark:text-red-400"
+        const mins = parseInt(match[1])
+        if (mins > 30) return "text-red-600 dark:text-red-400"
       }
       return "text-amber-600 dark:text-amber-400"
     })(),

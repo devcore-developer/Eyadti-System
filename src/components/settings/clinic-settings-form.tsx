@@ -256,7 +256,7 @@ export function ClinicSettingsForm({
         <CardContent>
           <Select
             disabled={isReadOnly}
-            value={form.getValues("paymentWorkflow") || "PAY_AFTER_VISIT"}
+            value={form.watch("paymentWorkflow") || "PAY_AFTER_VISIT"}
             onValueChange={(val: string | null) => { if (val) form.setValue("paymentWorkflow", val as any)}}
           >
             <SelectTrigger><SelectValue placeholder="Select payment timing" /></SelectTrigger>

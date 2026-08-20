@@ -1,13 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { AppointmentStatus, VisitStatus, PaymentWorkflow } from "@prisma/client"
-import { changeAppointmentStatus } from "@/actions/appointments"
+import { VisitStatus } from "@prisma/client"
 import { updateVisitStatus } from "@/actions/unified-appointment"
 import { useRouter } from "next/navigation"
 import { User, Clock, Play, CheckCircle2, CreditCard } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import type { PaymentStatusInfo } from "@/lib/actions/payment-workflow"
 import { WaitingTimer } from "./waiting-timer"
 
@@ -29,6 +27,7 @@ type WaitingVisit = {
   billingActionLabel: string
   paymentInfo: PaymentStatusInfo | null
   appointmentDateTime?: Date | string | null
+  waitingPosition?: number | null
 }
 
 type Props = {
@@ -93,7 +92,18 @@ export function WaitingRoomClient({ visits }: Props) {
                 checkedInAt={visit.checkedInAt}
                 isEmergency={isEmergency}
               />
-              {visit.queueNumber && <span className="ml-auto font-bold text-gray-400">#{visit.queueNumber}</span>}
+              <div className="ml-auto flex items-center gap-2">
+                {visit.queueNumber != null && (
+                  <span className="font-bold text-slate-700 dark:text-slate-300 text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md" title="Daily queue token">
+                    A{visit.queueNumber}
+                  </span>
+                )}
+                {visit.waitingPosition != null && (
+                  <span className="font-bold text-blue-600 dark:text-blue-400 text-xs bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-md" title="Current position among waiting patients">
+                    #{visit.waitingPosition}
+                  </span>
+                )}
+              </div>
             </div>
 
             {visit.paymentInfo && visit.paymentInfo.hasInvoice && (

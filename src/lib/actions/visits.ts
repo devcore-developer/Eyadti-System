@@ -214,9 +214,7 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
         ? `[${parsed.data.visitType}] ${parsed.data.notes || ''}`.trim()
         : parsed.data.notes || null
 
-      const appointmentDateTime = visitIsToday
-        ? new Date()
-        : new Date(parsed.data.visitDate)
+      const appointmentDateTime = new Date(parsed.data.visitDate)
 
       const appointment = await tx.appointment.create({
         data: {

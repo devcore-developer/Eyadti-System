@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { AppointmentStatus, VisitStatus, PaymentWorkflow } from "@prisma/client"
+import { VisitStatus } from "@prisma/client"
 import { updateVisitStatus } from "@/actions/unified-appointment"
 import { useRouter } from "next/navigation"
 import { User, Play, CheckCircle2, CreditCard, Clock } from "lucide-react"
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import type { PaymentStatusInfo } from "@/lib/actions/payment-workflow"
 import { WaitingTimer } from "./waiting-timer"
 import { QuickBillingDialog } from "./quick-billing-dialog"
+import { CompleteVisitDialog } from "./complete-visit-dialog"
 
 type Props = {
   id: string
@@ -28,6 +29,7 @@ type Props = {
   billingActionLabel: string
   paymentInfo: PaymentStatusInfo | null
   clinicId: string
+  waitingPosition: number | null
 }
 
 function getStatusConfig(
@@ -43,7 +45,9 @@ function getStatusConfig(
   nextLabel?: string
   actionType?: "status" | "billing" | "pay-complete" | "none"
 } {
-  const isPreVisit = workflow === PaymentWorkflow.PAY_BEFORE_VISIT
+  const isPreVisit = workflow === "PAY_BEFORE_VISIT"
+  const isSplit = workflow === "SPLIT_PAYMENT"
+  const isAfter = workflow === "PAY_AFTER_VISIT"
 
   switch (status) {
     case VisitStatus.WAITING:
@@ -64,8 +68,7 @@ function getStatusConfig(
         actionType: "status",
       }
 
-    case VisitStatus.PROCEDURE:
-      // ═══ Pay Before Visit: complete directly (payment already done) ═══
+    case VisitStatus.PROCEDURE: {
       if (isPreVisit) {
         return {
           label: "Procedure",
@@ -76,8 +79,7 @@ function getStatusConfig(
         }
       }
 
-      // ═══ Pay After Visit: always show payment dialog ═══
-      if (workflow === PaymentWorkflow.PAY_AFTER_VISIT) {
+      if (isAfter) {
         return {
           label: "Procedure",
           color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
@@ -86,9 +88,14 @@ function getStatusConfig(
         }
       }
 
-      // ═══ FIX: Pay Before & After: show dialog only if outstanding balance ═══
-      if (workflow === PaymentWorkflow.SPLIT_PAYMENT) {
-        if (paymentInfo && paymentInfo.hasInvoice && paymentInfo.remaining > 0) {
+      if (isSplit) {
+        const hasOutstanding = !!(
+          paymentInfo &&
+          paymentInfo.hasInvoice &&
+          paymentInfo.remaining > 0
+        )
+
+        if (hasOutstanding) {
           return {
             label: "Procedure",
             color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
@@ -96,7 +103,7 @@ function getStatusConfig(
             actionType: "pay-complete",
           }
         }
-        // No outstanding balance → complete directly
+
         return {
           label: "Procedure",
           color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
@@ -106,7 +113,6 @@ function getStatusConfig(
         }
       }
 
-      // ═══ Other modes with billing action (e.g. custom BILLING status) ═══
       if (showBillingAction) {
         return {
           label: "Procedure",
@@ -117,7 +123,6 @@ function getStatusConfig(
         }
       }
 
-      // ═══ Fallback: complete directly ═══
       return {
         label: "Procedure",
         color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
@@ -125,8 +130,9 @@ function getStatusConfig(
         nextLabel: "Complete Visit",
         actionType: "status",
       }
+    }
 
-    case VisitStatus.BILLING:
+    case VisitStatus.BILLING: {
       if (showBillingAction) {
         return {
           label: "Billing",
@@ -144,6 +150,7 @@ function getStatusConfig(
         nextLabel: "Complete Visit",
         actionType: "status",
       }
+    }
 
     case VisitStatus.COMPLETED:
       return {
@@ -179,6 +186,7 @@ export function QueueCard({
   billingActionLabel,
   paymentInfo,
   clinicId,
+  waitingPosition,
 }: Props) {
   const router = useRouter()
   const isEmergency = priority === "URGENT"
@@ -262,12 +270,21 @@ export function QueueCard({
           checkedInAt={checkedInAt}
           isEmergency={isEmergency}
         />
-        {queueNumber && (
-          <span className="ml-auto font-bold text-gray-400">#{queueNumber}</span>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {queueNumber != null && (
+            <span className="font-bold text-slate-700 dark:text-slate-300 text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md" title="Daily queue token — does not change when patients leave">
+              A{queueNumber}
+            </span>
+          )}
+          {waitingPosition != null && (
+            <span className="font-bold text-blue-600 dark:text-blue-400 text-xs bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-md" title="Current position among waiting patients">
+              #{waitingPosition}
+            </span>
+          )}
+        </div>
       </div>
 
-      {workflow === PaymentWorkflow.PAY_BEFORE_VISIT && paymentDisplay && (
+      {paymentDisplay && (
         <div className="mb-3">{paymentDisplay}</div>
       )}
 
@@ -279,7 +296,7 @@ export function QueueCard({
         </div>
       )}
 
-      {config.actionType !== "none" && config.nextStatus && (
+      {config.actionType !== "none" && config.nextLabel && (
         <div className="flex gap-2">
           {config.actionType === "status" && (
             <button
@@ -317,23 +334,38 @@ export function QueueCard({
         </div>
       )}
 
-      <QuickBillingDialog
-        visitId={id}
-        patientId={patientId}
-        doctorId={doctorId}
-        patientName={patientName}
-        appointmentId={appointmentId}
-        clinicId={clinicId}
-        existingInvoice={workflow === "SPLIT_PAYMENT" && paymentInfo?.hasInvoice ? {
-          invoiceId: paymentInfo.invoiceId!,
-          totalAmount: paymentInfo.totalAmount,
-          totalPaid: paymentInfo.totalPaid,
-          remaining: paymentInfo.remaining,
-          status: paymentInfo.status,
-        } : undefined}
-        open={showPayDialog}
-        onOpenChange={setShowPayDialog}
-      />
+      {workflow === "SPLIT_PAYMENT" ? (
+        <CompleteVisitDialog
+          visitId={id}
+          patientId={patientId}
+          doctorId={doctorId}
+          patientName={patientName}
+          appointmentId={appointmentId}
+          clinicId={clinicId}
+          branchId={undefined}
+          existingInvoice={paymentInfo?.hasInvoice ? {
+            invoiceId: paymentInfo.invoiceId!,
+            totalAmount: paymentInfo.totalAmount,
+            totalPaid: paymentInfo.totalPaid,
+            remaining: paymentInfo.remaining,
+            status: paymentInfo.status,
+          } : undefined}
+          open={showPayDialog}
+          onOpenChange={setShowPayDialog}
+        />
+      ) : (
+        <QuickBillingDialog
+          visitId={id}
+          patientId={patientId}
+          doctorId={doctorId}
+          patientName={patientName}
+          appointmentId={appointmentId}
+          clinicId={clinicId}
+          existingInvoice={undefined}
+          open={showPayDialog}
+          onOpenChange={setShowPayDialog}
+        />
+      )}
     </div>
   )
 }

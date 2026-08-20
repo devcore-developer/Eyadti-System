@@ -589,3 +589,155 @@ export async function getWaitingRoomWithPaymentContext(clinicId: string) {
 
   return { policy, visits: enrichedVisits }
 }
+
+// ══════════════════════════════════════════════════════════════
+// COMPLETE SPLIT VISIT WITH SERVICES
+// Used ONLY by Split Payment at Complete Visit
+// Creates individual invoice items per service, updates total,
+// records payment, and completes the visit.
+// ══════════════════════════════════════════════════════════════
+
+export async function completeSplitVisitWithServices(data: {
+  appointmentId: string | null
+  visitId: string
+  patientId: string
+  clinicId: string
+  branchId?: string | null
+  doctorId: string
+  services: Array<{
+    name: string
+    price: number
+    quantity: number
+  }>
+  paidAmount: number
+  paymentMethod: PaymentMethod
+}): Promise<ActionResult & { invoiceId?: string }> {
+  try {
+    const { userId } = await requireRole("SUPER_ADMIN", "ADMIN", "RECEPTIONIST")
+
+    if (!data.visitId || !data.patientId) return { success: false, error: "Missing required fields." }
+    if (data.paidAmount < 0) return { success: false, error: "Payment amount cannot be negative." }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // ── Find existing pre-visit invoice ──
+      let invoice = data.appointmentId
+        ? await tx.invoice.findFirst({
+            where: { appointmentId: data.appointmentId },
+          })
+        : null
+
+      const previousTotal = invoice ? Number(invoice.amount) : 0
+
+      // ── Calculate services total from ACTUAL line items ──
+      const servicesTotal = data.services.reduce(
+        (sum, s) => sum + s.price * s.quantity,
+        0
+      )
+      const newTotal = previousTotal + servicesTotal
+
+      // ── Create invoice if none exists (safety net) ──
+      if (!invoice) {
+        invoice = await tx.invoice.create({
+          data: {
+            patientId: data.patientId,
+            clinicId: data.clinicId,
+            branchId: data.branchId || null,
+            appointmentId: data.appointmentId || null,
+            amount: newTotal,
+            status: InvoiceStatus.UNPAID,
+            notes: "Split payment — visit services",
+          },
+        })
+      } else {
+        // ── Update invoice total to include services ──
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: { amount: newTotal },
+        })
+      }
+
+      // ── Create individual invoice item per service ──
+      for (const service of data.services) {
+        if (service.price <= 0 || service.quantity <= 0) continue
+        await tx.invoiceItem.create({
+          data: {
+            invoiceId: invoice.id,
+            description: service.name,
+            quantity: service.quantity,
+            unitPrice: service.price,
+          },
+        })
+      }
+
+      // ── Record post-visit payment ──
+      if (data.paidAmount > 0) {
+        await createPaymentRecord(tx, {
+          invoiceId: invoice.id,
+          amount: data.paidAmount,
+          method: data.paymentMethod,
+          recordedById: userId,
+          clinicId: data.clinicId,
+          branchId: data.branchId,
+          notes: "Post-visit payment (split payment)",
+        })
+      }
+
+      // ── Recalculate invoice status from ALL payments ──
+      const allPayments = await tx.payment.findMany({
+        where: { invoiceId: invoice.id, method: { not: PaymentMethod.REFUND } },
+      })
+      const totalPaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0)
+      let newStatus: InvoiceStatus
+      if (totalPaid >= newTotal) newStatus = InvoiceStatus.PAID
+      else if (totalPaid > 0) newStatus = InvoiceStatus.PARTIAL
+      else newStatus = InvoiceStatus.UNPAID
+
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: { status: newStatus },
+      })
+
+      // ── Complete the visit ──
+      await tx.visit.update({
+        where: { id: data.visitId },
+        data: { status: "COMPLETED" },
+      })
+
+      // ── Complete the appointment ──
+      if (data.appointmentId) {
+        await tx.appointment.update({
+          where: { id: data.appointmentId },
+          data: { status: AppointmentStatus.COMPLETED },
+        })
+      }
+
+      await auditLog({
+        clinicId: data.clinicId,
+        userId,
+        action: "COMPLETE_SPLIT_VISIT_WITH_SERVICES" as any,
+        entityType: "INVOICE",
+        entityId: invoice.id,
+        newValues: {
+          visitId: data.visitId,
+          previousTotal,
+          servicesTotal,
+          newTotal,
+          paidAmount: data.paidAmount,
+          totalPaid,
+          newStatus,
+        },
+      })
+
+      return { invoiceId: invoice.id }
+    })
+
+    revalidatePath("/waiting-room")
+    revalidatePath("/invoices")
+    revalidatePath("/appointments")
+    return { success: true, ...result }
+  } catch (error: any) {
+    if (error.name === "AuthorizationError" || error.name === "AuthenticationError")
+      return { success: false, error: error.message }
+    return { success: false, error: error.message || "Failed to complete visit." }
+  }
+}
