@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { AppointmentStatus, VisitStatus, PaymentWorkflow } from "@prisma/client"
 import { updateVisitStatus } from "@/actions/unified-appointment"
 import { useRouter } from "next/navigation"
@@ -7,6 +8,7 @@ import { User, Play, CheckCircle2, CreditCard, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { PaymentStatusInfo } from "@/lib/actions/payment-workflow"
 import { WaitingTimer } from "./waiting-timer"
+import { QuickBillingDialog } from "./quick-billing-dialog"
 
 type Props = {
   id: string
@@ -27,21 +29,18 @@ type Props = {
   paymentInfo: PaymentStatusInfo | null
 }
 
-// ══════════════════════════════════════════════════════════════
-// STATUS CONFIG — Now payment-workflow aware
-// ══════════════════════════════════════════════════════════════
-
 function getStatusConfig(
   status: VisitStatus,
   workflow: string,
   showBillingAction: boolean,
-  billingActionLabel: string
+  billingActionLabel: string,
+  paymentInfo: PaymentStatusInfo | null
 ): {
   label: string
   color: string
   nextStatus?: VisitStatus
   nextLabel?: string
-  actionType?: "status" | "billing" | "none"
+  actionType?: "status" | "billing" | "pay-complete" | "none"
 } {
   const isPreVisit = workflow === PaymentWorkflow.PAY_BEFORE_VISIT
 
@@ -65,7 +64,7 @@ function getStatusConfig(
       }
 
     case VisitStatus.PROCEDURE:
-      // ═══ FIX: Pre-visit payment → Complete directly ═══
+      // ═══ Pay Before Visit: complete directly (payment already done) ═══
       if (isPreVisit) {
         return {
           label: "Procedure",
@@ -76,17 +75,48 @@ function getStatusConfig(
         }
       }
 
-      // Split / After → go to billing (or complete if no balance)
+      // ═══ Pay After Visit: always show payment dialog ═══
+      if (workflow === PaymentWorkflow.PAY_AFTER_VISIT) {
+        return {
+          label: "Procedure",
+          color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
+          nextLabel: "Complete & Bill",
+          actionType: "pay-complete",
+        }
+      }
+
+      // ═══ FIX: Pay Before & After: show dialog only if outstanding balance ═══
+      if (workflow === PaymentWorkflow.SPLIT_PAYMENT) {
+        if (paymentInfo && paymentInfo.hasInvoice && paymentInfo.remaining > 0) {
+          return {
+            label: "Procedure",
+            color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
+            nextLabel: "Complete & Bill",
+            actionType: "pay-complete",
+          }
+        }
+        // No outstanding balance → complete directly
+        return {
+          label: "Procedure",
+          color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
+          nextStatus: VisitStatus.COMPLETED,
+          nextLabel: "Complete Visit",
+          actionType: "status",
+        }
+      }
+
+      // ═══ Other modes with billing action (e.g. custom BILLING status) ═══
       if (showBillingAction) {
         return {
           label: "Procedure",
           color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
           nextStatus: VisitStatus.BILLING,
           nextLabel: "To Billing",
-          actionType: "status",
+          actionType: "billing",
         }
       }
 
+      // ═══ Fallback: complete directly ═══
       return {
         label: "Procedure",
         color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
@@ -130,10 +160,6 @@ function getStatusConfig(
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// COMPONENT
-// ══════════════════════════════════════════════════════════════
-
 export function QueueCard({
   id,
   queueNumber,
@@ -154,7 +180,9 @@ export function QueueCard({
 }: Props) {
   const router = useRouter()
   const isEmergency = priority === "URGENT"
-  const config = getStatusConfig(status, workflow, showBillingAction, billingActionLabel)
+  const config = getStatusConfig(status, workflow, showBillingAction, billingActionLabel, paymentInfo)
+
+  const [showPayDialog, setShowPayDialog] = useState(false)
 
   const handleStatusChange = async () => {
     if (!config.nextStatus) return
@@ -166,13 +194,17 @@ export function QueueCard({
       return
     }
 
+    if (config.actionType === "pay-complete") {
+      setShowPayDialog(true)
+      return
+    }
+
     const result = await updateVisitStatus(id, config.nextStatus)
     if (result.success) {
       router.refresh()
     }
   }
 
-  // Payment info text
   const paymentDisplay = (() => {
     if (!paymentInfo || !paymentInfo.hasInvoice) return null
 
@@ -207,7 +239,6 @@ export function QueueCard({
           : "border-gray-100 dark:border-gray-700"
       }`}
     >
-      {/* ━━━ Header ━━━ */}
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="font-bold text-gray-900 dark:text-gray-100">
@@ -222,7 +253,6 @@ export function QueueCard({
         </Badge>
       </div>
 
-      {/* ━━━ Timer / Wait Time ━━━ */}
       <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
         <Clock className="h-4 w-4 text-gray-400" />
         <WaitingTimer
@@ -235,12 +265,10 @@ export function QueueCard({
         )}
       </div>
 
-      {/* ━━━ Payment Info (pre-visit clinics) ━━━ */}
       {workflow === PaymentWorkflow.PAY_BEFORE_VISIT && paymentDisplay && (
         <div className="mb-3">{paymentDisplay}</div>
       )}
 
-      {/* ━━━ Appointment Type ━━━ */}
       {appointmentType && appointmentType !== "WALK_IN" && (
         <div className="mb-3">
           <span className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
@@ -249,7 +277,6 @@ export function QueueCard({
         </div>
       )}
 
-      {/* ━━━ Actions ━━━ */}
       {config.actionType !== "none" && config.nextStatus && (
         <div className="flex gap-2">
           {config.actionType === "status" && (
@@ -269,16 +296,34 @@ export function QueueCard({
               <CreditCard className="h-4 w-4" /> {config.nextLabel}
             </button>
           )}
+
+          {config.actionType === "pay-complete" && (
+            <button
+              onClick={() => setShowPayDialog(true)}
+              className="flex-1 flex items-center justify-center gap-2 bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
+            >
+              <CreditCard className="h-4 w-4" /> {config.nextLabel}
+            </button>
+          )}
         </div>
       )}
 
-      {/* ━━━ Completed State ━━━ */}
       {status === VisitStatus.COMPLETED && (
         <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-medium py-2">
           <CheckCircle2 className="h-4 w-4" />
           Visit Completed
         </div>
       )}
+
+      <QuickBillingDialog
+        visitId={id}
+        patientId={patientId}
+        doctorId={doctorId}
+        patientName={patientName}
+        appointmentId={appointmentId}
+        open={showPayDialog}
+        onOpenChange={setShowPayDialog}
+      />
     </div>
   )
 }
