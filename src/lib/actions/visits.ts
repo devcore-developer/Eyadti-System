@@ -184,6 +184,7 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
     const requiresPrePayment = await isPreVisitPaymentRequired(clinicId)
     // Note: emergencies also get visits immediately
     const createVisitImmediately = visitIsToday && (isEmergency || !requiresPrePayment)
+  || (!requiresPrePayment)
 
     const result = await prisma.$transaction(async (tx) => {
       let currentPatientId = parsed.data.patientId!
