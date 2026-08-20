@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { completeSplitVisitWithServices } from "@/lib/actions/payment-workflow"
+// تم تغيير الـ import ليأتي من الـ backend القوي
+import { completeSplitVisitWithServices } from "@/lib/actions/visits" 
 import { getClinicServices, type ClinicServiceItem } from "@/lib/actions/clinic-services"
 import {
   Dialog,
@@ -168,11 +169,9 @@ export function CompleteVisitDialog({
 
   // ── Submit ──
   function handleSubmit() {
-    if (remaining > 0 && !hasServices && previousTotal === alreadyPaid) {
-      toast.error("Add services or there is nothing to pay")
-      return
-    }
-
+    // لا نحتاج لمنع الإرسال إذا لم يتم اختيار خدمات، لأن المريض قد لا يحتاج خدمات إضافية
+    // والـ Backend هو من سيقرر بناءً على المبلغ المتبقي الحقيقي (Zero Post-Visit Case)
+    
     startTransition(async () => {
       const servicesPayload = selectedServices.map(s => ({
         name: s.name,
@@ -188,7 +187,7 @@ export function CompleteVisitDialog({
         branchId,
         doctorId,
         services: servicesPayload,
-        paidAmount: remaining,
+        paidAmount: remaining, // الـ Backend سيتحقق من هذا الرقم مقابل قاعدة البيانات
         paymentMethod,
       })
 
@@ -480,7 +479,8 @@ export function CompleteVisitDialog({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isPending || remaining > 0 && !hasServices && previousTotal <= alreadyPaid}
+              // تم إزالة الـ disabled المعقد الذي كان يمنع الحالة الصفرية
+              disabled={isPending}
               className={cn(
                 "flex-1 h-10 rounded-xl text-[13px] font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5",
                 remaining > 0

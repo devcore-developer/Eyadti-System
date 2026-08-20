@@ -88,28 +88,15 @@ function getStatusConfig(
         }
       }
 
+      // ═══ CRITICAL BUG FIX FOR SPLIT PAYMENT ═══
       if (isSplit) {
-        const hasOutstanding = !!(
-          paymentInfo &&
-          paymentInfo.hasInvoice &&
-          paymentInfo.remaining > 0
-        )
-
-        if (hasOutstanding) {
-          return {
-            label: "Procedure",
-            color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
-            nextLabel: "Complete & Bill",
-            actionType: "pay-complete",
-          }
-        }
-
+        // ALWAYS open the dialog. We cannot assume no extra services were performed 
+        // just because the pre-visit payment left $0 outstanding.
         return {
           label: "Procedure",
           color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200",
-          nextStatus: VisitStatus.COMPLETED,
-          nextLabel: "Complete Visit",
-          actionType: "status",
+          nextLabel: "Complete & Bill",
+          actionType: "pay-complete",
         }
       }
 
@@ -133,6 +120,16 @@ function getStatusConfig(
     }
 
     case VisitStatus.BILLING: {
+      // ═══ CRITICAL BUG FIX FOR SPLIT PAYMENT ═══
+      if (isSplit) {
+        return {
+          label: "Billing",
+          color: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200",
+          nextLabel: "Finalize Services & Payment",
+          actionType: "pay-complete",
+        }
+      }
+
       if (showBillingAction) {
         return {
           label: "Billing",
