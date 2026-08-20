@@ -32,16 +32,34 @@ type Props = {
   doctorId: string
   patientName: string
   appointmentId?: string | null
+  // ═══ Controlled mode for QueueCard integration ═══
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function QuickBillingDialog({ visitId, patientId, doctorId, patientName, appointmentId }: Props) {
+export function QuickBillingDialog({ visitId, patientId, doctorId, patientName, appointmentId, open, onOpenChange }: Props) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  // ═══ Controlled vs internal state ═══
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = open !== undefined
+  const dialogOpen = isControlled ? open! : internalOpen
+  const handleDialogChange = (value: boolean) => {
+    if (onOpenChange) onOpenChange(value)
+    else setInternalOpen(value)
+  }
+
   const [amount, setAmount] = useState("")
   const [paidAmount, setPaidAmount] = useState("")
   const [method, setMethod] = useState<PaymentMethod>(PaymentMethod.CASH)
   const [description, setDescription] = useState("Medical Consultation / Procedure")
+
+  function resetForm() {
+    setAmount("")
+    setPaidAmount("")
+    setDescription("Medical Consultation / Procedure")
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -62,9 +80,6 @@ export function QuickBillingDialog({ visitId, patientId, doctorId, patientName, 
     }
 
     startTransition(async () => {
-      // We need clinicId — get it from a hidden approach or pass it
-      // Since this is in the waiting room, we rely on the server action
-      // to extract clinicId from the session
       const result = await completePostVisitPayment({
         appointmentId: appointmentId || null,
         visitId,
@@ -73,16 +88,14 @@ export function QuickBillingDialog({ visitId, patientId, doctorId, patientName, 
         paidAmount: totalPaid,
         paymentMethod: method,
         description: description || "Medical Consultation / Procedure",
-        clinicId: "", // Server action will get this from session
+        clinicId: "",
         doctorId,
       })
 
       if (result.success) {
         toast.success(totalPaid >= totalAmount ? "Payment complete — visit closed" : "Payment recorded")
-        setOpen(false)
-        setAmount("")
-        setPaidAmount("")
-        setDescription("Medical Consultation / Procedure")
+        handleDialogChange(false)
+        resetForm()
         router.refresh()
       } else {
         toast.error(result.error || "Billing failed")
@@ -90,16 +103,22 @@ export function QuickBillingDialog({ visitId, patientId, doctorId, patientName, 
     })
   }
 
+  function handleCancel() {
+    handleDialogChange(false)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size="sm"
-          className="w-full gap-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white h-10 sm:h-9 hover:from-orange-600 hover:to-amber-600"
-        >
-          <CreditCard className="h-4 w-4" /> Complete & Bill
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button
+            size="sm"
+            className="w-full gap-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white h-10 sm:h-9 hover:from-orange-600 hover:to-amber-600"
+          >
+            <CreditCard className="h-4 w-4" /> Complete & Bill
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Complete Visit & Bill</DialogTitle>
@@ -174,7 +193,7 @@ export function QuickBillingDialog({ visitId, patientId, doctorId, patientName, 
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={isPending}>
               Cancel
             </Button>
             <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
