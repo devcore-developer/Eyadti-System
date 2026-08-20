@@ -2,8 +2,8 @@
 
 import { useTransition, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createPatientVisit, completePreVisitCheckIn } from "@/lib/actions/visits"  // ═══ FIX: Import completePreVisitCheckIn ═══
-import { createUnifiedAppointment } from "@/actions/unified-appointment"  // ═══ FIX: Removed checkInAppointment import ═══
+import { createPatientVisit, completePreVisitCheckIn } from "@/lib/actions/visits"
+import { createUnifiedAppointment } from "@/actions/unified-appointment"
 import { searchPatients } from "@/lib/actions/patients"
 import { PreVisitPaymentDialog } from "@/components/appointments/pre-visit-payment-dialog"
 import type { ActionResult } from "@/types"
@@ -68,7 +68,9 @@ export function PatientVisitForm({ clinicId, branchId, doctors, preselectedPatie
     }
   }, [debouncedSearch, clinicId, selectedPatient])
 
-  // ═══ FIX: ALWAYS show payment dialog after creating an appointment ═══
+  // ═══════════════════════════════════════════════════════════
+  // ✅ FIX: Only show payment dialog when payment is REQUIRED
+  // ═══════════════════════════════════════════════════════════
   function handleResult(result: ActionResult) {
     if (!result.success) {
       setError(result.error || "Something went wrong")
@@ -76,28 +78,30 @@ export function PatientVisitForm({ clinicId, branchId, doctors, preselectedPatie
       return
     }
 
-    // ═══ ALWAYS show payment dialog if we have an appointment ═══
-    if (result.appointmentId) {
-      const isMandatoryPayment = result.requiresPayment === true
+    // ═══ Only show payment dialog when requiresPayment is true ═══
+    // PAY_AFTER_VISIT → requiresPayment = false → skip dialog → go to waiting room
+    // PAY_BEFORE_VISIT → requiresPayment = true → show dialog
+    // SPLIT_PAYMENT → requiresPayment = true → show dialog
+    if (result.appointmentId && result.requiresPayment) {
       setPendingPayment({
         appointmentId: result.appointmentId,
         patientId: result.patientId || selectedPatient?.id || "",
         patientName: selectedPatient?.fullName || "Patient",
         policy: result.paymentPolicy || paymentWorkflow || "PAY_AFTER_VISIT",
         isEmergency: isEmergency,
-        allowZeroPayment: !isMandatoryPayment,
+        allowZeroPayment: false,
       })
       setShowPaymentDialog(true)
       return
     }
 
-    // No appointment created (shouldn't happen normally)
+    // No payment required (PAY_AFTER_VISIT, or emergency) → proceed directly
     toast.success(addToWaitingRoom ? "Patient added to Waiting Room" : "Appointment scheduled successfully")
     router.push(addToWaitingRoom ? "/waiting-room" : "/appointments")
     router.refresh()
   }
 
-  // ═══ FIX: Handle payment completion with proper routing ═══
+  // ═══ Handle payment completion with proper routing ═══
   function handlePaymentComplete(success: boolean) {
     setShowPaymentDialog(false)
     if (success && pendingPayment) {
@@ -125,6 +129,7 @@ export function PatientVisitForm({ clinicId, branchId, doctors, preselectedPatie
     }
     setPendingPayment(null)
   }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
@@ -317,7 +322,7 @@ export function PatientVisitForm({ clinicId, branchId, doctors, preselectedPatie
         <PreVisitPaymentDialog
           open={showPaymentDialog}
           onOpenChange={setShowPaymentDialog}
-          onPaymentComplete={handlePaymentComplete}  // ═══ FIX: Pass the callback ═══
+          onPaymentComplete={handlePaymentComplete}
           appointmentId={pendingPayment.appointmentId}
           patientId={pendingPayment.patientId}
           patientName={pendingPayment.patientName}
