@@ -258,6 +258,7 @@ export function UnifiedAppointmentDrawer({ doctors, clinicId, preselectedPatient
           patientName={pendingPayment.patientName}
           clinicId={clinicId}
           paymentPolicy={pendingPayment.policy}
+          allowZeroPayment={pendingPayment.policy === "SPLIT_PAYMENT"} // <--- FIX: السماح بصفر في نظام السبليت فقط
         />
       )}
     </>
