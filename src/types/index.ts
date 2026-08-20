@@ -16,12 +16,19 @@ export type ActionResult<T = void> = {
   paymentRequired?: boolean;
   paymentStatus?: {
     hasInvoice: boolean;
-    invoiceId?: string; // ← مضاف
+    invoiceId?: string;
     status: string;
     totalAmount: number;
     totalPaid: number;
     remaining: number;
     paymentCount: number;
+  } | null;
+  // ═══ NEW: SPLIT_PAYMENT check-in data ═══
+  splitPaymentData?: {
+    invoiceId: string;
+    invoiceTotal: number;
+    totalPaid: number;
+    remaining: number;
   } | null;
 };
 

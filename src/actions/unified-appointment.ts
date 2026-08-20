@@ -46,7 +46,7 @@ export async function createUnifiedAppointment(formData: FormData): Promise<Acti
     const requiresPrePayment = await isPreVisitPaymentRequired(clinicId)
     const isEmergency = appointmentType === AppointmentType.EMERGENCY
     const isScheduled = appointmentType === AppointmentType.SCHEDULED
-    const requiresPaymentAtBooking = !isScheduled && requiresPrePayment && !isEmergency
+    const requiresPaymentAtBooking = requiresPrePayment && !isEmergency
 
     const result = await prisma.$transaction(async (tx) => {
       let currentPatientId = patientId
@@ -141,9 +141,19 @@ export async function createUnifiedAppointment(formData: FormData): Promise<Acti
 
 // ══════════════════════════════════════════════════════════════
 // CHECK-IN APPOINTMENT
+// ═══ FIXED: For SPLIT_PAYMENT, returns splitPaymentData
+// ═══ instead of using verifyPreVisitPayment (which is for PAY_BEFORE)
+// ═══ Frontend shows dialog → records payment → calls finalizeWaitingRoomEntry
 // ══════════════════════════════════════════════════════════════
 
-export async function checkInAppointment(appointmentId: string): Promise<ActionResult> {
+export async function checkInAppointment(appointmentId: string): Promise<ActionResult & {
+  splitPaymentData?: {
+    invoiceId: string
+    invoiceTotal: number
+    totalPaid: number
+    remaining: number
+  }
+}> {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: "Unauthorized" }
@@ -160,21 +170,61 @@ export async function checkInAppointment(appointmentId: string): Promise<ActionR
       return { success: false, error: "Only scheduled appointments can be checked in" }
     }
 
-    const verification = await verifyPreVisitPayment(appointmentId)
-    if (!verification.allowed) {
-      return {
-        success: false,
-        error: "PAYMENT_REQUIRED",
-        paymentRequired: true,
-        paymentStatus: verification.paymentStatus,
-      }
-    }
-
     const existingVisit = await prisma.visit.findFirst({ where: { appointmentId } })
     if (existingVisit) {
       return { success: false, error: "Visit already exists for this appointment." }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // SPLIT_PAYMENT: Return payment data, do NOT create visit here
+    // ═══════════════════════════════════════════════════════════
+    const settings = await prisma.clinicSettings.findUnique({
+      where: { clinicId },
+      select: { paymentWorkflow: true }
+    })
+    const workflow = settings?.paymentWorkflow || "PAY_AFTER_VISIT"
+
+    if (workflow === "SPLIT_PAYMENT") {
+      const invoice = await prisma.invoice.findFirst({
+        where: { appointmentId },
+        include: { payments: { where: { method: { not: "REFUND" } } } }
+      })
+
+      const invoiceTotal = invoice ? Number(invoice.amount) : 0
+      const totalPaid = invoice?.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0
+      const remaining = Math.max(0, invoiceTotal - totalPaid)
+
+      return {
+        success: false,
+        error: "SPLIT_PRE_VISIT_PAYMENT_REQUIRED",
+        paymentRequired: true,
+        splitPaymentData: {
+          invoiceId: invoice?.id || "",
+          invoiceTotal,
+          totalPaid,
+          remaining,
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // PAY_BEFORE_VISIT: Original strict check — UNTOUCHED
+    // ═══════════════════════════════════════════════════════════
+    if (workflow === "PAY_BEFORE_VISIT") {
+      const verification = await verifyPreVisitPayment(appointmentId)
+      if (!verification.allowed) {
+        return {
+          success: false,
+          error: "PAYMENT_REQUIRED",
+          paymentRequired: true,
+          paymentStatus: verification.paymentStatus,
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // PAY_AFTER_VISIT: Create visit directly — UNTOUCHED
+    // ═══════════════════════════════════════════════════════════
     await prisma.$transaction(async (tx) => {
       const queueNumber = await generateQueueNumber(clinicId, tx)
       await tx.appointment.update({ where: { id: appointmentId }, data: { status: AppointmentStatus.CONFIRMED, arrivedAt: new Date() } })
@@ -190,7 +240,6 @@ export async function checkInAppointment(appointmentId: string): Promise<ActionR
   revalidatePath("/appointments"); revalidatePath("/waiting-room")
   return { success: true }
 }
-
 // ══════════════════════════════════════════════════════════════
 // UPDATE VISIT STATUS
 // ══════════════════════════════════════════════════════════════

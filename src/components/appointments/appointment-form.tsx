@@ -51,11 +51,12 @@ export function AppointmentForm({ patients, doctors, appointment, clinicId, bran
   // ═══ Payment Dialog State ═══
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [pendingPayment, setPendingPayment] = useState<{
-    appointmentId: string
-    patientId: string
-    patientName: string
-    policy: string
-  } | null>(null)
+  appointmentId: string
+  patientId: string
+  patientName: string
+  policy: string
+  allowZeroPayment?: boolean
+} | null>(null)
 
   const isEdit = !!appointment?.id
 
@@ -75,6 +76,7 @@ export function AppointmentForm({ patients, doctors, appointment, clinicId, bran
         patientId: appointment?.patientId || "",
         patientName: selectedPatient?.fullName || "Patient",
         policy: result.paymentPolicy || "PAY_BEFORE_VISIT",
+        allowZeroPayment: result.paymentPolicy === "SPLIT_PAYMENT",
       })
       setShowPaymentDialog(true)
       return

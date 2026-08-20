@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useTransition, useState } from "react"
 import { useRouter } from "next/navigation"
 import { completePreVisitCheckIn } from "@/lib/actions/visits"
+import { finalizeWaitingRoomEntry } from "@/lib/actions/payment-workflow"
 import { PreVisitPaymentDialog } from "./pre-visit-payment-dialog"
 import { Button } from "@/components/ui/button"
 import { LogIn, Loader2 } from "lucide-react"
@@ -41,44 +42,52 @@ export function CheckInButton({
 
   async function handleCheckIn() {
     startTransition(async () => {
-      // ═══════════════════════════════════════════════════════════
-      // FIX: الـ Backend الآن هو الـ Gatekeeper الوحيد
-      // شيلنا استدعاء verifyPreVisitPayment عشان الـ Backend يقرر
-      // ═══════════════════════════════════════════════════════════
       const result = await completePreVisitCheckIn({
         appointmentId,
         isEmergency,
       })
 
       if (result.success) {
-        // 1. الحالة العادية: دخل غرفة الانتظار بنجاح (Pay After أو Split مدفوع بالكامل)
         toast.success("Patient checked in successfully")
         router.push("/waiting-room")
         router.refresh()
       } 
-      // ═══════════════════════════════════════════════════════════
-      // 2. حالة الـ SPLIT PAYMENT الجديدة (فيه فلوس لسه متبقية قبل ما يدخل)
-      // ═══════════════════════════════════════════════════════════
+      // ═══ SPLIT_PAYMENT: Has remaining balance → show dialog ═══
       else if (result.error === "SPLIT_PRE_VISIT_PAYMENT_REQUIRED" && result.splitPaymentData) {
+        const { invoiceTotal, totalPaid, remaining } = result.splitPaymentData
+
+        // ═══ If remaining = 0, skip dialog and enter directly ═══
+        if (remaining <= 0) {
+          const finalizeResult = await finalizeWaitingRoomEntry({
+            appointmentId,
+            isEmergency,
+          })
+          if (finalizeResult.success) {
+            toast.success("Patient checked in successfully")
+            router.push("/waiting-room")
+            router.refresh()
+          } else {
+            toast.error(finalizeResult.error || "Check-in failed")
+          }
+          return
+        }
+
         setExistingInvoice({
           invoiceId: result.splitPaymentData.invoiceId,
-          totalAmount: result.splitPaymentData.invoiceTotal,
-          totalPaid: result.splitPaymentData.totalPaid,
-          remaining: result.splitPaymentData.remaining,
-          status: result.splitPaymentData.totalPaid > 0 ? "PARTIALLY_PAID" : "UNPAID",
+          totalAmount: invoiceTotal,
+          totalPaid,
+          remaining,
+          status: totalPaid > 0 ? "PARTIALLY_PAID" : "UNPAID",
         })
         setPaymentPolicy("SPLIT_PAYMENT")
         setShowPaymentDialog(true)
       } 
-      // ═══════════════════════════════════════════════════════════
-      // 3. حالة الـ PAY BEFORE VISIT العادية (لم نلمسها)
-      // ═══════════════════════════════════════════════════════════
+      // ═══ PAY_BEFORE_VISIT: unchanged ═══
       else if (result.error === "PAYMENT_REQUIRED") {
         setPaymentPolicy("PAY_BEFORE_VISIT")
         setExistingInvoice(null)
         setShowPaymentDialog(true)
       } 
-      // 4. أي خطأ آخر
       else {
         toast.error(result.error || "Check-in failed")
       }
@@ -90,8 +99,25 @@ export function CheckInButton({
 
     if (success) {
       startTransition(async () => {
-        // بعد الدفع، نحاول نعمل Check-in تاني
-        // الـ Backend هيلاقي المبلغ وصل كامل (أو المتبقي اتصفّر) وهيخلّي المريض يدخل
+        // ═══ SPLIT_PAYMENT: Use finalizeWaitingRoomEntry (NOT completePreVisitCheckIn again) ═══
+        if (paymentPolicy === "SPLIT_PAYMENT") {
+          const finalizeResult = await finalizeWaitingRoomEntry({
+            appointmentId,
+            isEmergency,
+          })
+
+          if (finalizeResult.success) {
+            toast.success("Payment recorded & patient checked in")
+            router.push("/waiting-room")
+            router.refresh()
+          } else {
+            toast.error(finalizeResult.error || "Payment recorded but check-in failed")
+            router.refresh()
+          }
+          return
+        }
+
+        // ═══ PAY_BEFORE_VISIT: Original logic — unchanged ═══
         const result = await completePreVisitCheckIn({
           appointmentId,
           isEmergency,
@@ -102,7 +128,6 @@ export function CheckInButton({
           router.push("/waiting-room")
           router.refresh()
         } else if (result.paymentRequired && result.paymentStatus) {
-          // لو كان دفع جزئي في PAY_BEFORE_VISIT وعايز يكمل
           toast.info("Partial payment recorded. More payment required.")
           if (result.paymentStatus.hasInvoice && result.paymentStatus.invoiceId) {
             setExistingInvoice({

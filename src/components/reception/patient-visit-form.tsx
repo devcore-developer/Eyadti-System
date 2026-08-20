@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Search, UserPlus, X, CreditCard } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
-
+import { finalizeWaitingRoomEntry } from "@/lib/actions/payment-workflow"
 type DoctorOption = { id: string; name: string }
 type PatientOption = { id: string; fullName: string; phone: string }
 
@@ -89,7 +89,7 @@ export function PatientVisitForm({ clinicId, branchId, doctors, preselectedPatie
         patientName: selectedPatient?.fullName || "Patient",
         policy: result.paymentPolicy || paymentWorkflow || "PAY_AFTER_VISIT",
         isEmergency: isEmergency,
-        allowZeroPayment: false,
+        allowZeroPayment: result.paymentPolicy === "SPLIT_PAYMENT",
       })
       setShowPaymentDialog(true)
       return
@@ -107,18 +107,36 @@ export function PatientVisitForm({ clinicId, branchId, doctors, preselectedPatie
     if (success && pendingPayment) {
       if (addToWaitingRoom) {
         startTransition(async () => {
-          const checkInResult = await completePreVisitCheckIn({
-            appointmentId: pendingPayment.appointmentId,
-            isEmergency: pendingPayment.isEmergency,
-          })
-          if (checkInResult.success) {
-            toast.success("Payment recorded & patient checked in")
-            router.push("/waiting-room")
-            router.refresh()
+          // ═══ SPLIT_PAYMENT: Use finalizeWaitingRoomEntry ═══
+          if (pendingPayment.policy === "SPLIT_PAYMENT") {
+            const finalizeResult = await finalizeWaitingRoomEntry({
+              appointmentId: pendingPayment.appointmentId,
+              isEmergency: pendingPayment.isEmergency,
+            })
+            if (finalizeResult.success) {
+              toast.success("Payment recorded & patient added to queue")
+              router.push("/waiting-room")
+              router.refresh()
+            } else {
+              toast.error(finalizeResult.error || "Payment recorded but failed to add to waiting room")
+              router.push("/appointments")
+              router.refresh()
+            }
           } else {
-            toast.error(checkInResult.error || "Payment recorded but check-in failed")
-            router.push("/appointments")
-            router.refresh()
+            // ═══ PAY_BEFORE_VISIT: Original logic ═══
+            const checkInResult = await completePreVisitCheckIn({
+              appointmentId: pendingPayment.appointmentId,
+              isEmergency: pendingPayment.isEmergency,
+            })
+            if (checkInResult.success) {
+              toast.success("Payment recorded & patient checked in")
+              router.push("/waiting-room")
+              router.refresh()
+            } else {
+              toast.error(checkInResult.error || "Payment recorded but check-in failed")
+              router.push("/appointments")
+              router.refresh()
+            }
           }
         })
       } else {

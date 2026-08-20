@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 // تم تغيير الـ import ليأتي من الـ backend القوي
-import { completeSplitVisitWithServices } from "@/lib/actions/visits" 
+import { completeSplitVisitWithServices } from "@/lib/actions/payment-workflow" 
 import { getClinicServices, type ClinicServiceItem } from "@/lib/actions/clinic-services"
 import {
   Dialog,

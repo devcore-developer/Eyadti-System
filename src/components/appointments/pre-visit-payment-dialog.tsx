@@ -195,14 +195,24 @@ export function PreVisitPaymentDialog({
             </div>
             <div>
               <DialogTitle className="text-[15px] font-semibold text-slate-900 dark:text-slate-50 leading-tight">
-                {isExistingMode ? "Complete Outstanding Payment" : "Payment Details"}
+                {isSplit && isExistingMode
+                  ? "Remaining Consultation Fee"
+                  : isSplit
+                    ? "Consultation / Visit Fee"
+                    : isExistingMode
+                      ? "Complete Outstanding Payment"
+                      : "Payment Details"}
               </DialogTitle>
               <DialogDescription className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                {isExistingMode
-                  ? "This appointment has an unpaid invoice. Complete the payment to proceed."
-                  : allowZeroPayment
-                    ? "Enter payment details or leave as 0 to schedule as unpaid."
-                    : "Full payment is required before the visit can proceed."}
+                {isSplit && isExistingMode
+                  ? "Collect the remaining consultation amount before the patient enters."
+                  : isSplit
+                    ? "Initial consultation payment. Services will be billed after the visit."
+                    : isExistingMode
+                      ? "This appointment has an unpaid invoice. Complete the payment to proceed."
+                      : allowZeroPayment
+                        ? "Enter payment details or leave as 0 to schedule as unpaid."
+                        : "Full payment is required before the visit can proceed."}
               </DialogDescription>
             </div>
           </div>
@@ -222,7 +232,13 @@ export function PreVisitPaymentDialog({
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium text-slate-800 dark:text-slate-200 truncate">{patientName}</p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {isExistingMode ? "Outstanding payment required" : isSplit ? "Initial payment" : "Payment before visit"}
+                {isSplit && isExistingMode
+                  ? "Remaining consultation fee"
+                  : isSplit
+                    ? "Initial consultation payment"
+                    : isExistingMode
+                      ? "Outstanding payment required"
+                      : "Payment before visit"}
               </p>
             </div>
           </div>
