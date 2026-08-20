@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { AppointmentStatus, VisitStatus, PaymentWorkflow } from "@prisma/client"
 import { changeAppointmentStatus } from "@/actions/appointments"
 import { updateVisitStatus } from "@/actions/unified-appointment"
@@ -8,6 +9,7 @@ import { User, Clock, Play, CheckCircle2, CreditCard } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { PaymentStatusInfo } from "@/lib/actions/payment-workflow"
+import { WaitingTimer } from "./waiting-timer"
 
 type WaitingVisit = {
   id: string
@@ -26,21 +28,11 @@ type WaitingVisit = {
   showBillingAction: boolean
   billingActionLabel: string
   paymentInfo: PaymentStatusInfo | null
+  appointmentDateTime?: Date | string | null
 }
 
 type Props = {
   visits: WaitingVisit[]
-}
-
-function getWaitTime(checkedInAt: Date | string | null): string {
-  if (!checkedInAt) return "N/A"
-  const now = new Date()
-  const arrived = new Date(checkedInAt)
-  const diffMs = now.getTime() - arrived.getTime()
-  const diffMins = Math.round(diffMs / 60000)
-  if (diffMins < 1) return "Just arrived"
-  if (diffMins < 60) return `${diffMins} min wait`
-  return `${Math.floor(diffMins / 60)}h ${diffMins % 60}m wait`
 }
 
 const visitStatusConfig: Record<string, { label: string; color: string; nextStatus?: VisitStatus; nextLabel?: string }> = {
@@ -96,11 +88,14 @@ export function WaitingRoomClient({ visits }: Props) {
 
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
               <Clock className="h-4 w-4 text-gray-400" />
-              <span>{getWaitTime(visit.checkedInAt)}</span>
+              <WaitingTimer
+                scheduledTime={visit.appointmentDateTime || visit.visitDate}
+                checkedInAt={visit.checkedInAt}
+                isEmergency={isEmergency}
+              />
               {visit.queueNumber && <span className="ml-auto font-bold text-gray-400">#{visit.queueNumber}</span>}
             </div>
 
-            {/* Payment info display */}
             {visit.paymentInfo && visit.paymentInfo.hasInvoice && (
               <div className="mb-3 text-xs text-gray-500 dark:text-gray-400">
                 Payment: {visit.paymentInfo.status === "PAID" ? "✅ Paid" : visit.paymentInfo.status === "PARTIALLY_PAID" ? `⚡ ${visit.paymentInfo.totalPaid.toFixed(0)}/${visit.paymentInfo.totalAmount.toFixed(0)}` : "❌ Unpaid"}

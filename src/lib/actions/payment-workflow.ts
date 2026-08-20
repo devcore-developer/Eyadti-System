@@ -292,60 +292,186 @@ export async function verifyPreVisitPayment(appointmentId: string): Promise<{
 }
 
 // ══════════════════════════════════════════════════════════════
-// COMPLETE POST-VISIT PAYMENT (Unchanged logic, uses safe helper)
+// COMPLETE POST-VISIT PAYMENT
+// ═══ FIX: Handles all 3 payment modes correctly ═══
+// ═══  - PAY_BEFORE:    Just completes visit, no payment needed
+// ═══  - PAY_AFTER:     Creates invoice + records payment + completes
+// ═══  - SPLIT_PAYMENT: Adds to existing invoice, updates total, completes
 // ══════════════════════════════════════════════════════════════
 
 export async function completePostVisitPayment(data: {
-  appointmentId: string | null; visitId: string; patientId: string;
-  totalAmount: number; paidAmount: number; paymentMethod: PaymentMethod;
-  description: string; clinicId: string; branchId?: string | null; doctorId: string;
+  appointmentId: string | null
+  visitId: string
+  patientId: string
+  totalAmount: number
+  paidAmount: number
+  paymentMethod: PaymentMethod
+  description: string
+  clinicId: string
+  branchId?: string | null
+  doctorId: string
 }): Promise<ActionResult & { invoiceId?: string }> {
   try {
     const { userId } = await requireRole("SUPER_ADMIN", "ADMIN", "RECEPTIONIST")
     const { appointmentId, visitId, patientId, totalAmount, paidAmount, paymentMethod, description, clinicId, branchId } = data
 
-    if (!visitId || !patientId || !totalAmount || totalAmount <= 0) return { success: false, error: "Missing required billing information" }
-    if (paidAmount > totalAmount) return { success: false, error: "Paid amount cannot exceed total amount" }
+    if (!visitId || !patientId) return { success: false, error: "Missing visit or patient ID." }
+    if (totalAmount < 0) return { success: false, error: "Total amount cannot be negative." }
+    if (paidAmount < 0) return { success: false, error: "Paid amount cannot be negative." }
+    if (paidAmount > totalAmount) return { success: false, error: "Paid amount cannot exceed total amount." }
 
     const policy = await getClinicPaymentPolicy(clinicId)
-    if (policy === PaymentWorkflow.PAY_BEFORE_VISIT) return { success: false, error: "This clinic uses 'Before visit' payment. The patient should have already paid at reception." }
 
+    // ═══════════════════════════════════════════════════════════
+    // PAY_BEFORE_VISIT: Payment already done — just complete visit
+    // ═══════════════════════════════════════════════════════════
+    if (policy === PaymentWorkflow.PAY_BEFORE_VISIT) {
+      await prisma.$transaction(async (tx) => {
+        await tx.visit.update({ where: { id: visitId }, data: { status: "COMPLETED" } })
+        if (appointmentId) {
+          await tx.appointment.update({ where: { id: appointmentId }, data: { status: AppointmentStatus.COMPLETED } })
+        }
+      })
+      await auditLog({
+        clinicId, userId,
+        action: "COMPLETE_VISIT" as any,
+        entityType: "VISIT", entityId: visitId,
+        newValues: { policy, note: "Completed without post-visit payment (pre-visit policy)" }
+      })
+      revalidatePath("/waiting-room")
+      revalidatePath("/appointments")
+      return { success: true }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // SPLIT_PAYMENT & PAY_AFTER_VISIT: Record payment + complete
+    // ═══════════════════════════════════════════════════════════
     const result = await prisma.$transaction(async (tx) => {
       let invoiceId: string
 
+      // ── SPLIT_PAYMENT: Use existing pre-visit invoice ──
       if (policy === PaymentWorkflow.SPLIT_PAYMENT && appointmentId) {
-        const existingInvoice = await tx.invoice.findFirst({ where: { appointmentId }, include: { payments: { where: { method: { not: PaymentMethod.REFUND } } } } })
-        if (!existingInvoice) throw new Error("Pre-visit invoice not found.")
-        
-        await tx.invoiceItem.create({ data: { invoiceId: existingInvoice.id, description: description || "Additional services", quantity: 1, unitPrice: totalAmount } })
-        if (paidAmount > 0) {
-           await createPaymentRecord(tx, { invoiceId: existingInvoice.id, amount: paidAmount, method: data.paymentMethod, recordedById: userId, clinicId, branchId, notes: "Post-visit payment" })
+        const existingInvoice = await tx.invoice.findFirst({
+          where: { appointmentId },
+          include: { payments: { where: { method: { not: PaymentMethod.REFUND } } } }
+        })
+
+        if (existingInvoice) {
+          // Calculate additional amount (extra services added during visit)
+          const previousTotal = Number(existingInvoice.amount)
+          const additionalAmount = Math.max(0, totalAmount - previousTotal)
+
+          // Add invoice item for additional services if any
+          if (additionalAmount > 0) {
+            await tx.invoiceItem.create({
+              data: {
+                invoiceId: existingInvoice.id,
+                description: description || "Additional services during visit",
+                quantity: 1,
+                unitPrice: additionalAmount,
+              }
+            })
+            // ═══ FIX: Update invoice total to reflect new services ═══
+            await tx.invoice.update({
+              where: { id: existingInvoice.id },
+              data: { amount: totalAmount }
+            })
+          }
+
+          // Record the post-visit payment
+          if (paidAmount > 0) {
+            await createPaymentRecord(tx, {
+              invoiceId: existingInvoice.id,
+              amount: paidAmount,
+              method: paymentMethod,
+              recordedById: userId,
+              clinicId,
+              branchId,
+              notes: "Post-visit payment",
+            })
+          }
+
+          // ═══ FIX: Recalculate status from ALL payments ═══
+          const allPayments = await tx.payment.findMany({
+            where: { invoiceId: existingInvoice.id, method: { not: PaymentMethod.REFUND } }
+          })
+          const newTotalPaid = allPayments.reduce((sum, p) => sum + Number(p.amount), 0)
+          const effectiveTotal = additionalAmount > 0 ? totalAmount : previousTotal
+          let newStatus: InvoiceStatus
+          if (newTotalPaid >= effectiveTotal) newStatus = InvoiceStatus.PAID
+          else if (newTotalPaid > 0) newStatus = InvoiceStatus.PARTIAL
+          else newStatus = InvoiceStatus.UNPAID
+
+          await tx.invoice.update({
+            where: { id: existingInvoice.id },
+            data: { status: newStatus }
+          })
+
+          invoiceId = existingInvoice.id
+        } else {
+          // No pre-visit invoice found (edge case) — create fresh
+          const invoice = await tx.invoice.create({
+            data: {
+              patientId, clinicId, branchId: branchId || null,
+              appointmentId: appointmentId || null,
+              amount: totalAmount,
+              status: paidAmount >= totalAmount ? InvoiceStatus.PAID : (paidAmount > 0 ? InvoiceStatus.PARTIAL : InvoiceStatus.UNPAID),
+              notes: description || "Medical Consultation",
+            }
+          })
+          await tx.invoiceItem.create({
+            data: { invoiceId: invoice.id, description: description || "Medical Consultation", quantity: 1, unitPrice: totalAmount }
+          })
+          if (paidAmount > 0) {
+            await createPaymentRecord(tx, { invoiceId: invoice.id, amount: paidAmount, method: paymentMethod, recordedById: userId, clinicId, branchId })
+          }
+          invoiceId = invoice.id
         }
-        invoiceId = existingInvoice.id
-      } else {
-        const invoice = await tx.invoice.create({ data: { patientId, clinicId, branchId: branchId || null, appointmentId: appointmentId || null, amount: totalAmount, status: paidAmount >= totalAmount ? InvoiceStatus.PAID : (paidAmount > 0 ? InvoiceStatus.PARTIAL : InvoiceStatus.UNPAID), notes: description || "Medical Consultation" } })
-        await tx.invoiceItem.create({ data: { invoiceId: invoice.id, description: description || "Medical Consultation", quantity: 1, unitPrice: totalAmount } })
+      }
+      // ── PAY_AFTER_VISIT (or SPLIT without appointment): Create new invoice ──
+      else {
+        const invoice = await tx.invoice.create({
+          data: {
+            patientId, clinicId, branchId: branchId || null,
+            appointmentId: appointmentId || null,
+            amount: totalAmount,
+            status: paidAmount >= totalAmount ? InvoiceStatus.PAID : (paidAmount > 0 ? InvoiceStatus.PARTIAL : InvoiceStatus.UNPAID),
+            notes: description || "Medical Consultation",
+          }
+        })
+        await tx.invoiceItem.create({
+          data: { invoiceId: invoice.id, description: description || "Medical Consultation", quantity: 1, unitPrice: totalAmount }
+        })
         if (paidAmount > 0) {
-           await createPaymentRecord(tx, { invoiceId: invoice.id, amount: paidAmount, method: data.paymentMethod, recordedById: userId, clinicId, branchId })
+          await createPaymentRecord(tx, { invoiceId: invoice.id, amount: paidAmount, method: paymentMethod, recordedById: userId, clinicId, branchId })
         }
         invoiceId = invoice.id
       }
 
+      // ═══ Complete the visit ═══
       await tx.visit.update({ where: { id: visitId }, data: { status: "COMPLETED" } })
-      if (appointmentId) await tx.appointment.update({ where: { id: appointmentId }, data: { status: AppointmentStatus.COMPLETED } })
-      
-      await auditLog({ clinicId, userId, action: "COMPLETE_POST_VISIT_PAYMENT" as any, entityType: "INVOICE", entityId: invoiceId, newValues: { visitId, totalAmount, paidAmount, policy } })
+      if (appointmentId) {
+        await tx.appointment.update({ where: { id: appointmentId }, data: { status: AppointmentStatus.COMPLETED } })
+      }
+
+      await auditLog({
+        clinicId, userId,
+        action: "COMPLETE_POST_VISIT_PAYMENT" as any,
+        entityType: "INVOICE", entityId: invoiceId,
+        newValues: { visitId, totalAmount, paidAmount, policy }
+      })
       return { invoiceId }
     })
 
-    revalidatePath("/waiting-room"); revalidatePath("/invoices"); revalidatePath("/appointments")
+    revalidatePath("/waiting-room")
+    revalidatePath("/invoices")
+    revalidatePath("/appointments")
     return { success: true, ...result }
   } catch (error: any) {
     if (error.name === "AuthorizationError" || error.name === "AuthenticationError") return { success: false, error: error.message }
     return { success: false, error: error.message || "Failed to process post-visit payment." }
   }
 }
-
 // ══════════════════════════════════════════════════════════════
 // MARK NO-SHOW APPOINTMENTS
 // ══════════════════════════════════════════════════════════════

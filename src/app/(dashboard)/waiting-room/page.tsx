@@ -59,11 +59,6 @@ export default async function WaitingRoomPage() {
   if (workflow !== PaymentWorkflow.PAY_BEFORE_VISIT) {
     activeVisitStatuses.push(VisitStatus.BILLING)
   }
-  
-  // Only include BILLING for non-pre-visit payment workflows
-  if (workflow !== PaymentWorkflow.PAY_BEFORE_VISIT) {
-    activeVisitStatuses.push(VisitStatus.BILLING)
-  }
 
   const activeVisits = await prisma.visit.findMany({
     where: {
@@ -202,6 +197,7 @@ export default async function WaitingRoomPage() {
               showBillingAction={visit.showBillingAction}
               billingActionLabel={visit.billingActionLabel}
               paymentInfo={visit.paymentInfo}
+              clinicId={clinicId}
             />
           ))}
         </div>

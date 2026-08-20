@@ -27,6 +27,7 @@ type Props = {
   showBillingAction: boolean
   billingActionLabel: string
   paymentInfo: PaymentStatusInfo | null
+  clinicId: string
 }
 
 function getStatusConfig(
@@ -177,6 +178,7 @@ export function QueueCard({
   showBillingAction,
   billingActionLabel,
   paymentInfo,
+  clinicId,
 }: Props) {
   const router = useRouter()
   const isEmergency = priority === "URGENT"
@@ -321,6 +323,14 @@ export function QueueCard({
         doctorId={doctorId}
         patientName={patientName}
         appointmentId={appointmentId}
+        clinicId={clinicId}
+        existingInvoice={workflow === "SPLIT_PAYMENT" && paymentInfo?.hasInvoice ? {
+          invoiceId: paymentInfo.invoiceId!,
+          totalAmount: paymentInfo.totalAmount,
+          totalPaid: paymentInfo.totalPaid,
+          remaining: paymentInfo.remaining,
+          status: paymentInfo.status,
+        } : undefined}
         open={showPayDialog}
         onOpenChange={setShowPayDialog}
       />

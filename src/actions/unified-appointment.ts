@@ -64,14 +64,55 @@ export async function createUnifiedAppointment(formData: FormData): Promise<Acti
       if (!currentPatientId) throw new Error("Patient ID is missing")
       const appointmentData: any = { patientId: currentPatientId, doctorId, clinicId, dateTime: new Date(dateTime), notes: notes || null, type: appointmentType }
 
-      if (appointmentType === AppointmentType.WALK_IN || isEmergency) {
+      // ═══════════════════════════════════════════════════════════
+      // FIX: Separate EMERGENCY from WALK_IN
+      // EMERGENCY → always creates visit immediately (bypasses payment)
+      // WALK_IN (non-emergency) → respects payment policy
+      // ═══════════════════════════════════════════════════════════
+      if (isEmergency) {
+        // Emergency: create appointment + visit immediately, skip payment
         appointmentData.status = AppointmentStatus.CONFIRMED
         const queueNumber = await generateQueueNumber(clinicId, tx)
-        const priority = isEmergency ? Priority.URGENT : Priority.MEDIUM
         const appointment = await tx.appointment.create({ data: appointmentData })
-        const visit = await tx.visit.create({ data: { clinicId, patientId: currentPatientId, doctorId, appointmentId: appointment.id, visitDate: new Date(), status: VisitStatus.WAITING, queueNumber, priority, checkedInAt: new Date(), notes: notes || null } })
+        const visit = await tx.visit.create({
+          data: {
+            clinicId, patientId: currentPatientId, doctorId,
+            appointmentId: appointment.id, visitDate: new Date(),
+            status: VisitStatus.WAITING, queueNumber,
+            priority: Priority.URGENT, checkedInAt: new Date(),
+            notes: notes || null
+          }
+        })
         return { appointment, visit, patientId: currentPatientId, visitCreated: true }
-      } else {
+      }
+
+      if (appointmentType === AppointmentType.WALK_IN) {
+        // Walk-in non-emergency: check payment policy
+        if (requiresPrePayment) {
+          // PAY_BEFORE or SPLIT: create appointment only, NO visit yet
+          // Frontend will show payment dialog → then completePreVisitCheckIn
+          appointmentData.status = AppointmentStatus.SCHEDULED
+          const appointment = await tx.appointment.create({ data: appointmentData })
+          return { appointment, patientId: currentPatientId, visitCreated: false }
+        }
+        // PAY_AFTER: create appointment + visit immediately
+        appointmentData.status = AppointmentStatus.CONFIRMED
+        const queueNumber = await generateQueueNumber(clinicId, tx)
+        const appointment = await tx.appointment.create({ data: appointmentData })
+        const visit = await tx.visit.create({
+          data: {
+            clinicId, patientId: currentPatientId, doctorId,
+            appointmentId: appointment.id, visitDate: new Date(),
+            status: VisitStatus.WAITING, queueNumber,
+            priority: Priority.MEDIUM, checkedInAt: new Date(),
+            notes: notes || null
+          }
+        })
+        return { appointment, visit, patientId: currentPatientId, visitCreated: true }
+      }
+
+      // SCHEDULED: create appointment only
+      {
         appointmentData.status = AppointmentStatus.SCHEDULED
         const appointment = await tx.appointment.create({ data: appointmentData })
         return { appointment, patientId: currentPatientId, visitCreated: false }
