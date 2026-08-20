@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { verifyPreVisitPayment, type PaymentStatusInfo } from "@/lib/actions/payment-workflow"
 import { completePreVisitCheckIn } from "@/lib/actions/visits"
 import { PreVisitPaymentDialog } from "./pre-visit-payment-dialog"
 import { Button } from "@/components/ui/button"
@@ -42,37 +41,45 @@ export function CheckInButton({
 
   async function handleCheckIn() {
     startTransition(async () => {
-      const verification = await verifyPreVisitPayment(appointmentId)
-
-      if (!verification.allowed) {
-        if (verification.paymentStatus?.hasInvoice && verification.paymentStatus.invoiceId) {
-          setExistingInvoice({
-            invoiceId: verification.paymentStatus.invoiceId,
-            totalAmount: verification.paymentStatus.totalAmount,
-            totalPaid: verification.paymentStatus.totalPaid,
-            remaining: verification.paymentStatus.remaining,
-            status: verification.paymentStatus.status,
-          })
-          setPaymentPolicy(verification.reason?.includes("Initial") ? "SPLIT_PAYMENT" : "PAY_BEFORE_VISIT")
-          setShowPaymentDialog(true)
-        } else {
-          setPaymentPolicy(verification.reason?.includes("Initial") ? "SPLIT_PAYMENT" : "PAY_BEFORE_VISIT")
-          setExistingInvoice(null)
-          setShowPaymentDialog(true)
-        }
-        return
-      }
-
+      // ═══════════════════════════════════════════════════════════
+      // FIX: الـ Backend الآن هو الـ Gatekeeper الوحيد
+      // شيلنا استدعاء verifyPreVisitPayment عشان الـ Backend يقرر
+      // ═══════════════════════════════════════════════════════════
       const result = await completePreVisitCheckIn({
         appointmentId,
         isEmergency,
       })
 
       if (result.success) {
+        // 1. الحالة العادية: دخل غرفة الانتظار بنجاح (Pay After أو Split مدفوع بالكامل)
         toast.success("Patient checked in successfully")
         router.push("/waiting-room")
         router.refresh()
-      } else {
+      } 
+      // ═══════════════════════════════════════════════════════════
+      // 2. حالة الـ SPLIT PAYMENT الجديدة (فيه فلوس لسه متبقية قبل ما يدخل)
+      // ═══════════════════════════════════════════════════════════
+      else if (result.error === "SPLIT_PRE_VISIT_PAYMENT_REQUIRED" && result.splitPaymentData) {
+        setExistingInvoice({
+          invoiceId: result.splitPaymentData.invoiceId,
+          totalAmount: result.splitPaymentData.invoiceTotal,
+          totalPaid: result.splitPaymentData.totalPaid,
+          remaining: result.splitPaymentData.remaining,
+          status: result.splitPaymentData.totalPaid > 0 ? "PARTIALLY_PAID" : "UNPAID",
+        })
+        setPaymentPolicy("SPLIT_PAYMENT")
+        setShowPaymentDialog(true)
+      } 
+      // ═══════════════════════════════════════════════════════════
+      // 3. حالة الـ PAY BEFORE VISIT العادية (لم نلمسها)
+      // ═══════════════════════════════════════════════════════════
+      else if (result.error === "PAYMENT_REQUIRED") {
+        setPaymentPolicy("PAY_BEFORE_VISIT")
+        setExistingInvoice(null)
+        setShowPaymentDialog(true)
+      } 
+      // 4. أي خطأ آخر
+      else {
         toast.error(result.error || "Check-in failed")
       }
     })
@@ -83,6 +90,8 @@ export function CheckInButton({
 
     if (success) {
       startTransition(async () => {
+        // بعد الدفع، نحاول نعمل Check-in تاني
+        // الـ Backend هيلاقي المبلغ وصل كامل (أو المتبقي اتصفّر) وهيخلّي المريض يدخل
         const result = await completePreVisitCheckIn({
           appointmentId,
           isEmergency,
@@ -93,6 +102,7 @@ export function CheckInButton({
           router.push("/waiting-room")
           router.refresh()
         } else if (result.paymentRequired && result.paymentStatus) {
+          // لو كان دفع جزئي في PAY_BEFORE_VISIT وعايز يكمل
           toast.info("Partial payment recorded. More payment required.")
           if (result.paymentStatus.hasInvoice && result.paymentStatus.invoiceId) {
             setExistingInvoice({
@@ -103,6 +113,7 @@ export function CheckInButton({
               status: result.paymentStatus.status,
             })
           }
+          setPaymentPolicy("PAY_BEFORE_VISIT")
           setShowPaymentDialog(true)
           router.refresh()
         } else {

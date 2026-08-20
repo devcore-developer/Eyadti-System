@@ -410,7 +410,15 @@ export async function deleteVisit(visitId: string): Promise<ActionResult> {
 export async function completePreVisitCheckIn(data: {
   appointmentId: string
   isEmergency: boolean
-}): Promise<ActionResult & { visitId?: string }> {
+}): Promise<ActionResult & { 
+  visitId?: string
+  splitPaymentData?: {
+    invoiceId: string
+    invoiceTotal: number
+    totalPaid: number
+    remaining: number
+  } | null
+}> {
   const session = await auth()
   if (!session?.user) return { success: false, error: "Unauthorized" }
   if (!["SUPER_ADMIN", "ADMIN", "RECEPTIONIST"].includes(session.user.role)) {
@@ -443,19 +451,60 @@ export async function completePreVisitCheckIn(data: {
       return { success: false, error: "Visit already exists for this appointment" }
     }
 
-    // ═══ CRITICAL FIX: Re-verify payment before creating Visit ═══
-    const { verifyPreVisitPayment } = await import("@/lib/actions/payment-workflow")
-    const verification = await verifyPreVisitPayment(data.appointmentId)
-    
-    if (!verification.allowed) {
-      return {
-        success: false,
-        error: "PAYMENT_REQUIRED",
-        paymentRequired: true,
-        paymentStatus: verification.paymentStatus,
+    // ═══════════════════════════════════════════════════════════
+    // CRITICAL FIX: Handle SPLIT_PAYMENT Check-in Logic
+    // ═══════════════════════════════════════════════════════════
+    const settings = await prisma.clinicSettings.findUnique({
+      where: { clinicId },
+      select: { paymentWorkflow: true }
+    })
+
+    const workflow = settings?.paymentWorkflow || "PAY_AFTER_VISIT"
+
+    if (workflow === "SPLIT_PAYMENT") {
+      const invoice = await prisma.invoice.findFirst({
+        where: { appointmentId: data.appointmentId },
+        include: { payments: { where: { method: { not: "REFUND" } } } }
+      })
+
+      const invoiceTotal = invoice ? Number(invoice.amount) : 0
+      const totalPaid = invoice?.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0
+      const remaining = Math.max(0, invoiceTotal - totalPaid)
+
+      if (remaining > 0) {
+        // STOP! Do NOT check in yet. Tell frontend to collect the remaining pre-visit amount.
+        return {
+          success: false,
+          error: "SPLIT_PRE_VISIT_PAYMENT_REQUIRED",
+          paymentRequired: true,
+          splitPaymentData: {
+            invoiceId: invoice?.id || "",
+            invoiceTotal,
+            totalPaid,
+            remaining
+          }
+        }
+      }
+      // If remaining is 0, fall through to create the visit normally below.
+    } else {
+      // ═══ CRITICAL FIX: Original Pre-Visit logic for PAY_BEFORE_VISIT ═══
+      // This block is UNTOUCHED for standard and pay-after workflows.
+      const { verifyPreVisitPayment } = await import("@/lib/actions/payment-workflow")
+      const verification = await verifyPreVisitPayment(data.appointmentId)
+      
+      if (!verification.allowed) {
+        return {
+          success: false,
+          error: "PAYMENT_REQUIRED",
+          paymentRequired: true,
+          paymentStatus: verification.paymentStatus,
+        }
       }
     }
     
+    // ═══════════════════════════════════════════════════════════
+    // CREATE VISIT (Unchanged logic below)
+    // ═══════════════════════════════════════════════════════════
     const result = await prisma.$transaction(async (tx) => {
       await tx.appointment.update({
         where: { id: data.appointmentId },
@@ -505,7 +554,6 @@ export async function completePreVisitCheckIn(data: {
     return { success: false, error: error.message || "Failed to complete check-in." }
   }
 }
-
 // ══════════════════════════════════════════════════════════════
 // DATA FETCHING (unchanged)
 // ══════════════════════════════════════════════════════════════
