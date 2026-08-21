@@ -9,6 +9,19 @@ import { Stethoscope, HeartPulse, ClipboardList, CalendarDays, FileText, Trash2,
 import { toast } from "sonner"
 import Link from "next/link"
 
+// ═══ Visit type extraction from notes: "[EXAMINATION] ..." ═══
+function extractVisitType(notes: string | null): string | null {
+  if (!notes) return null
+  const match = notes.match(/^\[([A-Z_]+)\]/)
+  return match ? match[1] : null
+}
+
+const visitTypeLabels: Record<string, string> = {
+  EXAMINATION: "Examination",
+  CONSULTATION: "Consultation",
+  FOLLOW_UP: "Follow-up",
+}
+
 type PrescriptionData = {
   id: string
   items: { id: string; medicationName: string; dosage: string; frequency: string; duration: string; instructions: string | null }[]
@@ -23,7 +36,7 @@ type VisitFull = {
   complaints: { id: string; complaint: string }[]
   diagnoses: { id: string; diagnosis: string }[]
   treatmentPlans: { id: string; treatment: string }[]
-  prescription: PrescriptionData | null  // ← هنا بقى optional
+  prescription: PrescriptionData | null
 }
 
 type Props = {
@@ -49,6 +62,8 @@ export function VisitDetails({ visit, role, userId, patientId }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
+  const visitType = extractVisitType(visit.notes)
+
   const canModify = role === "SUPER_ADMIN" || role === "ADMIN" || (role === "DOCTOR" && visit.doctor.id === userId)
 
   function handleDelete() {
@@ -70,9 +85,14 @@ export function VisitDetails({ visit, role, userId, patientId }: Props) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Medical Visit</h1>
-          <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-1"><CalendarDays className="h-4 w-4" /> {formatDate(visit.visitDate)}</span>
             <span className="flex items-center gap-1"><Stethoscope className="h-4 w-4" /> Dr. {visit.doctor.name}</span>
+            {visitType && (
+              <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-medium">
+                {visitTypeLabels[visitType] || visitType}
+              </span>
+            )}
           </div>
         </div>
         

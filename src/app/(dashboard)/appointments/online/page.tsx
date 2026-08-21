@@ -1,5 +1,3 @@
-// src/app/(dashboard)/appointments/online/page.tsx - استبدل بالكامل
-
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
@@ -7,6 +5,7 @@ import Link from "next/link"
 import { Globe } from "lucide-react"
 import { OnlineBookingsClient } from "./online-bookings-client"
 import { FeatureGate } from "@/components/billing/feature-gate"
+import { getFeatureAccess } from "@/lib/services/feature-gate"
 
 export default async function OnlineBookingsPage() {
   const session = await auth()
@@ -38,8 +37,13 @@ export default async function OnlineBookingsPage() {
     orderBy: { createdAt: "desc" },
   })
 
+  // ═══ FIX: Fetch server-side features and pass to FeatureGate ═══
+  const features = session.user.clinicId
+    ? await getFeatureAccess(session.user.clinicId)
+    : {}
+
   return (
-    <FeatureGate feature="ONLINE_BOOKING">
+    <FeatureGate feature="ONLINE_BOOKING" features={features}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>

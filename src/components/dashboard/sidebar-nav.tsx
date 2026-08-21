@@ -37,19 +37,17 @@ type NavSection = {
   isPlatform?: boolean
 }
 
-const baseNav: NavItem[] = [
+// ═══════════════════════════════════════════════════════════════
+// MAIN NAVIGATION — reordered per spec:
+// Dashboard → New Visit → Patients → Appointments → Waiting Room → Online Booking → Invoices
+// ═══════════════════════════════════════════════════════════════
+const mainNav: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Appointments", href: "/appointments", icon: CalendarDays },
-  { name: "Patients", href: "/patients", icon: Users },
-]
-
-const operationalNav: NavItem[] = [
   { name: "New Visit", href: "/reception/new", icon: UserPlus },
+  { name: "Patients", href: "/patients", icon: Users },
+  { name: "Appointments", href: "/appointments", icon: CalendarDays },
   { name: "Waiting Room", href: "/waiting-room", icon: Monitor },
   { name: "Online Bookings", href: "/appointments/online", icon: Globe, featureKey: "ONLINE_BOOKING" },
-]
-
-const financialNav: NavItem[] = [
   { name: "Invoices", href: "/invoices", icon: Receipt },
 ]
 
@@ -60,9 +58,6 @@ const adminSectionNav: NavItem[] = [
   { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText, featureKey: "AUDIT_LOGS" },
   { name: "Branches", href: "/settings/branches", icon: Building2 },
-  // ═══════════════════════════════════════════════════════════
-  // ✅ FIX: Corrected typo "DOCTOR_ATTEDANCE" → "DOCTOR_ATTENDANCE"
-  // ═══════════════════════════════════════════════════════════
   { name: "Doctor Attendance", href: "/doctor-attendance", icon: Activity, featureKey: "DOCTOR_ATTENDANCE" },
 ]
 
@@ -82,18 +77,13 @@ function getNavForRole(role: string): NavSection[] {
 
   const sections: NavSection[] = []
 
-  const mainItems: NavItem[] = [...baseNav]
+  // ═══ Main navigation — available to all roles ═══
+  // Receptionist sees main nav without feature-gated items filtered by checkFeature
+  // Doctor sees main nav without feature-gated items filtered by checkFeature
+  // Admin sees full main nav
+  sections.push({ items: mainNav })
 
-  if (isReception || isAdmin) {
-    mainItems.push(...operationalNav)
-  }
-
-  if (isAdmin) {
-    mainItems.push(...financialNav)
-  }
-
-  sections.push({ items: mainItems })
-
+  // ═══ Doctor/Receptionist: minimal account section ═══
   if (isDoctor || isReception) {
     sections.push({
       items: [{ name: "Users & Roles", href: "/admin/users", icon: Shield }],
@@ -102,6 +92,7 @@ function getNavForRole(role: string): NavSection[] {
     })
   }
 
+  // ═══ Admin: full administration section ═══
   if (isAdmin) {
     sections.push({
       items: adminSectionNav,
@@ -110,6 +101,7 @@ function getNavForRole(role: string): NavSection[] {
     })
   }
 
+  // ═══ Super Admin: platform section ═══
   if (isSuperAdmin) {
     sections.push({
       items: superAdminSectionNav,

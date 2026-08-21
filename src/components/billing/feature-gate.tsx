@@ -1,5 +1,3 @@
-// src/components/billing/feature-gate.tsx
-
 "use client";
 
 import { ReactNode } from "react";
@@ -12,6 +10,7 @@ interface FeatureGateProps {
   children: ReactNode;
   fallback?: ReactNode;
   compact?: boolean;
+  features?: Record<string, boolean>;
 }
 
 export function FeatureGate({
@@ -19,10 +18,16 @@ export function FeatureGate({
   children,
   fallback,
   compact,
+  features,
 }: FeatureGateProps) {
   const { hasFeatureAccess } = useSubscription();
 
-  if (hasFeatureAccess(feature)) {
+  // ═══ FIX: Use server-provided features if available, fall back to hook ═══
+  const allowed = features
+    ? (features[feature] ?? false)
+    : hasFeatureAccess(feature);
+
+  if (allowed) {
     return <>{children}</>;
   }
 
