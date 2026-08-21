@@ -764,6 +764,8 @@ export async function getAppointmentWithPaymentInfo(appointmentId: string) {
 
 export async function getWaitingRoomWithPaymentContext(clinicId: string) {
   const policy = await getClinicPaymentPolicy(clinicId)
+  
+  // ✅ تم إزالة orderBy من هنا لنقوم بالترتيب الذكي في الأسفل
   const visits = await prisma.visit.findMany({
     where: { clinicId, status: { in: ["WAITING", "WITH_DOCTOR", "PROCEDURE", "BILLING"] } },
     include: {
@@ -771,8 +773,30 @@ export async function getWaitingRoomWithPaymentContext(clinicId: string) {
       doctor: { select: { id: true, name: true } },
       appointment: { select: { id: true, dateTime: true, type: true, status: true } },
     },
-    orderBy: [{ priority: "desc" }, { queueNumber: "asc" }]
   })
+
+  // ═══════════════════════════════════════════════════════════
+  // ✅ FIX: Smart Queue Ordering Logic
+  // 1. Priority (URGENT first)
+  // 2. Scheduled Time (if appointment exists)
+  // 3. Check-in Time (if Walk-in)
+  // ═══════════════════════════════════════════════════════════
+  visits.sort((a, b) => {
+    // 1. Priority Sorting
+    if (a.priority === "URGENT" && b.priority !== "URGENT") return -1;
+    if (a.priority !== "URGENT" && b.priority === "URGENT") return 1;
+
+    // 2. Time Sorting
+    const timeA = a.appointment?.dateTime 
+      ? new Date(a.appointment.dateTime).getTime() 
+      : new Date(a.createdAt).getTime();
+      
+    const timeB = b.appointment?.dateTime 
+      ? new Date(b.appointment.dateTime).getTime() 
+      : new Date(b.createdAt).getTime();
+
+    return timeA - timeB;
+  });
 
   const enrichedVisits = await Promise.all(visits.map(async (visit) => {
     let paymentInfo: PaymentStatusInfo | null = null

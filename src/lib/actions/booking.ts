@@ -6,7 +6,8 @@ import { bookingFormSchema } from "@/lib/validations/booking"
 import { notifyAppointmentCreated, notifyAppointmentCancelled } from "@/lib/notifications/events"
 import { AppointmentStatus, Gender } from "@prisma/client"
 import { requireFeature } from "@/lib/services/feature-gate"
-
+import { requireRole } from "@/lib/permissions"
+import type { ActionResult } from "@/types"
 // ═══════════════════════════════════════════════════════
 // 🔒 EGYPT TIMEZONE ENGINE (Handles UTC+2 / UTC+3 DST)
 // ═══════════════════════════════════════════════════════
@@ -781,5 +782,38 @@ export async function updateBookingNotes(appointmentId: string, notes: string) {
   } catch (error) {
     console.error(error)
     return { success: false, error: "Failed to save notes" }
+  }
+}
+
+export async function getActiveOnlineBookings(): Promise<ActionResult<any[]>> {
+  try {
+    const { clinicId } = await requireRole("SUPER_ADMIN", "ADMIN", "RECEPTIONIST")
+    
+    const bookings = await prisma.booking.findMany({
+      where: { 
+        clinicId,
+        source: "WEBSITE" 
+      },
+      include: {
+        patient: { select: { fullName: true, phone: true, gender: true, dateOfBirth: true, id: true } },
+        doctor: { select: { name: true, image: true, specialty: true } },
+        appointment: { 
+          select: { 
+            dateTime: true, 
+            status: true, 
+            id: true,
+            notes: true,
+            visit: { select: { id: true, status: true, checkedInAt: true } }
+          } 
+        },
+        branch: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    return { success: true, data: bookings }
+  } catch (error: any) {
+    if (error.name === "AuthorizationError" || error.name === "AuthenticationError") return { success: false, error: error.message }
+    return { success: false, error: error.message || "Failed to fetch bookings." }
   }
 }

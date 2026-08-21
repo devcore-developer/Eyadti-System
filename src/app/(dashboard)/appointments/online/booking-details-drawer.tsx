@@ -117,19 +117,19 @@ export function BookingDetailsDrawer({
       return toast.error("No appointment linked to this booking.")
     }
 
-    // ✅ FIX: استخراج المتغيرات هنا لكي يتعرف عليهم TypeScript داخل الـ startTransition
     const appointmentId = booking.appointment.id
 
     startTransition(async () => {
       const result = await completePreVisitCheckIn({
-        appointmentId: appointmentId, // ✅ تم الإصلاح
+        appointmentId: appointmentId,
         isEmergency: false,
       })
 
       if (result.success) {
         toast.success("Patient checked in — moved to Waiting Room")
         onStatusUpdated?.(booking.id, "COMPLETED")
-        setTimeout(() => { onUpdated(); onClose() }, 1000)
+        // ✅ FIX: التوجيه المباشر مثل نظام الـ Walk-in
+        router.push("/waiting-room")
       } 
       else if (result.error === "PAYMENT_REQUIRED" || result.error === "SPLIT_PRE_VISIT_PAYMENT_REQUIRED") {
         setPendingCheckIn({
@@ -142,8 +142,7 @@ export function BookingDetailsDrawer({
       } 
       else if (result.error === "Visit already exists for this appointment") {
         toast.info("Patient is already checked in.")
-        onStatusUpdated?.(booking.id, "COMPLETED")
-        onUpdated(); onClose();
+        router.push("/waiting-room")
       }
       else {
         toast.error(result.error || "Check-in failed")
@@ -151,35 +150,33 @@ export function BookingDetailsDrawer({
     })
   }
 
-  // ✅ ما يحدث بعد إغلاق نافذة الدفع بنجاح
   function handlePaymentComplete(success: boolean) {
     setShowPaymentDialog(false)
     if (success && pendingCheckIn) {
-      // ✅ FIX: استخراج المتغيرات هنا أيضاً
       const targetAppointmentId = pendingCheckIn.appointmentId
       const isSplit = pendingCheckIn.policy === "SPLIT_PAYMENT"
 
       startTransition(async () => {
         if (isSplit) {
           const res = await finalizeWaitingRoomEntry({
-            appointmentId: targetAppointmentId, // ✅ تم الإصلاح
+            appointmentId: targetAppointmentId,
           })
           if (res.success) {
             toast.success("Payment recorded & patient added to queue")
-            onStatusUpdated?.(booking.id, "COMPLETED")
-            setTimeout(() => { onUpdated(); onClose() }, 1000)
+            // ✅ FIX: التوجيه المباشر
+            router.push("/waiting-room")
           } else {
             toast.error(res.error || "Added to queue failed")
           }
         } else {
           const res = await completePreVisitCheckIn({
-            appointmentId: targetAppointmentId, // ✅ تم الإصلاح
+            appointmentId: targetAppointmentId,
             isEmergency: false,
           })
           if (res.success) {
             toast.success("Payment recorded & patient checked in")
-            onStatusUpdated?.(booking.id, "COMPLETED")
-            setTimeout(() => { onUpdated(); onClose() }, 1000)
+            // ✅ FIX: التوجيه المباشر
+            router.push("/waiting-room")
           } else {
             toast.error(res.error || "Check-in failed after payment")
           }
