@@ -1,11 +1,13 @@
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { Globe } from "lucide-react"
 import { OnlineBookingsClient } from "./online-bookings-client"
 import { FeatureGate } from "@/components/billing/feature-gate"
 import { getFeatureAccess } from "@/lib/services/feature-gate"
-import { OnlineBookingUrlCard } from "./online-booking-url-card"
+
+// ✅ الـ imports الصحيحة
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { OnlineBookingUrlCard } from "./online-booking-url-card" 
 
 export const dynamic = "force-dynamic"
 
@@ -26,7 +28,7 @@ export default async function OnlineBookingsPage() {
     redirect("/dashboard")
   }
 
-  const publicBookingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/book/${currentClinic.slug}`
+  const publicBookingUrl = `/book/${currentClinic.slug}`
 
   const bookings = await prisma.booking.findMany({
     where: { 
