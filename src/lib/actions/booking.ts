@@ -7,8 +7,6 @@ import { notifyAppointmentCreated, notifyAppointmentCancelled } from "@/lib/noti
 import { AppointmentStatus, Gender } from "@prisma/client"
 import { requireFeature } from "@/lib/services/feature-gate"
 
-const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID || "c1"
-
 // ═══════════════════════════════════════════════════════
 // 🔒 EGYPT TIMEZONE ENGINE (Handles UTC+2 / UTC+3 DST)
 // ═══════════════════════════════════════════════════════
@@ -52,10 +50,13 @@ function getCairoDayOfWeek(dateStr: string): number {
 
 
 // ── Get Public Clinic Info ───────────────────────────
+// ═══════════════════════════════════════════════════════
+// ✅ FIX #1: استخدم id بدلاً من slug في الـ query
+// ═══════════════════════════════════════════════════════
 export async function getPublicClinicInfo(clinicId: string) {
   const [clinic, settings] = await Promise.all([
     prisma.clinic.findUnique({
-      where: { slug: clinicId },
+      where: { id: clinicId },  // ✅ FIX: استخدام id بدلاً من slug
       select: { id: true, name: true, address: true, phone: true },
     }),
     prisma.clinicSettings.findUnique({
@@ -64,14 +65,16 @@ export async function getPublicClinicInfo(clinicId: string) {
     }),
   ])
 
+  // ✅ FIX: أعد null إذا لم يتم العثور على العيادة
+  if (!clinic) return null
+
   return {
-    id: clinic?.id,
-    name: settings?.clinicName || clinic?.name || "Clinic",
+    id: clinic.id,
+    name: settings?.clinicName || clinic.name || "Clinic",
     logoUrl: settings?.logoUrl || null,
-    address: settings?.address || clinic?.address || null,
-    phone: settings?.phone || clinic?.phone || null,
+    address: settings?.address || clinic.address || null,
+    phone: settings?.phone || clinic.phone || null,
     email: settings?.email || null,
-    // تم إزالة website و specialty لأنهم مش موجودين في الـ Database
     duration: settings?.defaultAppointmentDuration || 30,
   }
 }
@@ -226,31 +229,107 @@ export async function getAvailableTimeSlots(
 }
 
 // ── Create Booking ───────────────────────────────────
+// ═══════════════════════════════════════════════════════
+// ✅ FIX: إعادة كتابة كاملة مع error handling محسّن
+// ═══════════════════════════════════════════════════════
 export async function createBooking(clinicId: string, rawData: unknown) {
+  // ═══════════════════════════════════════════════════════
+  // 🐛 DEBUG LOGGING - احذف بعد التأكد من حل المشكلة
+  // ═══════════════════════════════════════════════════════
+  console.log("=== [BOOKING] createBooking called ===")
+  console.log("[BOOKING] clinicId:", clinicId)
+  console.log("[BOOKING] rawData:", JSON.stringify(rawData, null, 2))
+  
   try {
-    await requireFeature(clinicId, "ONLINE_BOOKING")
+    // ═══════════════════════════════════════════════════════
+    // ✅ FIX #2: تحقق من وجود العيادة أولاً
+    // ═══════════════════════════════════════════════════════
+    const clinicExists = await prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { id: true, name: true },
+    })
+    
+    if (!clinicExists) {
+      console.error("[BOOKING] Clinic not found:", clinicId)
+      return { success: false, error: "Clinic not found. Please refresh the page and try again." }
+    }
+    
+    console.log("[BOOKING] Clinic found:", clinicExists.name)
 
-    const validated = bookingFormSchema.parse(rawData)
+    // ═══════════════════════════════════════════════════════
+    // ✅ FIX #3: تحقق من الـ feature بشكل آمن
+    // ═══════════════════════════════════════════════════════
+    try {
+      await requireFeature(clinicId, "ONLINE_BOOKING")
+      console.log("[BOOKING] Feature check passed")
+    } catch (featureError: any) {
+      console.error("[BOOKING] Feature check failed:", featureError.message)
+      return { 
+        success: false, 
+        error: "Online booking is not available for this clinic. Please contact the clinic directly." 
+      }
+    }
 
-    // ✅ FIX: Prevent bypassing monthly visit limits via online bookings
-    const { enforceUsageLimit } = await import("@/lib/services/usage-limits")
-    await enforceUsageLimit(clinicId, "MONTHLY_VISITS")
+    // ═══════════════════════════════════════════════════════
+    // ✅ FIX #4: تحقق من الـ usage limit بشكل آمن
+    // ═══════════════════════════════════════════════════════
+    try {
+      const { enforceUsageLimit } = await import("@/lib/services/usage-limits")
+      await enforceUsageLimit(clinicId, "MONTHLY_VISITS")
+      console.log("[BOOKING] Usage limit check passed")
+    } catch (usageError: any) {
+      console.error("[BOOKING] Usage limit error:", usageError.message)
+      return { 
+        success: false, 
+        error: "Monthly visit limit has been reached. Please contact the clinic to book an appointment." 
+      }
+    }
 
+    // ═══════════════════════════════════════════════════════
+    // ✅ Validation
+    // ═══════════════════════════════════════════════════════
+    let validated: any
+    try {
+      validated = bookingFormSchema.parse(rawData)
+      console.log("[BOOKING] Validation passed:", JSON.stringify(validated, null, 2))
+    } catch (zodError: any) {
+      console.error("[BOOKING] Validation failed:", zodError.errors)
+      const fieldErrors = zodError.flatten?.()?.fieldErrors
+      const errorMsg = fieldErrors 
+        ? Object.values(fieldErrors).flat().join(", ")
+        : "Please fill in all required fields correctly."
+      return { success: false, error: errorMsg, fieldErrors }
+    }
+
+    // ═══════════════════════════════════════════════════════
     // ✅ SECURE: Verify Doctor belongs to this Clinic
+    // ═══════════════════════════════════════════════════════
     const doctor = await prisma.user.findFirst({
       where: { id: validated.doctorId, clinicId, role: "DOCTOR" }
     })
-    if (!doctor) return { success: false, error: "Invalid doctor selection." }
+    if (!doctor) {
+      console.error("[BOOKING] Doctor not found or doesn't belong to clinic:", validated.doctorId)
+      return { success: false, error: "Selected doctor is not available. Please go back and select a different doctor." }
+    }
+    console.log("[BOOKING] Doctor found:", doctor.name)
 
+    // ═══════════════════════════════════════════════════════
     // ✅ SECURE: Verify Branch belongs to this Clinic (if provided)
+    // ═══════════════════════════════════════════════════════
     if (validated.branchId) {
       const branch = await prisma.branch.findFirst({
         where: { id: validated.branchId, clinicId }
       })
-      if (!branch) return { success: false, error: "Invalid branch selection." }
+      if (!branch) {
+        console.error("[BOOKING] Branch not found or doesn't belong to clinic:", validated.branchId)
+        return { success: false, error: "Selected branch is not available. Please go back and select a different branch." }
+      }
+      console.log("[BOOKING] Branch found:", branch.name)
     }
 
+    // ═══════════════════════════════════════════════════════
     // ✅ CRITICAL FIX: Strict Patient Match to prevent Name Mismatch
+    // ═══════════════════════════════════════════════════════
     let patient = await prisma.patient.findFirst({
       where: { 
         phone: validated.phone, 
@@ -260,22 +339,52 @@ export async function createBooking(clinicId: string, rawData: unknown) {
     })
 
     if (!patient) {
-      patient = await prisma.patient.create({
-        data: {
-          fullName: validated.fullName,
-          phone: validated.phone,
-          email: validated.email || null,
-          gender: validated.gender as Gender,
-          dateOfBirth: validated.dateOfBirth ? new Date(validated.dateOfBirth) : new Date("1990-01-01"),
+      // ✅ FIX: ابحث بالهاتف فقط إذا لم تجد بالاسم والهاتف معاً
+      patient = await prisma.patient.findFirst({
+        where: { 
+          phone: validated.phone, 
           clinicId,
         },
       })
+      
+      if (patient) {
+        // ✅ وجدنا مريض بنفس الرقم لكن اسم مختلف - نحدث الاسم
+        console.log("[BOOKING] Existing patient found by phone, updating name from", patient.fullName, "to", validated.fullName)
+        patient = await prisma.patient.update({
+          where: { id: patient.id },
+          data: { 
+            fullName: validated.fullName,
+            email: validated.email || patient.email || null,
+            gender: validated.gender as Gender,
+          },
+        })
+      } else {
+        // ✅ إنشاء مريض جديد
+        console.log("[BOOKING] Creating new patient:", validated.fullName)
+        patient = await prisma.patient.create({
+          data: {
+            fullName: validated.fullName,
+            phone: validated.phone,
+            email: validated.email || null,
+            gender: validated.gender as Gender,
+            dateOfBirth: validated.dateOfBirth ? new Date(validated.dateOfBirth) : new Date("1990-01-01"),
+            clinicId,
+            branchId: validated.branchId || null,
+          },
+        })
+      }
     }
+    console.log("[BOOKING] Patient:", patient.id, patient.fullName)
 
+    // ═══════════════════════════════════════════════════════
     // ✅ CRITICAL FIX: Create DateTime respecting Egypt Timezone
+    // ═══════════════════════════════════════════════════════
     const dateTime = createDateAsCairoLocal(validated.date, validated.time)
     const settings = await prisma.clinicSettings.findUnique({ where: { clinicId } })
     const duration = settings?.defaultAppointmentDuration || 30
+
+    console.log("[BOOKING] DateTime (UTC):", dateTime.toISOString())
+    console.log("[BOOKING] DateTime (Cairo):", getCairoTimeParts(dateTime))
 
     // Calculate boundaries in Cairo Time for Double Booking Check
     const [y, m, d] = validated.date.split('-').map(Number)
@@ -297,19 +406,33 @@ export async function createBooking(clinicId: string, rawData: unknown) {
       select: { dateTime: true },
     })
 
-    const slotStartMinutes = dateTime.getHours() * 60 + dateTime.getMinutes()
+    // ═══════════════════════════════════════════════════════
+    // ✅ FIX #5: استخدم Cairo Time بشكل متسق في فحص الـ double booking
+    // ═══════════════════════════════════════════════════════
+    const cairoTime = getCairoTimeParts(dateTime)
+    const slotStartMinutes = cairoTime.hours * 60 + cairoTime.minutes  // ✅ Cairo time
     const slotEndMinutes = slotStartMinutes + duration
 
-    // ✅ FIX: Use Cairo Time for overlap checking
+    console.log("[BOOKING] Slot Cairo time:", cairoTime, `minutes: ${slotStartMinutes}-${slotEndMinutes}`)
+
     for (const apt of existingAppointments) {
       const aptTime = getCairoTimeParts(new Date(apt.dateTime))
-      const aptStart = aptTime.hours * 60 + aptTime.minutes
+      const aptStart = aptTime.hours * 60 + aptTime.minutes  // ✅ Cairo time
       const aptEnd = aptStart + duration
+      
+      console.log("[BOOKING] Existing apt Cairo time:", aptTime, `minutes: ${aptStart}-${aptEnd}`)
+      
       if (slotStartMinutes < aptEnd && slotEndMinutes > aptStart) {
-        return { success: false, error: "This slot is already booked. Please choose another." }
+        console.error("[BOOKING] Slot conflict detected!")
+        return { success: false, error: "This time slot is no longer available. Please select a different time." }
       }
     }
 
+    // ═══════════════════════════════════════════════════════
+    // ✅ Create Appointment
+    // ═══════════════════════════════════════════════════════
+    console.log("[BOOKING] Creating appointment...")
+    
     const appointment = await prisma.appointment.create({
       data: {
         patientId: patient.id,
@@ -321,8 +444,14 @@ export async function createBooking(clinicId: string, rawData: unknown) {
         status: AppointmentStatus.SCHEDULED,
       },
     })
+    console.log("[BOOKING] Appointment created:", appointment.id)
 
-    await prisma.booking.create({
+    // ═══════════════════════════════════════════════════════
+    // ✅ Create Booking Record
+    // ═══════════════════════════════════════════════════════
+    console.log("[BOOKING] Creating booking record...")
+    
+    const booking = await prisma.booking.create({
       data: {
         appointmentId: appointment.id,
         patientId: patient.id,
@@ -333,9 +462,16 @@ export async function createBooking(clinicId: string, rawData: unknown) {
         source: "WEBSITE",
       },
     })
+    console.log("[BOOKING] Booking created:", booking.id)
 
-    if (doctor) {
-      const bookingClinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { name: true } })
+    // ═══════════════════════════════════════════════════════
+    // ✅ Send Notification (non-blocking)
+    // ═══════════════════════════════════════════════════════
+    try {
+      const bookingClinic = await prisma.clinic.findUnique({ 
+        where: { id: clinicId }, 
+        select: { name: true } 
+      })
       
       await notifyAppointmentCreated(
         appointment.id,
@@ -347,20 +483,60 @@ export async function createBooking(clinicId: string, rawData: unknown) {
         clinicId,
         doctor.id
       )
+      console.log("[BOOKING] Notification sent")
+    } catch (notifError) {
+      console.error("[BOOKING] Failed to send notification (non-blocking):", notifError)
+      // لا نريد أن نفشل الـ booking بسبب فشل الإشعار
     }
 
+    // ═══════════════════════════════════════════════════════
+    // ✅ Revalidate paths
+    // ═══════════════════════════════════════════════════════
     revalidatePath("/appointments")
     revalidatePath("/appointments/online")
 
+    console.log("[BOOKING] ✅ SUCCESS! Returning appointmentId:", appointment.id)
+
     return { success: true, appointmentId: appointment.id }
-  } catch (error: any) {
-    console.error("Booking error:", error)
     
-    if (error.name === "ZodError") {
-      return { success: false, error: "Validation failed", fieldErrors: error.flatten?.()?.fieldErrors }
+  } catch (error: any) {
+    console.error("=== [BOOKING] UNEXPECTED ERROR ===")
+    console.error("[BOOKING] Error name:", error?.name)
+    console.error("[BOOKING] Error message:", error?.message)
+    console.error("[BOOKING] Error stack:", error?.stack)
+    
+    // ═══════════════════════════════════════════════════════
+    // ✅ FIX #6: Handle specific error types
+    // ═══════════════════════════════════════════════════════
+    if (error?.name === "PrismaClientKnownRequestError") {
+      console.error("[BOOKING] Prisma error code:", error.code)
+      
+      if (error.code === "P2002") {
+        return { 
+          success: false, 
+          error: "A duplicate record was detected. You may have already booked this slot." 
+        }
+      }
+      if (error.code === "P2003") {
+        return { 
+          success: false, 
+          error: "Invalid reference. Please refresh the page and try again." 
+        }
+      }
     }
     
-    return { success: false, error: error.message || "Failed to create booking" }
+    if (error?.name === "PrismaClientValidationError") {
+      return { 
+        success: false, 
+        error: "Invalid data format. Please check your information and try again." 
+      }
+    }
+    
+    // Generic error
+    return { 
+      success: false, 
+      error: "An unexpected error occurred while creating your booking. Please try again or contact the clinic directly." 
+    }
   }
 }
 
@@ -468,7 +644,7 @@ export async function cancelBooking(bookingId: string) {
 export async function getBranches(clinicId: string) {
   return await prisma.branch.findMany({
     where: { clinicId, isActive: true },
-    select: { id: true, name: true, code: true, city: true },
+    select: { id: true, name: true, nameAr: true, nameEn: true, code: true, city: true, address: true },
     orderBy: { name: "asc" }
   })
 }
@@ -493,6 +669,8 @@ export async function getDoctorsByBranch(clinicId: string, branchId: string) {
     select: { 
       id: true, 
       name: true,
+      nameAr: true,
+      nameEn: true,
       allBranchAccess: true,
       image: true,
       specialty: true,
@@ -519,9 +697,9 @@ export async function checkInBooking(bookingId: string) {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
-      patient: true,
-      doctor: true,
-      appointment: { include: { visit: { select: { id: true } } } },
+        patient: true,
+        doctor: true,
+        appointment: { include: { visit: { select: { id: true } } } },
       },
     })
 

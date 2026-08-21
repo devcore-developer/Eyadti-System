@@ -187,30 +187,59 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
   }
 
   const handleSubmit = async (formData: Record<string, string>) => {
+    console.log("[WIZARD] Patient form submitted:", formData)
     setPatientData(formData)
     markCompleted(5)
     setStep(6)
   }
 
+  // ═══════════════════════════════════════════════════════
+  // ✅ FIX: handleFinalConfirm مع error handling محسّن
+  // ═══════════════════════════════════════════════════════
   const handleFinalConfirm = async () => {
     setSubmitting(true)
     setError("")
+    
+    console.log("=== [WIZARD] handleFinalConfirm called ===")
+    console.log("[WIZARD] clinicId:", clinicId)
+    console.log("[WIZARD] patientData:", patientData)
+    console.log("[WIZARD] doctorId:", selectedDoctor?.id)
+    console.log("[WIZARD] branchId:", selectedBranch?.id)
+    console.log("[WIZARD] date:", date)
+    console.log("[WIZARD] time:", time)
+    
     try {
-      const result = await createBooking(clinicId, {
-        ...patientData,
+      const payload = {
+        fullName: patientData.fullName,
+        phone: patientData.phone,
+        email: patientData.email || "",
+        gender: patientData.gender || "MALE",
+        notes: patientData.notes || "",
         doctorId: selectedDoctor?.id,
-        branchId: selectedBranch?.id,
+        branchId: selectedBranch?.id || "",
         date,
         time,
-      })
+      }
+      
+      console.log("[WIZARD] Sending payload:", JSON.stringify(payload, null, 2))
+      
+      const result = await createBooking(clinicId, payload)
+      
+      console.log("[WIZARD] Result:", JSON.stringify(result, null, 2))
+      
       if (result.success && result.appointmentId) {
+        console.log("[WIZARD] ✅ Booking successful! Appointment ID:", result.appointmentId)
         setAppointmentId(result.appointmentId)
         markCompleted(6)
         setStep(7)
       } else {
-        setError(result.error === "This slot is already booked. Please choose another." ? t("err_slot_booked") : result.error || t("err_failed"))
+        console.error("[WIZARD] ❌ Booking failed:", result.error)
+        const errorMsg = result.error || t("err_failed")
+        setError(errorMsg)
+        // ✅ لا تعود لخطوة سابقة - اعرض الخطأ فقط
       }
-    } catch {
+    } catch (err) {
+      console.error("[WIZARD] ❌ Exception in handleFinalConfirm:", err)
       setError(t("err_failed"))
     } finally {
       setSubmitting(false)
@@ -269,11 +298,29 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
               <StepIndicator currentStep={step <= 6 ? step : 6} completedSteps={completedSteps} />
             </div>
 
+            {/* ═══════════════════════════════════════════════════════ */}
+            {/* ✅ FIX: Error Display - دائماً مرئي ولا يختفي */}
+            {/* ═══════════════════════════════════════════════════════ */}
             <AnimatePresence>
               {error && (
-                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="bg-red-50 border border-red-100 text-red-700 text-sm p-4 rounded-2xl mb-6 flex items-center gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center shrink-0"><span className="text-xs">⚠</span></div>
-                  <span className="font-medium">{error}</span>
+                <motion.div 
+                  initial={{ opacity: 0, y: -8 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  exit={{ opacity: 0, y: -8 }} 
+                  className="bg-red-50 border border-red-200 text-red-700 text-sm p-4 rounded-2xl mb-6 flex items-start gap-3"
+                >
+                  <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-xs font-bold">!</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">{error}</p>
+                    <button 
+                      onClick={() => setError("")}
+                      className="text-red-500 hover:text-red-700 text-xs mt-1 underline"
+                    >
+                      {lang === 'ar' ? 'إغلاق' : 'Dismiss'}
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -416,7 +463,12 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
 
                   <div className="mt-8 flex gap-3">
                     <button onClick={handleBack} className="flex-1 py-4 rounded-2xl border-2 border-gray-200 bg-white text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">{t("back")}</button>
-                    <button onClick={handleFinalConfirm} disabled={submitting} className="flex-1 py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:opacity-70" style={{ background: "linear-gradient(135deg, #3B82F6, #06B6D4)" }}>
+                    <button 
+                      onClick={handleFinalConfirm} 
+                      disabled={submitting} 
+                      className="flex-1 py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none" 
+                      style={{ background: "linear-gradient(135deg, #3B82F6, #06B6D4)" }}
+                    >
                       {submitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
