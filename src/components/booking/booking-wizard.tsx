@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   getAvailableTimeSlots,
@@ -94,6 +94,13 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
   const [slots, setSlots] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  
+  // ═══════════════════════════════════════════════════════
+  // ✅ FIX: إضافة isSubmitting مع cooldown لمنع الضغط المزدوج
+  // ═══════════════════════════════════════════════════════
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const submitTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
   const [appointmentId, setAppointmentId] = useState("")
   const [error, setError] = useState("")
   const [firstManualStep, setFirstManualStep] = useState(1)
@@ -194,15 +201,21 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
   }
 
   // ═══════════════════════════════════════════════════════
-  // ✅ FIX: handleFinalConfirm مع error handling محسّن
+  // ✅ FIX: handleFinalConfirm مع حماية قوية من الضغط المزدوج
   // ═══════════════════════════════════════════════════════
   const handleFinalConfirm = async () => {
+    // ✅ حماية قوية: إذا كان قيد الإرسال، لا تفعل شيء
+    if (isSubmitting) {
+      console.log("[WIZARD] ⚠️ Blocking duplicate submission")
+      return
+    }
+    
+    setIsSubmitting(true)
     setSubmitting(true)
     setError("")
     
     console.log("=== [WIZARD] handleFinalConfirm called ===")
     console.log("[WIZARD] clinicId:", clinicId)
-    console.log("[WIZARD] patientData:", patientData)
     console.log("[WIZARD] doctorId:", selectedDoctor?.id)
     console.log("[WIZARD] branchId:", selectedBranch?.id)
     console.log("[WIZARD] date:", date)
@@ -234,15 +247,21 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
         setStep(7)
       } else {
         console.error("[WIZARD] ❌ Booking failed:", result.error)
-        const errorMsg = result.error || t("err_failed")
-        setError(errorMsg)
-        // ✅ لا تعود لخطوة سابقة - اعرض الخطأ فقط
+        setError(result.error || t("err_failed"))
       }
     } catch (err) {
       console.error("[WIZARD] ❌ Exception in handleFinalConfirm:", err)
       setError(t("err_failed"))
     } finally {
       setSubmitting(false)
+      // ✅ لا نعيد setIsSubmitting(false) فوراً - ننتظر 3 ثوانٍ لمنع الضغط السريع
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current)
+      }
+      submitTimeoutRef.current = setTimeout(() => {
+        setIsSubmitting(false)
+        submitTimeoutRef.current = null
+      }, 3000)
     }
   }
 
@@ -275,6 +294,9 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
   const paymentInfo = getPaymentMessage()
   const PaymentIcon = paymentInfo.icon
 
+  // ✅ حالة الدمج لمنع الضغط المزدوج
+  const isDisabled = submitting || isSubmitting
+
   return (
     <div dir={isRTL ? "rtl" : "ltr"} className="max-w-[1500px] mx-auto px-5 lg:px-10 py-8 lg:py-10 overflow-x-hidden font-[var(--font-cairo)]">
       {/* Language Switcher */}
@@ -298,9 +320,7 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
               <StepIndicator currentStep={step <= 6 ? step : 6} completedSteps={completedSteps} />
             </div>
 
-            {/* ═══════════════════════════════════════════════════════ */}
-            {/* ✅ FIX: Error Display - دائماً مرئي ولا يختفي */}
-            {/* ═══════════════════════════════════════════════════════ */}
+            {/* Error Display */}
             <AnimatePresence>
               {error && (
                 <motion.div 
@@ -462,14 +482,14 @@ export function BookingWizard({ clinic, clinicId, slug, workflow = "PAY_AFTER_VI
                   </div>
 
                   <div className="mt-8 flex gap-3">
-                    <button onClick={handleBack} className="flex-1 py-4 rounded-2xl border-2 border-gray-200 bg-white text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">{t("back")}</button>
+                    <button onClick={handleBack} disabled={isDisabled} className="flex-1 py-4 rounded-2xl border-2 border-gray-200 bg-white text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">{t("back")}</button>
                     <button 
                       onClick={handleFinalConfirm} 
-                      disabled={submitting} 
-                      className="flex-1 py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none" 
-                      style={{ background: "linear-gradient(135deg, #3B82F6, #06B6D4)" }}
+                      disabled={isDisabled}
+                      className="flex-1 py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:cursor-not-allowed" 
+                      style={{ background: isDisabled ? "#94a3b8" : "linear-gradient(135deg, #3B82F6, #06B6D4)" }}
                     >
-                      {submitting ? (
+                      {isDisabled ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           {t("confirming")}
