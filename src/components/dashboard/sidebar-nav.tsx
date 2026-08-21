@@ -54,7 +54,7 @@ const mainNav: NavItem[] = [
 const adminSectionNav: NavItem[] = [
   { name: "Users & Roles", href: "/admin/users", icon: Shield },
   { name: "Clinic Settings", href: "/settings/clinics", icon: Settings },
-  { name: "Public Booking", href: "/book", icon: Globe, featureKey: "ONLINE_BOOKING" },
+  { name: "Public Booking", href: "/appointments/online", icon: Globe, featureKey: "ONLINE_BOOKING" },
   { name: "Billing & Plan", href: "/settings/billing", icon: CreditCard },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText, featureKey: "AUDIT_LOGS" },
   { name: "Branches", href: "/settings/branches", icon: Building2 },
