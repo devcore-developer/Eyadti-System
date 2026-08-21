@@ -363,12 +363,12 @@ export async function finalizeWaitingRoomEntry(data: {
           patientId: appointment.patientId,
           doctorId: appointment.doctorId,
           appointmentId: appointment.id,
-          visitDate: new Date(),
+          visitDate: appointment.dateTime || new Date(), // ✅ FIX: الحفاظ على وقت الحجز الأصلي
           notes: appointment.notes,
           status: "WAITING",
           queueNumber,
           priority: data.isEmergency ? "URGENT" : "MEDIUM",
-          checkedInAt: new Date(),
+          checkedInAt: new Date(), // وقت تسجيل الوصول الفعلي يبقى منفصلاً
         }
       })
 
@@ -765,7 +765,6 @@ export async function getAppointmentWithPaymentInfo(appointmentId: string) {
 export async function getWaitingRoomWithPaymentContext(clinicId: string) {
   const policy = await getClinicPaymentPolicy(clinicId)
   
-  // ✅ تم إزالة orderBy من هنا لنقوم بالترتيب الذكي في الأسفل
   const visits = await prisma.visit.findMany({
     where: { clinicId, status: { in: ["WAITING", "WITH_DOCTOR", "PROCEDURE", "BILLING"] } },
     include: {
@@ -776,17 +775,19 @@ export async function getWaitingRoomWithPaymentContext(clinicId: string) {
   })
 
   // ═══════════════════════════════════════════════════════════
-  // ✅ FIX: Smart Queue Ordering Logic
+  // ✅ FIX: Smart Deterministic Queue Ordering
   // 1. Priority (URGENT first)
   // 2. Scheduled Time (if appointment exists)
   // 3. Check-in Time (if Walk-in)
   // ═══════════════════════════════════════════════════════════
   visits.sort((a, b) => {
     // 1. Priority Sorting
-    if (a.priority === "URGENT" && b.priority !== "URGENT") return -1;
-    if (a.priority !== "URGENT" && b.priority === "URGENT") return 1;
+    const priorityOrder: Record<string, number> = { URGENT: 0, MEDIUM: 1, LOW: 2 };
+    const pA = priorityOrder[a.priority] ?? 1;
+    const pB = priorityOrder[b.priority] ?? 1;
+    if (pA !== pB) return pA - pB;
 
-    // 2. Time Sorting
+    // 2. Time Sorting (استخدام وقت الموعد الأصلي، أو وقت التسجيل للـ Walk-in)
     const timeA = a.appointment?.dateTime 
       ? new Date(a.appointment.dateTime).getTime() 
       : new Date(a.createdAt).getTime();
@@ -795,7 +796,7 @@ export async function getWaitingRoomWithPaymentContext(clinicId: string) {
       ? new Date(b.appointment.dateTime).getTime() 
       : new Date(b.createdAt).getTime();
 
-    return timeA - timeB;
+    return timeA - timeB; // تصاعدي: الأقرب وقتاً أولاً
   });
 
   const enrichedVisits = await Promise.all(visits.map(async (visit) => {

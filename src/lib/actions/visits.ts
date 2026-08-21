@@ -204,6 +204,26 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
         currentPatientId = newPatient.id
       }
 
+      // ══════════════════════════════════════════════════════════════
+      // ✅ FIX: تحضير الوقت + منع حجز موعد محجوز مسبقاً
+      // ══════════════════════════════════════════════════════════════
+      const appointmentDateTime = new Date(parsed.data.visitDate)
+      const endTime = new Date(appointmentDateTime.getTime() + 60 * 60 * 1000) // 1-hour window
+      
+      const conflictingAppointment = await tx.appointment.findFirst({
+        where: {
+          clinicId,
+          doctorId: parsed.data.doctorId,
+          status: { notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW] },
+          dateTime: { gte: appointmentDateTime, lt: endTime }
+        },
+        select: { id: true },
+      })
+
+      if (conflictingAppointment) {
+        throw new Error("This time slot is already booked for this doctor.")
+      }
+
       // ══════════════════════════════════════════════════
       // FIX: Always create an Appointment
       // ══════════════════════════════════════════════════
@@ -214,8 +234,6 @@ export async function createPatientVisit(formData: FormData): Promise<ActionResu
       const appointmentNotes = parsed.data.visitType
         ? `[${parsed.data.visitType}] ${parsed.data.notes || ''}`.trim()
         : parsed.data.notes || null
-
-      const appointmentDateTime = new Date(parsed.data.visitDate)
 
       const appointment = await tx.appointment.create({
         data: {
