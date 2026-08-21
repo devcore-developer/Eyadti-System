@@ -77,7 +77,10 @@ export default async function OnlineBookingsPage() {
             <p className="text-sm text-gray-400 mt-1 mb-6">Share your booking page link with patients.</p>
           </div>
         ) : (
-          <OnlineBookingsClient bookings={bookings} />
+          <OnlineBookingsClient 
+            bookings={bookings} 
+            clinicId={session.user.clinicId} // ← أضف هذا السطر
+          />
         )}
       </div>
     </FeatureGate>

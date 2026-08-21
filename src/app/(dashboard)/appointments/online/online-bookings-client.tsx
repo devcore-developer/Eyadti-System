@@ -40,12 +40,22 @@ function getBadgeLabel(b: Booking): string {
   return b.status.charAt(0) + b.status.slice(1).toLowerCase()
 }
 
-export function OnlineBookingsClient({ bookings: initialBookings }: { bookings: Booking[] }) {
+// ✅ إضافة clinicId للـ Props
+export function OnlineBookingsClient({ bookings: initialBookings, clinicId }: { bookings: Booking[]; clinicId: string }) {
   const router = useRouter()
   const [bookings, setBookings] = useState(initialBookings)
   const [selected, setSelected] = useState<Booking | null>(null)
 
   function refresh() { router.refresh() }
+
+  // ✅ دالة التحديث الفوري للـ State بدون Page Refresh
+  function handleStatusUpdate(bookingId: string, newStatus: string) {
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b))
+    // إخفاء الـ Booking إذا تم Check-in (لأنه انتقل لغرفة الانتظار)
+    if (newStatus === "COMPLETED") {
+      setBookings(prev => prev.filter(b => b.id !== bookingId))
+    }
+  }
 
   if (bookings.length === 0) return null
 
@@ -54,11 +64,8 @@ export function OnlineBookingsClient({ bookings: initialBookings }: { bookings: 
   return (
     <>
       <div className="space-y-4">
-        {/* Summary Bar */}
         <div className="flex items-center gap-4 flex-wrap">
-          <span className="text-sm text-slate-500">
-            Total: <span className="font-bold text-slate-900">{bookings.length}</span>
-          </span>
+          <span className="text-sm text-slate-500">Total: <span className="font-bold text-slate-900">{bookings.length}</span></span>
           {pendingCount > 0 && (
             <span className="inline-flex items-center gap-1.5 text-sm text-amber-600">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -70,7 +77,6 @@ export function OnlineBookingsClient({ bookings: initialBookings }: { bookings: 
           </button>
         </div>
 
-        {/* Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {bookings.map((b) => {
             const bk = getBadgeKey(b)
@@ -78,12 +84,7 @@ export function OnlineBookingsClient({ bookings: initialBookings }: { bookings: 
             const label = getBadgeLabel(b)
 
             return (
-              <button
-                key={b.id}
-                onClick={() => setSelected(b)}
-                className="text-left p-5 rounded-[20px] bg-white border border-gray-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-0.5 transition-all duration-200 group"
-              >
-                {/* Top: Status + Time */}
+              <button key={b.id} onClick={() => setSelected(b)} className="text-left p-5 rounded-[20px] bg-white border border-gray-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-0.5 transition-all duration-200 group">
                 <div className="flex items-center justify-between mb-4">
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${badge.bg} ${badge.text} ${badge.border}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${badge.dot} ${bk === "PENDING" ? "animate-pulse" : ""}`} />
@@ -95,18 +96,10 @@ export function OnlineBookingsClient({ bookings: initialBookings }: { bookings: 
                     </span>
                   )}
                 </div>
-
-                {/* Patient */}
                 <p className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{b.patient.fullName}</p>
-                <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                  <Phone className="w-3 h-3" /> {b.patient.phone}
-                </p>
-
-                {/* Doctor + Date */}
+                <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> {b.patient.phone}</p>
                 <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50">
-                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                    <User className="w-3 h-3" /> Dr. {b.doctor.name}
-                  </span>
+                  <span className="text-xs text-slate-500 flex items-center gap-1"><User className="w-3 h-3" /> Dr. {b.doctor.name}</span>
                   {b.appointment?.dateTime && (
                     <span className="text-xs text-slate-400 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
@@ -114,23 +107,20 @@ export function OnlineBookingsClient({ bookings: initialBookings }: { bookings: 
                     </span>
                   )}
                 </div>
-
-                {/* Branch */}
-                {b.branch && (
-                  <p className="text-[11px] text-slate-400 mt-2">{b.branch.name}</p>
-                )}
+                {b.branch && <p className="text-[11px] text-slate-400 mt-2">{b.branch.name}</p>}
               </button>
             )
           })}
         </div>
       </div>
 
-      {/* Drawer */}
       {selected && (
         <BookingDetailsDrawer
           booking={selected}
+          clinicId={clinicId} // ← تمرير الـ clinicId
           onClose={() => setSelected(null)}
           onUpdated={refresh}
+          onStatusUpdated={handleStatusUpdate} // ← تمرير دالة التحديث الفوري
         />
       )}
     </>
