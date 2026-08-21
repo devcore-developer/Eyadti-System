@@ -492,8 +492,8 @@ export async function createBooking(clinicId: string, rawData: unknown) {
     // ═══════════════════════════════════════════════════════
     // ✅ Revalidate paths
     // ═══════════════════════════════════════════════════════
-    revalidatePath("/appointments")
-    revalidatePath("/appointments/online")
+// ✅ FIX: لا نعمل revalidatePath من هنا عشان مش يعمل refresh لصفحة الـ booking
+// الـ bookings هتظهر لما المستخدم يزور صفحة Online Bookings
 
     console.log("[BOOKING] ✅ SUCCESS! Returning appointmentId:", appointment.id)
 

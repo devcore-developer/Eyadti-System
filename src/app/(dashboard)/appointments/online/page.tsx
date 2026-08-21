@@ -6,7 +6,7 @@ import { Globe } from "lucide-react"
 import { OnlineBookingsClient } from "./online-bookings-client"
 import { FeatureGate } from "@/components/billing/feature-gate"
 import { getFeatureAccess } from "@/lib/services/feature-gate"
-
+export const dynamic = "force-dynamic"
 export default async function OnlineBookingsPage() {
   const session = await auth()
   if (!session?.user) redirect("/login")
