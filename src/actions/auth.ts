@@ -16,6 +16,38 @@ import type { ActionResult } from "@/types";
 const DEFAULT_TRIAL_DAYS = 7;
 
 
+// ─── Login Action ────────────────────────────────────────────────────────────
+// أضف هذا الكود بعد الـ imports مباشرة وقبل الـ DEFAULT_TRIAL_DAYS
+
+export async function loginAction(email: string, password: string): Promise<ActionResult> {
+  try {
+    await signIn("credentials", {
+      email,
+      password,
+      redirectTo: "/dashboard",
+    });
+    // ✅ لو وصلنا هنا، يعني حدث مشكلة (signIn عادةً ما يعمل redirect وما يرجعش)
+    return { success: true };
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return { success: false, error: "Incorrect email or password. Please try again." };
+        case "CallbackRouteError":
+          const cause = error.cause as { err?: Error };
+          return { 
+            success: false, 
+            error: cause?.err?.message || "Authentication failed. Please try again." 
+          };
+        default:
+          return { success: false, error: "Something went wrong. Please try again." };
+      }
+    }
+    // ✅ إعادة رمي الـ error لو مش AuthError (مثل NEXT_REDIRECT اللي Next.js بيستقبله)
+    throw error;
+  }
+}
+
 // ─── Signup Action ──────────────────────────────────────────────────────────
 
 export async function signupAction(values: SignupInput): Promise<ActionResult> {
