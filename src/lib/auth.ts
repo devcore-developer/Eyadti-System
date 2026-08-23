@@ -22,46 +22,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log("🔐 AUTH DEBUG: Missing email or password", {
-            hasEmail: !!credentials?.email,
-            hasPassword: !!credentials?.password,
-          });
           throw new Error("Email and password are required.");
         }
 
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        console.log("🔐 AUTH DEBUG: Looking for user", {
-          email,
-          emailLength: email.length,
-          passwordLength: password.length,
-          passwordChars: [...password].map(c => c.charCodeAt(0)),
-        });
-
         const user = await prisma.user.findFirst({
           where: { email: { equals: email, mode: "insensitive" } },
         });
 
-        if (!user) {
-          console.log("🔐 AUTH DEBUG: User NOT FOUND for email:", email);
+        if (!user || !user.password) {
           throw new Error("Incorrect email or password.");
         }
-
-        if (!user.password) {
-          console.log("🔐 AUTH DEBUG: User found but password is NULL", { userId: user.id });
-          throw new Error("Incorrect email or password.");
-        }
-
-        console.log("🔐 AUTH DEBUG: User found, comparing password", {
-          userId: user.id,
-          hasHashedPassword: !!user.password,
-          hashedPasswordLength: user.password.length,
-        });
 
         const isValidPassword = await comparePassword(password, user.password);
-
-        console.log("🔐 AUTH DEBUG: Password comparison result", { isValid: isValidPassword });
 
         if (!isValidPassword) {
           throw new Error("Incorrect email or password.");
@@ -74,8 +49,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (user.status === "INACTIVE") {
           throw new Error("This account is not active yet.");
         }
-
-        console.log("🔐 AUTH DEBUG: Login successful", { userId: user.id, role: user.role });
 
         return {
           id: user.id,
