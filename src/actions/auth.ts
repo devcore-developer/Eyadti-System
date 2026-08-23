@@ -124,12 +124,12 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
           slug: `clinic-${newClinicId.substring(0, 8)}`,
         },
       });
-
+      const normalizedEmail = email.toLowerCase().trim();
       const user = await tx.user.create({
         data: {
           id: newUserId,
           name,
-          email,
+          email: normalizedEmail,
           password: hashedPassword,
           role: "ADMIN",
           clinicId: clinic.id,
