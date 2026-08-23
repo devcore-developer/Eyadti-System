@@ -8,16 +8,13 @@ import type { SignupInput } from "@/lib/validations/auth";
 import { Prisma } from "@prisma/client";
 import { AuthError } from "next-auth";
 import { randomUUID } from "crypto";
-import { auditLog } from "@/lib/services/audit"; // تأكد إن المسار ده صحيح أو Non-used احذفه لو موجود في الأصل كده
+import { auditLog } from "@/lib/services/audit";
 import { headers } from "next/headers";
 import type { ActionResult } from "@/types";
 
-// ⬇️⬇️⬇️ تغيير مدة الـ Trial الافتراضية لـ 7 أيام ⬇️⬇⬇️
 const DEFAULT_TRIAL_DAYS = 7;
 
-
 // ─── Login Action ────────────────────────────────────────────────────────────
-// أضف هذا الكود بعد الـ imports مباشرة وقبل الـ DEFAULT_TRIAL_DAYS
 
 export async function loginAction(email: string, password: string): Promise<ActionResult> {
   try {
@@ -26,24 +23,23 @@ export async function loginAction(email: string, password: string): Promise<Acti
       password,
       redirectTo: "/dashboard",
     });
-    // ✅ لو وصلنا هنا، يعني حدث مشكلة (signIn عادةً ما يعمل redirect وما يرجعش)
     return { success: true };
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":
           return { success: false, error: "Incorrect email or password. Please try again." };
-        case "CallbackRouteError":
+        case "CallbackRouteError": {
           const cause = error.cause as { err?: Error };
-          return { 
-            success: false, 
-            error: cause?.err?.message || "Authentication failed. Please try again." 
+          return {
+            success: false,
+            error: cause?.err?.message || "Authentication failed. Please try again.",
           };
+        }
         default:
           return { success: false, error: "Something went wrong. Please try again." };
       }
     }
-    // ✅ إعادة رمي الـ error لو مش AuthError (مثل NEXT_REDIRECT اللي Next.js بيستقبله)
     throw error;
   }
 }
@@ -158,7 +154,6 @@ export async function signupAction(values: SignupInput): Promise<ActionResult> {
         },
       });
 
-      // ⬇️⬇️⬇️ تعديل حساب الأيام ليكون 7 أيام ثابتة للـ Trial ⬇️⬇️⬇️
       const isTrial = codeRecord.type === "SIGNUP";
       const status = isTrial ? "TRIAL" : "ACTIVE";
       const startDate = new Date();
